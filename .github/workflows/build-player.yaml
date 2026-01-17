@@ -206,7 +206,11 @@ jobs:
           AMLL_GITHUB_IS_ACTION: true
 
       - name: 生成开发构建版本号
+        shell: bash
         run: |
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            export PATH="/usr/bin:$PATH"
+          fi
           node ./packages/player/scripts/gen-dev-version.mjs
 
       - name: 构建 AMLL Player 程序并发布自动构建
