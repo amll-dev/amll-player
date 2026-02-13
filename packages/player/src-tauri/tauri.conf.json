@@ -33,7 +33,7 @@
 	"identifier": "net.stevexmh.amllplayer",
 	"plugins": {
 		"updater": {
-			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ5OUUwNTMxMkQyQUE5ODQKUldTRXFTb3RNUVdlMllRT2dQRGpMSG01TVN6Q0hDc29Vanl3TDdHL045NUR2L0lKcGlYN2NISkoK",
+			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVBMzY2M0I2Qjc4MjBBNTUKUldSVkNvSzN0bU0yV2k0bUhxcm9jczBNYk9lTllYaTFyWHVEZ2xaSloxaVhpSnQ1RHZFSUtnS2IK",
 			"endpoints": [
 				"https://github.com/Steve-xmh/applemusic-like-lyrics/releases/download/full-refractor-player-dev/latest.json"
 			]
