@@ -9,6 +9,7 @@ import Stats from "stats.js";
 import { MeshGradientRenderer } from "./bg-render";
 
 const debugValues = {
+	image: new URL(location.href).searchParams.get("image") || "",
 	controlPointSize: 4,
 	subdivideDepth: 15,
 	wireFrame: false,
@@ -16,8 +17,8 @@ const debugValues = {
 
 const canvas = document.getElementById("bg")! as HTMLCanvasElement;
 const mgRenderer = new MeshGradientRenderer(canvas);
-// mgRenderer.setAlbum("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAADUExURf///6fEG8gAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAKSURBVBjTY2AAAAACAAGYY2zXAAAAAElFTkSuQmCC");
 mgRenderer.setManualControl(true);
+mgRenderer.setRenderScale(1);
 mgRenderer.setFPS(Number.POSITIVE_INFINITY);
 
 function updateControlPointDraggers() {
@@ -358,14 +359,24 @@ function subdivide() {
 	mgRenderer.resetSubdivition(debugValues.subdivideDepth);
 }
 
-mgRenderer.setAlbum("109951172299186302.jpg").then(() => {
-	resizeControlPoint();
-	subdivide();
-});
+function reloadImage() {
+	mgRenderer.setAlbum(debugValues.image)
+		.catch(() => mgRenderer.setAlbum("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAADUExURf///6fEG8gAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAKSURBVBjTY2AAAAACAAGYY2zXAAAAAElFTkSuQmCC"))
+		.finally(() => {
+			resizeControlPoint();
+			updateControlPointDraggers();
+			subdivide();
+		});
+}
+
+reloadImage();
 
 const gui = new GUI();
 gui.close();
 gui.title("MG Renderer 调试页面");
+gui.add(debugValues, "image")
+	.name("图片 URL")
+	.onFinishChange(reloadImage);
 gui
 	.add(debugValues, "controlPointSize", 3, 10, 1)
 	.name("控制点矩阵大小")
