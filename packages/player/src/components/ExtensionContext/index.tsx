@@ -1,9 +1,5 @@
 import * as lyric from "@applemusic-like-lyrics/lyric";
 import * as amllStates from "@applemusic-like-lyrics/react-full";
-import * as appAtoms from "../../states/appAtoms";
-import * as smtcAtoms from "../../states/smtcAtoms";
-import * as extensionsAtoms from "../../states/extensionsAtoms";
-
 import * as http from "@tauri-apps/plugin-http";
 import chalk from "chalk";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
@@ -12,13 +8,15 @@ import type * as JSXRuntime from "react/jsx-runtime";
 import { useTranslation } from "react-i18next";
 import { uid } from "uid";
 import { db } from "../../dexie.ts";
-import { PlayerExtensionContext, sourceMapOffsetLines } from "./ext-ctx.ts";
+import * as appAtoms from "../../states/appAtoms";
 import { extensionMetaAtom } from "../../states/extension.ts";
-import { ExtensionLoadResult } from "../../states/extensionsAtoms.ts";
+import * as extensionsAtoms from "../../states/extensionsAtoms";
 import type {
 	ExtensionMetaState,
 	LoadedExtension,
 } from "../../states/extensionsAtoms.ts";
+import { ExtensionLoadResult } from "../../states/extensionsAtoms.ts";
+import { PlayerExtensionContext, sourceMapOffsetLines } from "./ext-ctx.ts";
 
 const AsyncFunction: FunctionConstructor = Object.getPrototypeOf(
 	async () => {},
@@ -78,7 +76,6 @@ const SingleExtensionContext: FC<{
 
 		const playerStatesObject = Object.freeze({
 			...appAtoms,
-			...smtcAtoms,
 			...extensionsAtoms,
 		});
 

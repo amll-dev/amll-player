@@ -7,11 +7,15 @@
 			"toggleFullscreen": "Enter / Exit full screen",
 			"toggleLyrics": "Lyrics",
 			"editMusicOverrideMessage": "Edit Track Override Data",
-			"exitLyricPage": "Exit Lyrics Page"
+			"openRecorder": "打开捕获面板",
+			"openScreenshotTool": "打开截图工具",
+			"exitLyricPage": "Exit Lyrics Page",
+			"play": "播放"
 		},
 		"audioQuality": {
 			"title": "Audio Quality Details",
 			"codec": "Audio codec",
+			"channels": "音频通道数量",
 			"sampleRate": "Sample rate",
 			"sampleFormat": "Sample format"
 		},
@@ -20,7 +24,6 @@
 			"hires": "Hi-Res Lossless"
 		},
 		"openMenuViaRightClick": "Please right-click anywhere to open menu",
-		"buttonForDisplayOnly": "This function is currently for display only, no actual feature included.",
 		"loadAudioError": "The player backend encountered an error when loading the audio file:\n{error}",
 		"ttmlImportDialog": {
 			"openButtonLabel": "Search / Import lyrics from AMLL TTML DB",
@@ -46,7 +49,8 @@
 		},
 		"page": {
 			"back": "Back"
-		}
+		},
+		"settings": "设置"
 	},
 	"extension": {
 		"inject": {
@@ -66,6 +70,7 @@
 		"buttonLabel": "New Playlist",
 		"dialog": {
 			"title": "New Playlist",
+			"name": "歌单名称",
 			"namePlaceholder": "Playlist Title"
 		}
 	},
@@ -81,6 +86,8 @@
 				"createTime": "Created at {createTime}"
 			},
 			"playlistMenu": {
+				"play": "播放此列表",
+				"playShuffled": "以乱序播放此列表",
 				"delete": "Delete"
 			},
 			"updateAvailableTag": "Update available",
@@ -144,7 +151,9 @@
 			"placeholder": "Search for a song, artist, album, lyrics, playlists, or more",
 			"searchSongResultAmount": "Found {amount} songs",
 			"noSongResult": "No songs found!",
-			"noPlaylistResult": "No playlists found!"
+			"searchingPlaylist": "搜索播放列表中",
+			"noPlaylistResult": "No playlists found!",
+			"searchPlaylistResultAmount": "搜索到 {amount} 个播放列表"
 		},
 		"settings": {
 			"others": {
@@ -156,34 +165,78 @@
 				},
 				"enterAmllDevPage": "Development tools"
 			},
-			"lyricFont": {
-				"fontPreview": {
-					"defaultText": "Font Preview",
-					"label": "Font Preview"
-				},
-				"subtitle": "Lyrics Font Settings",
-				"tip": "This option only affect LYRIC's font but other parts.",
-				"fontFamily": {
-					"label": "Font Family",
-					"description": "Font name separated by comma, equals to font-family property in CSS. Leave blank to use default settings."
-				},
-				"fontWeight": {
-					"label": "Font Weight",
-					"description": "Equals to the font-weight property in CSS, set to 0 to be controlled by system. 600 is recommended"
-				},
-				"letterSpacing": {
-					"label": "Letter Spacing",
-					"description": "Equals to the letter-spacing in CSS, leave blank to use the default value."
-				}
-			},
 			"general": {
+				"subtitle": "General",
 				"displayLanguage": {
 					"cimode": "Localization ID",
 					"label": "Display Language"
 				},
-				"subtitle": "General"
+				"theme": {
+					"auto": "自动",
+					"light": "浅色",
+					"dark": "深色",
+					"label": "界面主题",
+					"description": "选择应用的外观主题"
+				}
+			},
+			"lyricContent": {
+				"subtitle": "Lyrics",
+				"enableLyricTranslationLine": "Show Translation",
+				"enableLyricRomanLine": {
+					"label": "Show Romanized Translation"
+				},
+				"enableLyricSwapTransRomanLine": {
+					"label": "Swap Translation and Romanized Translation",
+					"description": "Only valid when the above two are enabled."
+				}
+			},
+			"lyricAppearance": {
+				"subtitle": "Lyrics Appearance",
+				"lyricPlayerImplementation": {
+					"menu": {
+						"dom": "DOM",
+						"dom-slim": "DOM (Stripped)",
+						"canvas": "Canvas"
+					},
+					"label": "Implementation of the Lyrics Player",
+					"description": "Currently, there are two lyrics rendering implementations:\n- DOM: Implemented using DOM elements, currently the most comprehensive, but with high performance overhead\n- Canvas: Implemented using Canvas, still under development, with excellent performance, but some details still need to be improved"
+				},
+				"lyricFontSize": {
+					"menu": {
+						"tiny": "超小",
+						"extra_small": "极小",
+						"small": "小",
+						"medium": "中",
+						"large": "大",
+						"extra_large": "极大",
+						"huge": "超大"
+					},
+					"label": "歌词字体大小",
+					"descriptionResponsive": "设置歌词的字体大小"
+				},
+				"enableLyricLineBlurEffect": {
+					"label": "Enable Text Blur Effect",
+					"description": "Significantly impacts performance. If you encounter performance issues, try to disable this option. Enabled by default."
+				},
+				"enableLyricLineScaleEffect": {
+					"label": "Enable Text Zooming Effect",
+					"description": "Does not impact performance. Non-playing lyrics lines will be slightly reduced in size. Enabled by default"
+				},
+				"enableLyricLineSpringAnimation": {
+					"label": "Enable Text Spring Animation Effect",
+					"description": "Significantly impacts performance. If you encounter any performance issues, try to disable this option. Enabled by default."
+				},
+				"advanceLyricDynamicLyricTime": {
+					"label": "Advance Lyric Timing",
+					"description": "Advance the initial time sequence of the original lyrics line, so that the lyrics effect starts playing (word by word) just after the lyrics scroll ends. This behavior is closer to the effect of Apple Music, but in most cases, it will cause the lyrics at the end of the line to be switched to the next line before they have been played completely."
+				},
+				"lyricWordFadeWidth": {
+					"label": "Gradient Transition Width of Each Word",
+					"description": "Adjust the gradient transition width of each word in lyrics, measured in the width of a full width character, with a default value of 0.5.\nIf you want to simulate the effect of Apple Music for Android, you can set it to 1.\nIf you want to simulate the effect of Apple Music for iPad, you can set it to 0.5.\nTo turn off the gradient transition effect of each word in lyrics, you can set it to 0."
+				}
 			},
 			"musicInfoAppearance": {
+				"subtitle": "Music information appearance",
 				"playerControlsType": {
 					"menu": {
 						"controls": "Playback Controls",
@@ -202,7 +255,6 @@
 					"label": "Vertical Cover Layout Mode",
 					"description": "Layout mode when hiding lyric component:\n- Automatic: use immersive cover layout when track cover is a video\n- Default: force default cover layout\n- Immersive: force immersive cover layout"
 				},
-				"subtitle": "Music information appearance",
 				"showMusicName": {
 					"label": "Show Song Title"
 				},
@@ -225,46 +277,19 @@
 					"description": "The unit is Hertz, which will affect the display effect of audio visualization and background jumping rhythm effect."
 				}
 			},
-			"lyricAppearance": {
-				"lyricPlayerImplementation": {
-					"menu": {
-						"dom": "DOM",
-						"dom-slim": "DOM (Stripped)",
-						"canvas": "Canvas"
-					},
-					"label": "Implementation of the Lyrics Player",
-					"description": "Currently, there are two lyrics rendering implementations:\n- DOM: Implemented using DOM elements, currently the most comprehensive, but with high performance overhead\n- Canvas: Implemented using Canvas, still under development, with excellent performance, but some details still need to be improved"
-				},
-				"subtitle": "Lyrics Appearance",
-				"enableLyricLineBlurEffect": {
-					"label": "Enable Text Blur Effect",
-					"description": "Significantly impacts performance. If you encounter performance issues, try to disable this option. Enabled by default."
-				},
-				"enableLyricLineScaleEffect": {
-					"label": "Enable Text Zooming Effect",
-					"description": "Does not impact performance. Non-playing lyrics lines will be slightly reduced in size. Enabled by default"
-				},
-				"enableLyricLineSpringAnimation": {
-					"label": "Enable Text Spring Animation Effect",
-					"description": "Significantly impacts performance. If you encounter any performance issues, try to disable this option. Enabled by default."
-				},
-				"advanceLyricDynamicLyricTime": {
-					"label": "Advance Lyric Timing",
-					"description": "Advance the initial time sequence of the original lyrics line, so that the lyrics effect starts playing (word by word) just after the lyrics scroll ends. This behavior is closer to the effect of Apple Music, but in most cases, it will cause the lyrics at the end of the line to be switched to the next line before they have been played completely."
-				},
-				"lyricWordFadeWidth": {
-					"label": "Gradient Transition Width of Each Word",
-					"description": "Adjust the gradient transition width of each word in lyrics, measured in the width of a full width character, with a default value of 0.5.\nIf you want to simulate the effect of Apple Music for Android, you can set it to 1.\nIf you want to simulate the effect of Apple Music for iPad, you can set it to 0.5.\nTo turn off the gradient transition effect of each word in lyrics, you can set it to 0."
-				}
-			},
 			"lyricBackground": {
+				"subtitle": "Lyrics Page Background Type",
 				"menu": {
 					"meshGradientRenderer": "Mesh Gradient Renderer",
-					"pixiRenderer": "PixiJS Renderer"
+					"pixiRenderer": "PixiJS Renderer",
+					"cssBackground": "CSS 背景"
 				},
-				"subtitle": "Lyrics Page Background Type",
 				"backgroundRenderer": {
 					"label": "PixiJS Renderer"
+				},
+				"lyricBackgroundColor": {
+					"label": "CSS 背景属性值",
+					"description": "等同于放入 background 样式的字符串值，默认为 #111111"
 				},
 				"lyricBackgroundFPS": {
 					"label": "Maximum FPS for Background Renderer",
@@ -279,36 +304,30 @@
 					"description": "Keep the background static except when switching song. If you encounter performance issues, consider enabling this option.\nNote: Enabling this option will disable the background bouncing effect."
 				}
 			},
-			"lyricContent": {
-				"subtitle": "Lyrics",
-				"enableLyricTranslationLine": "Show Translation",
-				"enableLyricRomanLine": {
-					"label": "Show Romanized Translation"
+			"lyricFont": {
+				"fontPreview": {
+					"defaultText": "Font Preview",
+					"label": "Font Preview"
 				},
-				"enableLyricSwapTransRomanLine": {
-					"label": "Swap Translation and Romanized Translation",
-					"description": "Only valid when the above two are enabled."
+				"subtitle": "Lyrics Font Settings",
+				"tip": "This option only affect LYRIC's font but other parts.",
+				"fontFamily": {
+					"label": "Font Family",
+					"description": "Font name separated by comma, equals to font-family property in CSS. Leave blank to use default settings."
+				},
+				"fontWeight": {
+					"label": "Font Weight",
+					"description": "Equals to the font-weight property in CSS, set to 0 to be controlled by system. 600 is recommended"
+				},
+				"letterSpacing": {
+					"label": "Letter Spacing",
+					"description": "Equals to the letter-spacing in CSS, leave blank to use the default value."
 				}
 			},
 			"smtc": {
-				"subtitle": "SMTC Listener Settings",
-				"session": {
-					"label": "Select Media Session",
-					"description": "Select the application to listen to and control.",
-					"auto": "Automatic selection",
-					"changeFailed": "Failed to switch media session: {{error}}"
-				},
-				"textConversion": {
-					"label": "Lyrics Info Text Conversion",
-					"description": "Automatically convert track metadata obtained from other players.",
-					"off": "Off",
-					"t2s": "Traditional to Simplified",
-					"s2t": "Simplified to Traditional",
-					"s2tw": "Simplified to Taiwan Traditional",
-					"tw2s": "Taiwan Traditional to Simplified",
-					"s2hk": "Simplified to Hong Kong Traditional",
-					"hk2s": "Hong Kong Traditional to Simplified",
-					"changeFailed": "Failed to set text conversion mode: {{error}}"
+				"enableMediaControls": {
+					"label": "启用内置播放器的媒体控件",
+					"description": "目前只支持 Windows 的 SMTC"
 				}
 			}
 		},
@@ -369,10 +388,7 @@
 	},
 	"ws-protocol": {
 		"toast": {
-			"switchSongNotSupported": "Unable to switch tracks under WS Protocol mode.",
-			"pauseOrPlaySongNotSupported": "Unable to pause / resume in WS Protocol mode.",
-			"seekNotSupported": "Unable to modify playing progress under WS Protocol mode.",
-			"changeVolumeNotSupported": "Unable to modify volume under WS Protocol mode."
+			"ttmlParseError": "解析来自 WS 发送端的 TTML 歌词时出错：{{error}}"
 		}
 	},
 	"error": {
@@ -380,6 +396,8 @@
 		"desc0": "An error occurred during execution. Please try refreshing the page. If the issue persists, please contact the developer.",
 		"desc1": "If you know how to debug, you can see more precise error messages in the developer console.",
 		"reloadPage": "Reload Page",
+		"backToMainPage": "回到主页",
+		"copyError": "复制错误信息",
 		"errorDetail": "Error"
 	},
 	"settings": {
@@ -392,9 +410,7 @@
 			"installPlugins": "Install Plugin(s)",
 			"openPluginDirectory": "Open plugin directory",
 			"tab": "Manage Extensions"
-		},
-		"player": {
-			"tab": "AMLL Player Settings"
 		}
-	}
+	},
+	"name": ""
 }
