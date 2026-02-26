@@ -1,8 +1,11 @@
 import { Button, Callout, Flex, Select, TextArea } from "@radix-ui/themes";
+import { listen, TauriEvent } from "@tauri-apps/api/event";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import {
 	type FC,
 	useCallback,
 	useContext,
+	useEffect,
 	useLayoutEffect,
 	useState,
 } from "react";
@@ -10,7 +13,7 @@ import { Trans, useTranslation } from "react-i18next";
 import { ExtensionInjectPoint } from "../../components/ExtensionInjectPoint/index.tsx";
 import { TTMLImportDialog } from "../../components/TTMLImportDialog/index.tsx";
 import { db } from "../../dexie.ts";
-import { Option } from "./common.tsx";
+import { getLyricFormatFromExtension, Option } from "./common.tsx";
 import { SongContext } from "./song-ctx.ts";
 
 export const LyricTabContent: FC = () => {
@@ -30,6 +33,59 @@ export const LyricTabContent: FC = () => {
 			setLyricContent("");
 		}
 	}, [song]);
+
+	useEffect(() => {
+		const unlistenDrop = listen<{ paths: string[] }>(
+			TauriEvent.DRAG_DROP,
+			async (event) => {
+				const path = event.payload.paths[0];
+				if (!path) return;
+				const format = getLyricFormatFromExtension(path);
+				if (!format) return;
+				try {
+					const content = await readTextFile(path);
+					setLyricFormat(format);
+					setLyricContent(content);
+					if (format === "ttml") {
+						setTranslatedLyricContent("");
+						setRomanLyricContent("");
+					}
+				} catch (e) {
+					console.error("Failed to read lyric file:", e);
+				}
+			},
+		);
+		return () => {
+			unlistenDrop.then((u) => u());
+		};
+	}, []);
+
+	const importFromFile = useCallback((file: File) => {
+		const format = getLyricFormatFromExtension(file.name);
+		if (!format) return;
+		const reader = new FileReader();
+		reader.onload = () => {
+			const content = reader.result as string;
+			setLyricFormat(format);
+			setLyricContent(content);
+			if (format === "ttml") {
+				setTranslatedLyricContent("");
+				setRomanLyricContent("");
+			}
+		};
+		reader.readAsText(file);
+	}, []);
+
+	const openLocalLyricFile = useCallback(() => {
+		const input = document.createElement("input");
+		input.type = "file";
+		input.accept = ".lrc,.eslrc,.yrc,.qrc,.lys,.ttml";
+		input.onchange = () => {
+			const file = input.files?.[0];
+			if (file) importFromFile(file);
+		};
+		input.click();
+	}, [importFromFile]);
 
 	const saveData = useCallback(
 		(
@@ -77,7 +133,7 @@ export const LyricTabContent: FC = () => {
 	);
 
 	return (
-		<>
+		<div>
 			<ExtensionInjectPoint injectPointName="page.song.tab.lyric.before" />
 			<Flex direction="column" gap="4">
 				<Option label={t("page.song.lyric.lyricFormatLabel", "歌词格式")}>
@@ -200,6 +256,11 @@ export const LyricTabContent: FC = () => {
 						saveData("ttml", ttmlContent, "", "");
 					}}
 				/>
+				<Button variant="soft" onClick={openLocalLyricFile}>
+					<Trans i18nKey="page.song.lyric.importFromFile">
+						从本地文件导入歌词
+					</Trans>
+				</Button>
 			</Flex>
 			<Button
 				mt="4"
@@ -215,6 +276,6 @@ export const LyricTabContent: FC = () => {
 				<Trans i18nKey="common.dialog.save">保存</Trans>
 			</Button>
 			<ExtensionInjectPoint injectPointName="page.song.tab.lyric.after" />
-		</>
+		</div>
 	);
 };
