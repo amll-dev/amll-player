@@ -71,6 +71,14 @@
             #system-titlebar-buttons {
                 display: flex;
                 gap: 2px;
+                transition: opacity 0.3s ease-in-out, pointer-events 0.3s;
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            #system-titlebar-buttons[data-hidden="true"] {
+                opacity: 0;
+                pointer-events: none;
             }
 
             #system-titlebar.immersive {
@@ -108,7 +116,7 @@
                 justify-content: flex-end;
                 display: flex;
             }
-            
+
             #system-titlebar.windows .system-button {
                 width: 46px;
                 display: flex;
@@ -117,7 +125,7 @@
                 transition: background-color 0.25s, color 0.25s;
                 transform: translateY(-0.45px);
             }
-            
+
             #system-titlebar.windows .system-button:hover {
                 transition: background-color 0.15s, color 0.15s;
             }

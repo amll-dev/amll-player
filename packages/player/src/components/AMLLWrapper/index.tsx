@@ -7,15 +7,17 @@ import { ContextMenu } from "@radix-ui/themes";
 import classnames from "classnames";
 import { useAtomValue } from "jotai";
 import { type FC, useLayoutEffect } from "react";
-
+import { useTitlebarAutoHide } from "../../utils/useTitlebarAutoHide.ts";
 import { AMLLContextMenuContent } from "../AMLLContextMenu/index.tsx";
 import { AudioQualityDialog } from "../AudioQualityDialog/index.tsx";
-import styles from "./index.module.css";
 import { RecordPanel } from "../RecordPanel/index.tsx";
+import styles from "./index.module.css";
 
 export const AMLLWrapper: FC = () => {
 	const isLyricPageOpened = useAtomValue(isLyricPageOpenedAtom);
 	const musicId = useAtomValue(musicIdAtom);
+
+	useTitlebarAutoHide(isLyricPageOpened);
 
 	useLayoutEffect(() => {
 		if (isLyricPageOpened) {

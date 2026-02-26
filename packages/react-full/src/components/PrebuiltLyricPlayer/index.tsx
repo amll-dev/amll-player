@@ -536,9 +536,6 @@ export const PrebuiltLyricPlayer: FC<HTMLProps<HTMLDivElement>> = ({
 	const backgroundRenderer = useAtomValue(lyricBackgroundRendererAtom);
 	const showBottomControl = useAtomValue(showBottomControlAtom);
 
-	const [isHoveringTitlebar, setIsHoveringTitlebar] = useState(false);
-	const [isGracePeriodOver, setIsGracePeriodOver] = useState(false);
-
 	const cssBackgroundProperty = useAtomValue(cssBackgroundPropertyAtom);
 
 	useLayoutEffect(() => {
@@ -563,50 +560,6 @@ export const PrebuiltLyricPlayer: FC<HTMLProps<HTMLDivElement>> = ({
 			setAlignAnchor("top");
 		}
 	}, [isVertical, layoutEl]);
-
-	useEffect(() => {
-		if (isLyricPageOpened) {
-			setIsGracePeriodOver(false);
-			const timerId = setTimeout(() => {
-				setIsGracePeriodOver(true);
-			}, 5000);
-			return () => clearTimeout(timerId);
-		}
-	}, [isLyricPageOpened]);
-
-	useEffect(() => {
-		const titlebarArea = document.getElementById("system-titlebar");
-		if (!titlebarArea) return;
-
-		const handleMouseEnter = () => setIsHoveringTitlebar(true);
-		const handleMouseLeave = () => setIsHoveringTitlebar(false);
-
-		if (isLyricPageOpened) {
-			titlebarArea.addEventListener("mouseenter", handleMouseEnter);
-			titlebarArea.addEventListener("mouseleave", handleMouseLeave);
-		} else {
-			setIsHoveringTitlebar(false);
-		}
-
-		return () => {
-			titlebarArea.removeEventListener("mouseenter", handleMouseEnter);
-			titlebarArea.removeEventListener("mouseleave", handleMouseLeave);
-		};
-	}, [isLyricPageOpened]);
-
-	useEffect(() => {
-		const titlebarButtons = document.getElementById("system-titlebar-buttons");
-		if (!titlebarButtons) return;
-
-		titlebarButtons.style.transition =
-			"opacity 0.3s ease-in-out, pointer-events 0.3s";
-
-		const shouldBeVisible =
-			!isLyricPageOpened || isHoveringTitlebar || !isGracePeriodOver;
-
-		titlebarButtons.style.opacity = shouldBeVisible ? "1" : "0";
-		titlebarButtons.style.pointerEvents = shouldBeVisible ? "auto" : "none";
-	}, [isLyricPageOpened, isHoveringTitlebar, isGracePeriodOver]);
 
 	const verticalImmerseCover =
 		hideLyricView &&
