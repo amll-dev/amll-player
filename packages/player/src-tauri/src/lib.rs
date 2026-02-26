@@ -58,19 +58,6 @@ fn restart_app<R: Runtime>(app: AppHandle<R>) {
     tauri::process::restart(&app.env())
 }
 
-#[tauri::command]
-async fn reset_window_theme<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("main") {
-        #[cfg(desktop)]
-        if let Err(e) = window.set_theme(None) {
-            return Err(e.to_string());
-        }
-        Ok(())
-    } else {
-        Err("Main window not found.".to_string())
-    }
-}
-
 #[derive(Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MusicInfo {
@@ -341,7 +328,6 @@ pub fn run() {
             player::set_media_controls_enabled,
             read_local_music_metadata,
             restart_app,
-            reset_window_theme,
         ])
         .setup(|app| {
             player::init_local_player(app.handle().clone());

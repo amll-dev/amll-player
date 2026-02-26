@@ -17,11 +17,11 @@ import { ToastContainer } from "react-toastify";
 import semverGt from "semver/functions/gt";
 import styles from "./App.module.css";
 import { AppContainer } from "./components/AppContainer/index.tsx";
-import { DarkThemeDetector } from "./components/DarkThemeDetector/index.tsx";
 import { ExtensionInjectPoint } from "./components/ExtensionInjectPoint/index.tsx";
 import { LocalMusicContext } from "./components/LocalMusicContext/index.tsx";
 import { NowPlayingBar } from "./components/NowPlayingBar/index.tsx";
 import { ShotcutContext } from "./components/ShotcutContext/index.tsx";
+import { ThemeManager } from "./components/ThemeManager/index.tsx";
 import { UpdateContext } from "./components/UpdateContext/index.tsx";
 import { WSProtocolMusicContext } from "./components/WSProtocolMusicContext/index.tsx";
 import "./i18n";
@@ -31,13 +31,10 @@ import {
 	lyricSizePresetAtom,
 	onClickAudioQualityTagAtom,
 } from "@applemusic-like-lyrics/react-full";
-import { invoke } from "@tauri-apps/api/core";
 import { StatsComponent } from "./components/StatsComponent/index.tsx";
 import { router } from "./router.tsx";
 import {
 	audioQualityDialogOpenedAtom,
-	DarkMode,
-	darkModeAtom,
 	displayLanguageAtom,
 	isDarkThemeAtom,
 	MusicContextMode,
@@ -61,25 +58,7 @@ function App() {
 	const hasBackground = useAtomValue(hasBackgroundAtom);
 	const { i18n } = useTranslation();
 
-	const darkMode = useAtomValue(darkModeAtom);
-
 	const lyricSize = useAtomValue(lyricSizePresetAtom);
-
-	useEffect(() => {
-		const syncThemeToWindow = async () => {
-			if (darkMode === DarkMode.Auto) {
-				await invoke("reset_window_theme").catch((err) => {
-					console.error("重置主题失败:", err);
-				});
-			} else {
-				const { getCurrentWindow } = await import("@tauri-apps/api/window");
-				const appWindow = getCurrentWindow();
-				const finalTheme = darkMode === DarkMode.Dark ? "dark" : "light";
-				await appWindow.setTheme(finalTheme);
-			}
-		};
-		syncThemeToWindow();
-	}, [darkMode]);
 
 	useEffect(() => {
 		const initializeWindow = async () => {
@@ -170,7 +149,7 @@ function App() {
 
 			<UpdateContext />
 			<ShotcutContext />
-			<DarkThemeDetector />
+			<ThemeManager />
 			<Suspense>
 				<ExtensionContext />
 			</Suspense>

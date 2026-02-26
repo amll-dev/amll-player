@@ -3,9 +3,9 @@ import { mkdir, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import { atom } from "jotai";
 import i18n from "../i18n.ts";
 import {
-	reloadExtensionMetaAtom,
-	type ExtensionMetaState,
 	ExtensionLoadResult,
+	type ExtensionMetaState,
+	reloadExtensionMetaAtom,
 } from "./extensionsAtoms.ts";
 
 export const extensionDirAtom = atom(async () => {
