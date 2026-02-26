@@ -9,7 +9,8 @@
 		"typescript": "catalog:"
 	},
 	"scripts": {
-		"build:libs": "nx run-many --target=build --projects=tag:library"
+		"build:libs": "nx run-many --target=build --projects=tag:library",
+		"format": "biome format . --write"
 	},
 	"packageManager": "pnpm@10.18.3",
 	"pnpm": {
