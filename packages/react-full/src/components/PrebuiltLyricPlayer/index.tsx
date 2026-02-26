@@ -71,6 +71,7 @@ import {
 	enableLyricTranslationLineAtom,
 	hideLyricViewAtom,
 	isLyricPageOpenedAtom,
+	LyricSizePreset,
 	lyricBackgroundFPSAtom,
 	lyricBackgroundRendererAtom,
 	lyricBackgroundRenderScaleAtom,
@@ -79,6 +80,7 @@ import {
 	lyricFontWeightAtom,
 	lyricLetterSpacingAtom,
 	lyricPlayerImplementationAtom,
+	lyricSizePresetAtom,
 	lyricWordFadeWidthAtom,
 	PlayerControlsType,
 	playerControlsTypeAtom,
@@ -317,6 +319,25 @@ const PrebuiltProgressBar: FC = React.memo(() => {
 	);
 });
 
+function getLyricFontSizeFromPreset(preset: LyricSizePreset): string {
+	switch (preset) {
+		case LyricSizePreset.Tiny:
+			return "max(max(2.5vh, 1.25vw), 10px)";
+		case LyricSizePreset.ExtraSmall:
+			return "max(max(3vh, 1.5vw), 10px)";
+		case LyricSizePreset.Small:
+			return "max(max(4vh, 2vw), 12px)";
+		case LyricSizePreset.Large:
+			return "max(max(6vh, 3vw), 16px)";
+		case LyricSizePreset.ExtraLarge:
+			return "max(max(7vh, 3.5vw), 18px)";
+		case LyricSizePreset.Huge:
+			return "max(max(8vh, 4vw), 20px)";
+		default:
+			return "max(max(5vh, 2.5vw), 14px)";
+	}
+}
+
 const PrebuiltCoreLyricPlayer: FC<{
 	alignPosition: number;
 	alignAnchor: "center" | "bottom" | "top";
@@ -330,6 +351,7 @@ const PrebuiltCoreLyricPlayer: FC<{
 	const lyricFontFamily = useAtomValue(lyricFontFamilyAtom);
 	const lyricFontWeight = useAtomValue(lyricFontWeightAtom);
 	const lyricLetterSpacing = useAtomValue(lyricLetterSpacingAtom);
+	const lyricSizePreset = useAtomValue(lyricSizePresetAtom);
 
 	const lyricPlayerImplementation = useAtomValue(
 		lyricPlayerImplementationAtom,
@@ -395,13 +417,16 @@ const PrebuiltCoreLyricPlayer: FC<{
 
 	return (
 		<LyricPlayer
-			style={{
-				width: "100%",
-				height: "100%",
-				fontFamily: lyricFontFamily || undefined,
-				fontWeight: lyricFontWeight || undefined,
-				letterSpacing: lyricLetterSpacing || undefined,
-			}}
+			style={
+				{
+					width: "100%",
+					height: "100%",
+					fontFamily: lyricFontFamily || undefined,
+					fontWeight: lyricFontWeight || undefined,
+					letterSpacing: lyricLetterSpacing || undefined,
+					"--amll-lp-font-size": getLyricFontSizeFromPreset(lyricSizePreset),
+				} as React.CSSProperties
+			}
 			ref={amllPlayerRef}
 			playing={musicIsPlaying}
 			disabled={!isLyricPageOpened}

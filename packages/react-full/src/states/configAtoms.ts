@@ -47,24 +47,15 @@ export enum LyricPlayerImplementation {
 	Canvas = "canvas",
 }
 
-/**
- * 定义了歌词大小的预设值常量。
- */
-export const LyricSizePreset = {
-	Tiny: "tiny",
-	ExtraSmall: "extra-small",
-	Small: "small",
-	Medium: "medium",
-	Large: "large",
-	ExtraLarge: "extra-large",
-	Huge: "huge",
-} as const;
-
-/**
- * 从预设值常量生成具体的类型。
- */
-export type LyricSizePresetValue =
-	(typeof LyricSizePreset)[keyof typeof LyricSizePreset];
+export enum LyricSizePreset {
+	Tiny = "tiny",
+	ExtraSmall = "extra-small",
+	Small = "small",
+	Medium = "medium",
+	Large = "large",
+	ExtraLarge = "extra-large",
+	Huge = "huge",
+}
 
 // ==================================================================
 //                        歌词效果配置
@@ -191,7 +182,7 @@ export const globalLyricTimelineOffsetAtom = atomWithStorage(
 /**
  * 歌词字体大小的预设选项。
  */
-export const lyricSizePresetAtom = atomWithStorage<LyricSizePresetValue>(
+export const lyricSizePresetAtom = atomWithStorage<LyricSizePreset>(
 	"amll-react-full.lyricSizePreset",
 	LyricSizePreset.Medium,
 );

@@ -19,7 +19,6 @@ import {
 	LyricPlayerImplementation,
 	type LyricPlayerImplementationObject,
 	LyricSizePreset,
-	type LyricSizePresetValue,
 	lyricBackgroundFPSAtom,
 	lyricBackgroundRendererAtom,
 	lyricBackgroundRenderScaleAtom,
@@ -611,7 +610,7 @@ const LyricAppearanceSettings = () => {
 			>
 				<Select.Root
 					value={lyricSize}
-					onValueChange={(value) => setLyricSize(value as LyricSizePresetValue)}
+					onValueChange={(value) => setLyricSize(value as LyricSizePreset)}
 				>
 					<Select.Trigger />
 					<Select.Content>

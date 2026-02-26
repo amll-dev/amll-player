@@ -2,7 +2,7 @@ import { Box, Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
 import classNames from "classnames";
 import { useAtomValue } from "jotai";
-import { lazy, StrictMode, Suspense, useEffect, useLayoutEffect } from "react";
+import { lazy, StrictMode, Suspense, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { RouterProvider } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
@@ -16,11 +16,7 @@ import { ThemeManager } from "./components/ThemeManager/index.tsx";
 import { UpdateContext } from "./components/UpdateContext/index.tsx";
 import { WSProtocolMusicContext } from "./components/WSProtocolMusicContext/index.tsx";
 import "./i18n";
-import {
-	isLyricPageOpenedAtom,
-	LyricSizePreset,
-	lyricSizePresetAtom,
-} from "@applemusic-like-lyrics/react-full";
+import { isLyricPageOpenedAtom } from "@applemusic-like-lyrics/react-full";
 import { StatsComponent } from "./components/StatsComponent/index.tsx";
 import { router } from "./router.tsx";
 import {
@@ -45,55 +41,11 @@ function App() {
 	const hasBackground = useAtomValue(hasBackgroundAtom);
 	const { i18n } = useTranslation();
 
-	const lyricSize = useAtomValue(lyricSizePresetAtom);
-
 	useInitializeWindow();
 
 	useLayoutEffect(() => {
 		i18n.changeLanguage(displayLanguage);
 	}, [i18n, displayLanguage]);
-
-	useEffect(() => {
-		let fontSizeFormula = "";
-		switch (lyricSize) {
-			case LyricSizePreset.Tiny:
-				fontSizeFormula = "max(max(2.5vh, 1.25vw), 10px)";
-				break;
-			case LyricSizePreset.ExtraSmall:
-				fontSizeFormula = "max(max(3vh, 1.5vw), 10px)";
-				break;
-			case LyricSizePreset.Small:
-				fontSizeFormula = "max(max(4vh, 2vw), 12px)";
-				break;
-			case LyricSizePreset.Large:
-				fontSizeFormula = "max(max(6vh, 3vw), 16px)";
-				break;
-			case LyricSizePreset.ExtraLarge:
-				fontSizeFormula = "max(max(7vh, 3.5vw), 18px)";
-				break;
-			case LyricSizePreset.Huge:
-				fontSizeFormula = "max(max(8vh, 4vw), 20px)";
-				break;
-			default:
-				fontSizeFormula = "max(max(5vh, 2.5vw), 14px)";
-				break;
-		}
-
-		const styleId = "amll-font-size-style";
-		let styleTag = document.getElementById(styleId);
-
-		if (!styleTag) {
-			styleTag = document.createElement("style");
-			styleTag.id = styleId;
-			document.head.appendChild(styleTag);
-		}
-
-		styleTag.innerHTML = `
-            .amll-lyric-player {
-                font-size: ${fontSizeFormula} !important;
-            }
-        `;
-	}, [lyricSize]);
 
 	return (
 		<>
