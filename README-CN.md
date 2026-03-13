@@ -14,11 +14,11 @@
 
 **—— AMLL 生态作品 ——**
 
-- [AMLL TTML DB 逐词歌词仓库](https://github.com/amll-dev/amll-ttml-db)
-
-- [AMLL TTML Tool 逐词歌词编辑器](https://github.com/amll-dev/amll-ttml-tool)
-
-- [AMLL Player 音乐播放器](./packages/player/README.md)
+[AMLL TTML DB 逐词歌词仓库](https://github.com/amll-dev/amll-ttml-db)
+/
+[AMLL TTML Tool 逐词歌词编辑器](https://github.com/amll-dev/amll-ttml-tool)
+/
+[AMLL Player 音乐播放器](./packages/player/README.md)
 
 [引用了 AMLL 的项目汇总](https://github.com/amll-dev/applemusic-like-lyrics/discussions/397)
 
