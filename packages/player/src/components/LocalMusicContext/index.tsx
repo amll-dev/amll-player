@@ -677,13 +677,21 @@ export const LocalMusicContext: FC = () => {
 
 	useEffect(() => {
 		initAudioThread();
+		const toEmit = <T,>(onEmit: T) => ({ onEmit });
 
-		const toEmitThread = (type: Parameters<typeof emitAudioThread>[0]) => ({
+		const toEmitAndResetProgress = (
+			type: Parameters<typeof emitAudioThread>[0],
+		) => ({
 			onEmit() {
+				lastSyncRef.current = {
+					position: 0,
+					timestamp: performance.now(),
+				};
+				store.set(musicPlayingPositionAtom, 0);
+
 				emitAudioThread(type);
 			},
 		});
-		const toEmit = <T,>(onEmit: T) => ({ onEmit });
 
 		store.set(
 			onClickAudioQualityTagAtom,
@@ -699,8 +707,8 @@ export const LocalMusicContext: FC = () => {
 			}),
 		);
 
-		store.set(onRequestNextSongAtom, toEmitThread("nextSong"));
-		store.set(onRequestPrevSongAtom, toEmitThread("prevSong"));
+		store.set(onRequestNextSongAtom, toEmitAndResetProgress("nextSong"));
+		store.set(onRequestPrevSongAtom, toEmitAndResetProgress("prevSong"));
 		store.set(
 			onClickControlThumbAtom,
 			toEmit(() => {
@@ -710,16 +718,32 @@ export const LocalMusicContext: FC = () => {
 		store.set(
 			onSeekPositionAtom,
 			toEmit((time: number) => {
+				const targetPos = time / 1000;
+				lastSyncRef.current = {
+					position: targetPos,
+					timestamp: performance.now(),
+				};
+				store.set(musicPlayingPositionAtom, time);
+
 				emitAudioThread("seekAudio", {
-					position: time / 1000,
+					position: targetPos,
 				});
 			}),
 		);
 		store.set(
 			onLyricLineClickAtom,
 			toEmit((evt) => {
+				const targetTimeMs = evt.line.getLine().startTime;
+				const targetPos = targetTimeMs / 1000;
+
+				lastSyncRef.current = {
+					position: targetPos,
+					timestamp: performance.now(),
+				};
+				store.set(musicPlayingPositionAtom, targetTimeMs);
+
 				emitAudioThread("seekAudio", {
-					position: evt.line.getLine().startTime / 1000,
+					position: targetPos,
 				});
 			}),
 		);

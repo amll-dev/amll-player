@@ -46,7 +46,7 @@ pub struct AudioPlayer {
     current_samples_counter: Arc<TokioRwLock<Option<Arc<AtomicU64>>>>,
 
     current_audio_quality: Arc<TokioRwLock<AudioQuality>>,
-    play_pos_sx: UnboundedSender<(bool, f64)>,
+    play_pos_sx: UnboundedSender<(bool, Option<f64>)>,
     tasks: Vec<JoinHandle<()>>,
     media_state_manager: Option<Arc<MediaStateManager>>,
     media_state_rx: Option<UnboundedReceiver<MediaStateMessage>>,
@@ -130,7 +130,8 @@ impl AudioPlayer {
         let audio_info_reader = current_audio_info.clone();
         let samples_counter_reader = current_samples_counter.clone();
         let emitter_pos = AudioPlayerEventEmitter::new(evt_sender.clone());
-        let (play_pos_sx, mut play_pos_rx) = tokio::sync::mpsc::unbounded_channel::<(bool, f64)>();
+        let (play_pos_sx, mut play_pos_rx) =
+            tokio::sync::mpsc::unbounded_channel::<(bool, Option<f64>)>();
         let media_state_manager_clone = media_state_manager.clone();
 
         tasks.push(tokio::task::spawn(async move {
@@ -140,22 +141,27 @@ impl AudioPlayer {
             let mut base_time = 0.0;
 
             loop {
-                if let Ok((new_is_playing, new_base_time)) = play_pos_rx.try_recv() {
+                if let Ok((new_is_playing, new_base_time_opt)) = play_pos_rx.try_recv() {
                     is_playing = new_is_playing;
-                    base_time = new_base_time;
-                    *position_writer.write().await = base_time;
 
-                    let _ = emitter_pos
-                        .emit(AudioThreadEvent::PlayPosition {
-                            position: base_time,
-                        })
-                        .await;
+                    if let Some(new_base_time) = new_base_time_opt {
+                        base_time = new_base_time;
+                        *position_writer.write().await = base_time;
+
+                        let _ = emitter_pos
+                            .emit(AudioThreadEvent::PlayPosition {
+                                position: base_time,
+                            })
+                            .await;
+                    }
 
                     if is_playing
                         && let Some(manager) = &media_state_manager_clone
-                        && let Err(e) = manager.set_position(base_time)
                     {
-                        tracing::warn!("更新 SMTC 进度失败: {e:?}");
+                        let current_pos = *position_writer.read().await;
+                        if let Err(e) = manager.set_position(current_pos) {
+                            tracing::warn!("更新 SMTC 进度失败: {e:?}");
+                        }
                     }
                 }
 
@@ -344,7 +350,7 @@ impl AudioPlayer {
                 }
                 _ = check_end_interval.tick() => {
                     if self.sink.empty() && !self.sink.is_paused() && self.current_song.is_some() {
-                        let _ = self.play_pos_sx.send((false, 0.0));
+                        let _ = self.play_pos_sx.send((false, Some(0.0)));
                         if let Err(e) = self.msg_sender.send(AudioThreadEventMessage::new(
                             "".into(),
                             Some(AudioThreadMessage::NextSongGapless),
@@ -397,14 +403,12 @@ impl AudioPlayer {
             match data {
                 AudioThreadMessage::ResumeAudio => {
                     self.sink.play();
-                    let current_pos = *self.current_position.read().await;
-                    let _ = self.play_pos_sx.send((true, current_pos));
+                    let _ = self.play_pos_sx.send((true, None));
                     self.update_media_manager_playback_state(true).await?;
                 }
                 AudioThreadMessage::PauseAudio => {
                     self.sink.pause();
-                    let current_pos = *self.current_position.read().await;
-                    let _ = self.play_pos_sx.send((false, current_pos));
+                    let _ = self.play_pos_sx.send((false, None));
                     self.update_media_manager_playback_state(false).await?;
                 }
                 AudioThreadMessage::ResumeOrPauseAudio => {
@@ -414,9 +418,8 @@ impl AudioPlayer {
                     } else {
                         self.sink.pause();
                     }
-                    let current_pos = *self.current_position.read().await;
-                    let _ = self.play_pos_sx.send((is_paused, current_pos));
-                    self.update_media_manager_playback_state(is_paused).await?;
+                    let _ = self.play_pos_sx.send((!is_paused, None));
+                    self.update_media_manager_playback_state(!is_paused).await?;
                 }
                 AudioThreadMessage::SeekAudio { position } => {
                     if let Some(handle) = &self.current_decoder_handle {
@@ -437,7 +440,7 @@ impl AudioPlayer {
                             })
                             .await?;
                             let is_playing = !self.sink.is_paused();
-                            let _ = self.play_pos_sx.send((is_playing, *position));
+                            let _ = self.play_pos_sx.send((is_playing, Some(*position)));
                             self.update_media_manager_playback_state(is_playing).await?;
                         }
                     } else {
@@ -562,7 +565,7 @@ impl AudioPlayer {
         let is_playing = !self.sink.is_paused();
         self.update_media_manager_playback_state(is_playing).await?;
 
-        let _ = self.play_pos_sx.send((is_playing, 0.0));
+        let _ = self.play_pos_sx.send((is_playing, Some(0.0)));
         self.sync_ui().await?;
 
         Ok(())
