@@ -4,6 +4,8 @@ on:
     branches:
       - full-refractor
       - dev
+    paths-ignore:
+      - '**/*.md'
   workflow_dispatch:
 
 permissions:
