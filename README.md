@@ -32,11 +32,6 @@ Although the goal of this project is not to imitate it completely, it will polis
 -   [![AMLL-React](https://img.shields.io/badge/React-%23149eca?label=Apple%20Music-like%20Lyrics&labelColor=%23FB5C74)](./packages/react/README.md): AMLL React binding, provides React component forms of lyric display and dynamic fluid background components
 -   [![AMLL-Vue](https://img.shields.io/badge/Vue-%2342d392?label=Apple%20Music-like%20Lyrics&labelColor=%23FB5C74)](./packages/vue/README.md): AMLL Vue binding, provides Vue component forms of lyric display and dynamic fluid background components
 -   [![AMLL-Lyric](https://img.shields.io/badge/Lyric-%23FB8C84?label=Apple%20Music-like%20Lyrics&labelColor=%23FB5C74)](./packages/lyric/README.md): AMLL lyric parsing module, provides parsing and serialization support for various lyric formats including LyRiC, YRC, QRC, and Lyricify Syllable
-### External tools
-
--   [AMLL Player](./packages/player/README.md): AMLL External Player provides an independent external lyrics player, and communicates with any program that implements the AMLL WebSocket protocol to display lyrics
--   [AMLL TTML Tool](https://github.com/Steve-xmh/amll-ttml-tool): AMLL TTML Editor provides editing support for TTML format lyrics and real-time preview using AMLL Core
--   [AMLL TTML Database](https://github.com/Steve-xmh/amll-ttml-db): AMLL TTML Database provides a repository of TTML lyrics so that various lyric players can use community-made word-by-word lyrics
 
 ## AMLL Player Preview Gallery
 
