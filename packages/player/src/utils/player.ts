@@ -184,6 +184,10 @@ export const listenAudioThreadEvent = (
 	return Promise.resolve(unlisten);
 };
 
+export async function resolveContentUri(filePath: string): Promise<string> {
+	return await invoke("resolve_content_uri", { filePath });
+}
+
 export async function readLocalMusicMetadata(filePath: string): Promise<{
 	name: string;
 	artist: string;

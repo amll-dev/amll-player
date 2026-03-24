@@ -23,7 +23,6 @@ import {
 } from "@radix-ui/themes";
 import { path } from "@tauri-apps/api";
 import { open } from "@tauri-apps/plugin-dialog";
-import { stat } from "@tauri-apps/plugin-fs";
 import { platform } from "@tauri-apps/plugin-os";
 import { useLiveQuery } from "dexie-react-hooks";
 import { motion, useMotionTemplate, useScroll } from "framer-motion";
@@ -38,7 +37,11 @@ import { PageContainer } from "../../components/PageContainer/index.tsx";
 import { PlaylistCover } from "../../components/PlaylistCover/index.tsx";
 import { PlaylistSongCard } from "../../components/PlaylistSongCard/index.tsx";
 import { db, type Song } from "../../dexie.ts";
-import { emitAudioThread, readLocalMusicMetadata } from "../../utils/player.ts";
+import {
+	emitAudioThread,
+	readLocalMusicMetadata,
+	resolveContentUri,
+} from "../../utils/player.ts";
 import styles from "./index.module.css";
 
 export type Loadable<Value> =
@@ -170,11 +173,12 @@ export const Component: FC = () => {
 				results.map(async (v) => {
 					let normalized = v;
 					console.log(v);
-					if (platform() !== "android" && platform() !== "ios") {
+					if (platform() === "android" || platform() === "ios") {
+						normalized = await resolveContentUri(v);
+					} else {
 						normalized = (await path.normalize(v)).replace(/\\/gi, "/");
 					}
 					try {
-						console.log(await stat(v));
 						const pathMd5 = md5(normalized);
 						const musicInfo = await readLocalMusicMetadata(normalized);
 

@@ -7,6 +7,7 @@ use serde::*;
 use serde_json::Value;
 use tauri::{
     AppHandle, Manager, PhysicalSize, Runtime, Size, State, WebviewWindowBuilder, ipc::Channel,
+    path::BaseDirectory,
     utils::config::WindowEffectsConfig, window::Effect,
 };
 use tokio::sync::RwLock;
@@ -94,6 +95,76 @@ impl From<AudioInfo> for MusicInfo {
             duration: v.duration,
         }
     }
+}
+
+#[tauri::command]
+async fn resolve_content_uri(
+    file_path: tauri_plugin_fs::FilePath,
+    fs: State<'_, tauri_plugin_fs::Fs<tauri::Wry>>,
+    app: AppHandle,
+) -> Result<String, String> {
+    // If it's already a real filesystem path, return it directly
+    if let Some(p) = file_path.as_path() {
+        return Ok(p.to_string_lossy().into_owned());
+    }
+
+    // For content:// URIs (Android), use the fs plugin to open via ContentResolver,
+    // then copy to app data dir so FFmpeg can access the real file path.
+    let uri_string = match &file_path {
+        tauri_plugin_fs::FilePath::Url(u) => u.to_string(),
+        tauri_plugin_fs::FilePath::Path(p) => p.to_string_lossy().into_owned(),
+    };
+
+    // Determine file extension from URI
+    let ext = uri_string
+        .rsplit('/')
+        .next()
+        .and_then(|segment| {
+            let decoded = urlencoding::decode(segment).unwrap_or(segment.into());
+            let name = decoded.rsplit('/').next().unwrap_or(&decoded);
+            name.rsplit('.').next().map(|e| e.to_lowercase())
+        })
+        .filter(|e| ["mp3", "flac", "wav", "m4a", "aac", "ogg", "wma", "opus"].contains(&e.as_str()))
+        .unwrap_or_else(|| "audio".to_string());
+
+    // Create a hash-based filename to avoid duplicates
+    let uri_hash = format!("{:x}", md5::compute(uri_string.as_bytes()));
+    let filename = format!("{uri_hash}.{ext}");
+
+    // Build target directory: app_data_dir/music_cache/
+    let data_dir = app
+        .path()
+        .resolve("music_cache", BaseDirectory::AppData)
+        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
+    std::fs::create_dir_all(&data_dir)
+        .map_err(|e| format!("Failed to create music_cache dir: {e}"))?;
+
+    let target_path = data_dir.join(&filename);
+
+    // If already cached, return directly
+    if target_path.exists() {
+        return Ok(target_path.to_string_lossy().into_owned());
+    }
+
+    // Open the content:// URI via tauri-plugin-fs (uses ContentResolver on Android)
+    let mut open_opts = tauri_plugin_fs::OpenOptions::new();
+    open_opts.read(true);
+    let mut src_file = fs
+        .open(file_path, open_opts)
+        .map_err(|e| format!("Failed to open content URI: {e}"))?;
+
+    let mut dst_file = std::fs::File::create(&target_path)
+        .map_err(|e| format!("Failed to create cache file: {e}"))?;
+
+    std::io::copy(&mut src_file, &mut dst_file)
+        .map_err(|e| {
+            // Clean up partial file on failure
+            let _ = std::fs::remove_file(&target_path);
+            format!("Failed to copy file: {e}")
+        })?;
+
+    info!("Resolved content URI to: {}", target_path.display());
+    Ok(target_path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -332,6 +403,7 @@ pub fn run() {
             screen_capture::take_screenshot,
             player::local_player_send_msg,
             player::set_media_controls_enabled,
+            resolve_content_uri,
             read_local_music_metadata,
             restart_app,
             #[cfg(target_os = "windows")]
