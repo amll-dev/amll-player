@@ -114,7 +114,7 @@ async function generateDoc() {
 
 // https://astro.build/config
 export default defineConfig({
-	base: "applemusic-like-lyrics",
+	base: "/",
 	integrations: [
 		react(),
 		starlight({
