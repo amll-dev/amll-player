@@ -121,6 +121,10 @@
 		"playlist": {
 			"addLocalMusic": {
 				"allFiles": "所有文件",
+				"dialog": {
+					"failedDescription": "以下 {count, plural, other {#}} 首歌曲添加失败：",
+					"failedTitle": "部分歌曲导入失败"
+				},
 				"filterName": "音频文件",
 				"label": "添加本地歌曲",
 				"toast": {

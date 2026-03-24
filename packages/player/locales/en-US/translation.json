@@ -121,6 +121,10 @@
 		"playlist": {
 			"addLocalMusic": {
 				"allFiles": "All Files",
+				"dialog": {
+					"failedDescription": "The following {count, plural, other {#}} failed to be added:",
+					"failedTitle": "Some songs failed to import"
+				},
 				"filterName": "Audio File",
 				"label": "Add Music From Disk",
 				"toast": {
