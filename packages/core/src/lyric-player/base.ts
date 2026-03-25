@@ -774,6 +774,25 @@ export abstract class LyricPlayerBase
 				this.calcLayout();
 			}
 		}
+
+		if (this.bufferedLines.size === 0 && this.processedLines.length > 0) {
+			const lastLine = this.processedLines[this.processedLines.length - 1];
+
+			const bottomEl = this.bottomLine.getElement();
+			const hasBottomContent = bottomEl.innerHTML.trim().length > 0;
+
+			if (time >= lastLine.endTime) {
+				const targetIndex = hasBottomContent
+					? this.processedLines.length
+					: this.processedLines.length - 1;
+
+				if (this.scrollToIndex !== targetIndex) {
+					this.scrollToIndex = targetIndex;
+					this.calcLayout();
+				}
+			}
+		}
+
 		this.lastCurrentTime = time;
 	}
 
@@ -831,20 +850,33 @@ export abstract class LyricPlayerBase
 		curPos += this.size[1] * this.alignPosition;
 		const curLine = this.currentLyricLineObjects[targetAlignIndex];
 		this.targetAlignIndex = targetAlignIndex;
+
+		const isBottomFocused =
+			targetAlignIndex === this.currentLyricLineObjects.length;
+		this.bottomLine.setFocused(isBottomFocused);
+
+		let targetLineHeight = 0;
 		if (curLine) {
-			const lineHeight =
+			targetLineHeight =
 				this.lyricLinesSize.get(curLine)?.[1] ?? LINE_HEIGHT_FALLBACK;
+		} else if (isBottomFocused) {
+			console.log(isBottomFocused);
+			targetLineHeight = this.bottomLine.lineSize[1];
+		}
+
+		if (targetLineHeight > 0) {
 			switch (this.alignAnchor) {
 				case "bottom":
-					curPos -= lineHeight;
+					curPos -= targetLineHeight;
 					break;
 				case "center":
-					curPos -= lineHeight / 2;
+					curPos -= targetLineHeight / 2;
 					break;
 				case "top":
 					break;
 			}
 		}
+
 		const latestIndex = Math.max(...this.bufferedLines);
 		let delay = 0;
 		let baseDelay = sync ? 0 : 0.05;

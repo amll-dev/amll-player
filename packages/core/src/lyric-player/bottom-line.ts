@@ -15,8 +15,12 @@ export class BottomLineEl implements HasElement, Disposable {
 		posX: new Spring(0),
 		posY: new Spring(0),
 	};
+	private isFocused = false;
 	constructor(private lyricPlayer: LyricPlayerBase) {
-		this.element.setAttribute("class", styles.lyricLine);
+		this.element.setAttribute(
+			"class",
+			`${styles.lyricLine} ${styles.bottomLine}`,
+		);
 		this.rebuildStyle();
 	}
 	async measureSize(): Promise<[number, number]> {
@@ -32,6 +36,16 @@ export class BottomLineEl implements HasElement, Disposable {
 	}
 	hide() {
 		this.rebuildStyle();
+	}
+	setFocused(focused: boolean) {
+		if (this.isFocused !== focused) {
+			this.isFocused = focused;
+			if (focused) {
+				this.element.dataset.focused = "true";
+			} else {
+				delete this.element.dataset.focused;
+			}
+		}
 	}
 	private rebuildStyle() {
 		let style = `transform:translate(${this.lineTransforms.posX

@@ -222,3 +222,17 @@
 .tmpDisableTransition {
 	transition: none !important;
 }
+
+.bottomLine {
+	padding-top: 0;
+	padding-bottom: 0;
+	cursor: default;
+	line-height: 1.8em;
+}
+
+.bottomLine:empty {
+	display: none;
+	padding: 0;
+	margin: 0;
+	height: 0;
+}
