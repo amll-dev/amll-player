@@ -117,15 +117,7 @@ export default defineConfig({
 	],
 	resolve: {
 		dedupe: ["react", "react-dom", "jotai"],
-		alias: {
-			"@applemusic-like-lyrics/core": resolve(__dirname, "../core/src"),
-			"@applemusic-like-lyrics/react": resolve(__dirname, "../react/src"),
-			"@applemusic-like-lyrics/ttml": resolve(__dirname, "../ttml/src"),
-			"@applemusic-like-lyrics/react-full": resolve(
-				__dirname,
-				"../react-full/src",
-			),
-		},
+		alias: {},
 	},
 	// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
 	//
