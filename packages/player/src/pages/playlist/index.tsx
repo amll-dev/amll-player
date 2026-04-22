@@ -1,8 +1,4 @@
-import {
-	currentPlaylistAtom,
-	currentPlaylistMusicIndexAtom,
-	musicPlayingPositionAtom,
-} from "@applemusic-like-lyrics/react-full";
+import { musicPlayingPositionAtom } from "@applemusic-like-lyrics/react-full";
 import {
 	ArrowLeftIcon,
 	Pencil1Icon,
@@ -37,6 +33,10 @@ import { PageContainer } from "../../components/PageContainer/index.tsx";
 import { PlaylistCover } from "../../components/PlaylistCover/index.tsx";
 import { PlaylistSongCard } from "../../components/PlaylistSongCard/index.tsx";
 import { db, type Song } from "../../dexie.ts";
+import {
+	currentPlaylistAtom,
+	currentPlaylistMusicIndexAtom,
+} from "../../states/appAtoms.ts";
 import {
 	emitAudioThread,
 	readLocalMusicMetadata,

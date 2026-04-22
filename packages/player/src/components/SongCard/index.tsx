@@ -1,6 +1,4 @@
 import {
-	currentPlaylistAtom,
-	currentPlaylistMusicIndexAtom,
 	musicPlayingPositionAtom,
 	toDuration,
 } from "@applemusic-like-lyrics/react-full";
@@ -10,6 +8,10 @@ import { type CSSProperties, forwardRef, type PropsWithChildren } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import type { Song } from "../../dexie.ts";
 import { router } from "../../router.tsx";
+import {
+	currentPlaylistAtom,
+	currentPlaylistMusicIndexAtom,
+} from "../../states/appAtoms.ts";
 import { emitAudioThread } from "../../utils/player.ts";
 import { useSongCover } from "../../utils/use-song-cover.ts";
 
