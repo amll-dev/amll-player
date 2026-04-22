@@ -1,6 +1,5 @@
 import { branch, commit } from "virtual:git-metadata-plugin";
 import {
-	CanvasLyricPlayer,
 	DomLyricPlayer,
 	DomSlimLyricPlayer,
 	MeshGradientRenderer,
@@ -565,13 +564,6 @@ const LyricAppearanceSettings = () => {
 				),
 				value: LyricPlayerImplementation.DomSlim,
 			},
-			{
-				label: t(
-					"page.settings.lyricAppearance.lyricPlayerImplementation.menu.canvas",
-					"Canvas",
-				),
-				value: LyricPlayerImplementation.Canvas,
-			},
 		],
 		[t],
 	);
@@ -584,8 +576,6 @@ const LyricAppearanceSettings = () => {
 			return LyricPlayerImplementation.Dom;
 		if (value.lyricPlayer === DomSlimLyricPlayer)
 			return LyricPlayerImplementation.DomSlim;
-		if (value.lyricPlayer === CanvasLyricPlayer)
-			return LyricPlayerImplementation.Canvas;
 		return LyricPlayerImplementation.Dom;
 	};
 
@@ -594,9 +584,6 @@ const LyricAppearanceSettings = () => {
 		switch (selectedString) {
 			case LyricPlayerImplementation.DomSlim:
 				implementationObject = { lyricPlayer: DomSlimLyricPlayer };
-				break;
-			case LyricPlayerImplementation.Canvas:
-				implementationObject = { lyricPlayer: CanvasLyricPlayer };
 				break;
 			default:
 				implementationObject = { lyricPlayer: DomLyricPlayer };

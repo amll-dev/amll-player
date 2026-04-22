@@ -1,3 +1,4 @@
+import type { SongData } from "@applemusic-like-lyrics/react-full";
 import { invoke } from "@tauri-apps/api/core";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { atom } from "jotai";
@@ -148,3 +149,7 @@ export const bottomLyricDisplayModeAtom =
 export const currentLyricAuthorsAtom = atom<string[]>([]);
 
 export const currentSongWritersAtom = atom<string[]>([]);
+
+export const currentPlaylistAtom = atom<SongData[]>([]);
+
+export const currentPlaylistMusicIndexAtom = atom(0);

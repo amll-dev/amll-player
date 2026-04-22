@@ -1,7 +1,3 @@
-import {
-	currentPlaylistAtom,
-	currentPlaylistMusicIndexAtom,
-} from "@applemusic-like-lyrics/react-full";
 import { PlayIcon } from "@radix-ui/react-icons";
 import { Avatar, Box, Flex, type FlexProps, Inset } from "@radix-ui/themes";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -17,6 +13,10 @@ import {
 } from "react";
 import { Trans } from "react-i18next";
 import { db, type Song } from "../../dexie.ts";
+import {
+	currentPlaylistAtom,
+	currentPlaylistMusicIndexAtom,
+} from "../../states/appAtoms.ts";
 import { emitAudioThread, type SongData } from "../../utils/player.ts";
 import styles from "./index.module.css";
 
