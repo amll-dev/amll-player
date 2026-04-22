@@ -12,6 +12,8 @@ import { AudioQualityDialog } from "../AudioQualityDialog/index.tsx";
 import { BottomLyricInfo } from "../BottomLyricInfo";
 import { RecordPanel } from "../RecordPanel/index.tsx";
 import styles from "./index.module.css";
+import "@applemusic-like-lyrics/core/style.css";
+import "@applemusic-like-lyrics/react-full/style.css";
 
 export const AMLLWrapper: FC = () => {
 	const isLyricPageOpened = useAtomValue(isLyricPageOpenedAtom);

@@ -1,7 +1,5 @@
 import {
 	AudioQualityType,
-	currentPlaylistAtom,
-	currentPlaylistMusicIndexAtom,
 	fftDataAtom,
 	fftDataRangeAtom,
 	hideLyricViewAtom,
@@ -42,6 +40,8 @@ import { useLyricParser } from "../../hooks/useLyricParser.ts";
 import {
 	audioQualityDialogOpenedAtom,
 	currentLyricAuthorsAtom,
+	currentPlaylistAtom,
+	currentPlaylistMusicIndexAtom,
 	currentSongWritersAtom,
 	enableMediaControlsAtom,
 } from "../../states/appAtoms.ts";
