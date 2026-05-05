@@ -17,7 +17,8 @@
 			"play": "播放",
 			"rewindSong": "Bài trước đó",
 			"toggleFullscreen": "Toàn màn hình / Thoát toàn màn hình",
-			"toggleLyrics": "Hiển thị lời bài hát"
+			"toggleLyrics": "Hiển thị lời bài hát",
+			"windowAlwaysOnTop": "窗口置顶"
 		},
 		"loadAudioError": "Lỗi tải âm thanh từ tệp {error}",
 		"openMenuViaRightClick": "Hãy nhấp chuột phải vào bất kỳ chỗ nào trên trang lời bài hát để mở Menu!",
@@ -190,6 +191,10 @@
 					"description": "选择应用的外观主题",
 					"label": "界面主题",
 					"light": "浅色"
+				},
+				"windowAlwaysOnTop": {
+					"description": "将应用窗口设置为始终置顶",
+					"label": "启用窗口置顶"
 				}
 			},
 			"lyricAppearance": {
@@ -226,7 +231,6 @@
 					"description": "Hiện tại có hai phương pháp phát lời bài hát:\n    DOM: Sử dụng phần tử DOM, hiệu ứng hiện tại là tốt nhất, nhưng hiệu năng tiêu thụ cao.\n    Canvas: Sử dụng Canvas, vẫn đang trong quá trình phát triển, tối ưu hóa hiệu năng, nhưng một số hiệu ứng chi tiết chưa hoàn thiện.",
 					"label": "Triển khai trình phát lời bài hát",
 					"menu": {
-						"canvas": "Canvas",
 						"dom": "DOM",
 						"dom-slim": "DOM（阉割版）"
 					}

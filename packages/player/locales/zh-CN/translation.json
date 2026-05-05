@@ -17,7 +17,8 @@
 			"play": "播放",
 			"rewindSong": "上一首",
 			"toggleFullscreen": "全屏 / 取消全屏",
-			"toggleLyrics": "显示歌词"
+			"toggleLyrics": "显示歌词",
+			"windowAlwaysOnTop": "窗口置顶"
 		},
 		"loadAudioError": "播放后端加载音频失败\n{error}",
 		"openMenuViaRightClick": "请右键歌词页任意位置来打开菜单哦！",
@@ -190,6 +191,10 @@
 					"description": "选择应用的外观主题",
 					"label": "界面主题",
 					"light": "浅色"
+				},
+				"windowAlwaysOnTop": {
+					"description": "将应用窗口设置为始终置顶",
+					"label": "启用窗口置顶"
 				}
 			},
 			"lyricAppearance": {
@@ -226,7 +231,6 @@
 					"description": "目前有两个歌词播放实现\n- DOM：使用 DOM 元素实现，目前效果最全，但性能开销大\n- Canvas：使用 Canvas 实现，仍在开发中，性能优异，但是部分细节效果不足",
 					"label": "歌词播放器实现",
 					"menu": {
-						"canvas": "Canvas",
 						"dom": "DOM",
 						"dom-slim": "DOM（阉割版）"
 					}

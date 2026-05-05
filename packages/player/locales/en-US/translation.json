@@ -17,7 +17,8 @@
 			"play": "播放",
 			"rewindSong": "Previous Song",
 			"toggleFullscreen": "Enter / Exit full screen",
-			"toggleLyrics": "Lyrics"
+			"toggleLyrics": "Lyrics",
+			"windowAlwaysOnTop": "窗口置顶"
 		},
 		"loadAudioError": "The player backend encountered an error when loading the audio file:\n{error}",
 		"openMenuViaRightClick": "Please right-click anywhere to open menu",
@@ -190,6 +191,10 @@
 					"description": "选择应用的外观主题",
 					"label": "界面主题",
 					"light": "浅色"
+				},
+				"windowAlwaysOnTop": {
+					"description": "将应用窗口设置为始终置顶",
+					"label": "启用窗口置顶"
 				}
 			},
 			"lyricAppearance": {
@@ -226,7 +231,6 @@
 					"description": "Currently, there are two lyrics rendering implementations:\n- DOM: Implemented using DOM elements, currently the most comprehensive, but with high performance overhead\n- Canvas: Implemented using Canvas, still under development, with excellent performance, but some details still need to be improved",
 					"label": "Implementation of the Lyrics Player",
 					"menu": {
-						"canvas": "Canvas",
 						"dom": "DOM",
 						"dom-slim": "DOM (Stripped)"
 					}
