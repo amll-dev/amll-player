@@ -41,7 +41,7 @@ pnpm tauri build          # Production build
 pnpm tauri dev            # Development mode
 ```
 
-## Acknowledgements
+### Acknowledgements
 
 -   [woshizja/sound-processor](https://github.com/woshizja/sound-processor)
 -   [FFmpeg](http://ffmpeg.org/)
