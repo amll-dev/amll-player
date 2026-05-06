@@ -41,7 +41,7 @@ pnpm tauri build   # 发行构建
 pnpm tauri dev     # 开发模式
 ```
 
-## 鸣谢
+### 鸣谢
 
 -   [woshizja/sound-processor](https://github.com/woshizja/sound-processor)
 -   [FFmpeg](http://ffmpeg.org/)
