@@ -2,103 +2,36 @@
 
 ![Apple Music-like Lyrics - A lyric page component library for Web](https://github.com/user-attachments/assets/ca6a98d4-28ea-4fb6-beec-7948f2ac87ec)
 
+# AMLL Player
+
 English / [简体中文](./README-CN.md)
 
-</div>
-
-<div align=center>
-
-A lyric player component library that aims to look similar to iPad version of Apple Music. With [DOM](./packages/core/README.md), [React](./packages/react/README.md) and [Vue](./packages/vue/README.md) bindings. [Also there's a standalone player based on it!](./packages/player/README.md)
-
-This is perhaps the most iPad Apple Music-like lyric page you've seen in frontend.
-
-Although the goal of this project is not to imitate it completely, it will polish some details to be better than the current best lyric players.
-
-**—— AMLL Series Projects ——**
-
-[AMLL TTML DB - TTML Syllable Lyric Database](https://github.com/amll-dev/amll-ttml-db)
-/
-[AMLL TTML Tool - TTML Syllable Lyric Editor](https://github.com/amll-dev/amll-ttml-tool)
-
-[Projects that references AMLL](https://github.com/amll-dev/applemusic-like-lyrics/discussions/397)
+An independent lyrics page player that obtains audio playback information through local music files/WebSocket Server.
 
 </div>
 
-## AMLL Ecology and source code structure
+## List of functions/features：
 
-### Main modules
+- Communicate with any client that implements the AMLL WS Protocol, synchronize the progress of the playback information, and get the corresponding lyrics for playback display
+- Support reading local audio files for playback, or loading local lyrics files
+- Support loading various lyric formats
+- High performance – no software issues that affect the display of lyrics
+- Expected support for playback state transfer protocols：[SMTC (Windows)](https://learn.microsoft.com/en-us/uwp/api/windows.media.systemmediatransportcontrols?view=winrt-26100) / [MPRIS (Linux/XDG)](https://www.freedesktop.org/wiki/Specifications/mpris-spec/) / [MPNowPlayingInfoCenter (macOS)](https://developer.apple.com/documentation/mediaplayer/mpnowplayinginfocenter)
 
--   [![AMLL-Core](https://img.shields.io/badge/Core-%233178c6?label=Apple%20Music-like%20Lyrics&labelColor=%23FB5C74)](./packages/core/README.md): AMLL Core Component Library, written natively with DOM, provides lyric display component and dynamic fluid background component
--   [![AMLL-React](https://img.shields.io/badge/React-%23149eca?label=Apple%20Music-like%20Lyrics&labelColor=%23FB5C74)](./packages/react/README.md): AMLL React binding, provides React component forms of lyric display and dynamic fluid background components
--   [![AMLL-Vue](https://img.shields.io/badge/Vue-%2342d392?label=Apple%20Music-like%20Lyrics&labelColor=%23FB5C74)](./packages/vue/README.md): AMLL Vue binding, provides Vue component forms of lyric display and dynamic fluid background components
--   [![AMLL-Lyric](https://img.shields.io/badge/Lyric-%23FB8C84?label=Apple%20Music-like%20Lyrics&labelColor=%23FB5C74)](./packages/lyric/README.md): AMLL lyric parsing module, provides parsing and serialization support for various lyric formats including LyRiC, YRC, QRC, and Lyricify Syllable
+## Install and use
 
-## AMLL Player Preview Gallery
+Since the player is still compatible, the development build can only be downloaded through [Github Action](https://github.com/amll-dev/applemusic-like-lyrics/actions/workflows/build-player.yaml), and the official version will be released in the future.
 
-![AMLL Player Preview](https://github.com/user-attachments/assets/2b93b28f-7f79-4092-a0a5-bc7c66e731a9)
+## Why is there this？
 
-## Browser compatibility alerts
+The lyrics player is equivalent to software like external subtitles, and the lyrics are played in an environment independent of the plug-in environment.
 
-This component framework requires the following browsers or newer versions at a minimum:
+After the author's performance test, it is found that embedding it in the form of a plug-in on the playback page will cause frame drops and uncertain stuttering due to the browser framework problems of the plug-in running environment.
 
--   Chromium/Edge 91+
--   Firefox 100+
--   Safari 9.1+
+Therefore, the author decided to separate the playback page into a separate desktop program to improve the playback performance and effect, while the original plug-in was responsible for transmitting the playback information and status to the lyric player.
 
-To fully render all component effects, the following browser versions or newer are required:
+So if you also have a little stuttering, you can try using this lyric player, and the performance should be improved.
 
--   Chromium 120+
--   Firefox 100+
--   Safari 15.4+
-
-Reference Links:
-
--   [https://caniuse.com/mdn-css_properties_mask-image](https://caniuse.com/mdn-css_properties_mask-image)
--   [https://caniuse.com/mdn-css_properties_mix-blend-mode_plus-lighter](https://caniuse.com/mdn-css_properties_mix-blend-mode_plus-lighter)
-
-## Performance configuration reference
-
-Performance benchmarks have shown that mainstream CPU processors from the last five years can run the lyric component at 30FPS. However, if you need smooth 60FPS operation, ensure your CPU frequency is at least 3.0GHz or higher. For 144FPS or above, a CPU frequency of at least 4.2GHz is recommended.
-
-GPU performance capable of running at full 60 fps at the expected sizes under the following conditions:
-
--   `1080p (1920x1080)`: NVIDIA GTX 10 series and above
--   `2160p (3840x2160)`: NVIDIA RTX 2070 and above
-
-## Development/build/packaging process
-
-### Prerequisites
-
--   [Node.js](https://nodejs.org/)
--   [pnpm](https://pnpm.io/)
--   [Rust toolchain](https://rustup.rs/)
--   [wasm-pack](https://rustwasm.github.io/wasm-pack/)
-
-For building the standalone **AMLL Player** desktop application, additionally install:
-
--   [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your platform
-
-### Building the component libraries
-
-Clone this repository, then run the following commands in the project root:
-
-```bash
-# Install dependencies
-pnpm install
-
-# Production build (all library packages)
-pnpm build:libs
-```
-
-### Building a single package
-
-```bash
-# Example: build only @applemusic-like-lyrics/core
-pnpm nx run @applemusic-like-lyrics/core:build
-
-# Example: development build of @applemusic-like-lyrics/lyric
-pnpm nx run @applemusic-like-lyrics/lyric:build:dev
-```
 
 ### Building the AMLL Player desktop application
 
