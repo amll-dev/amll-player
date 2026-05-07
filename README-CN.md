@@ -1,6 +1,6 @@
 <div align=center>
 
-![Apple Music-like Lyrics - A lyric page component library for Web](https://github.com/user-attachments/assets/7edd4dc3-a146-490d-ba77-bf57bca15505)
+![Apple Music-like Lyrics - A lyric page component library for Web](https://github.com/user-attachments/assets/48f77628-03db-4326-a2a5-c9e1b2a32e37)
 
 # AMLL Player
 
