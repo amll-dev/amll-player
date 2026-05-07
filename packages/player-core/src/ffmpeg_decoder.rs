@@ -315,16 +315,15 @@ fn run_decoding_loop(
                 errno: ffmpeg::ffi::EAGAIN,
             }) => {
                 match data.input_ctx.packets().next() {
-                    Some((stream, packet)) if stream.index() == data.audio_stream_index => {
-                        if data.decoder.send_packet(&packet).is_err() {
-                            error!("向解码器发送数据包失败");
-                            break 'main_loop;
-                        }
+                    Some((stream, packet))
+                        if stream.index() == data.audio_stream_index
+                            && data.decoder.send_packet(&packet).is_err() =>
+                    {
+                        error!("向解码器发送数据包失败");
+                        break 'main_loop;
                     }
-                    None => {
-                        if data.decoder.send_eof().is_err() {
-                            error!("向解码器发送 EOF 失败");
-                        }
+                    None if data.decoder.send_eof().is_err() => {
+                        error!("向解码器发送 EOF 失败");
                     }
                     _ => {}
                 }

@@ -175,7 +175,6 @@ jobs:
         with:
           workspaces: |
             . -> target
-            packages/player/src-tauri -> target
           key: ${{ matrix.artifact_name_suffix }}
 
       # macOS 自带的 Xcode LLVM 不支持 WASM 目标

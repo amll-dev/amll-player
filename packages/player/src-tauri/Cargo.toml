@@ -62,9 +62,6 @@ mimalloc = "0.1.50"
 version = "8"
 default-features = false
 
-[patch.crates-io]
-ffmpeg-sys-next = { git = "https://github.com/apoint123/rust-ffmpeg-sys" }
-
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "^0.6"
 objc2-avf-audio = "^0.3"
@@ -96,14 +93,3 @@ tauri-plugin-updater = { version = "2" }
 # this feature is used for production builds or when `devPath` points to the filesystem
 # DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
-
-# [profile.dev.package."*"]
-# opt-level = 1
-
-[profile.release]
-panic = "abort"
-codegen-units = 1
-lto = "thin"
-opt-level = "z"
-strip = true
-debug = false
