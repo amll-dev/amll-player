@@ -33,6 +33,13 @@
 				"placeholder": "Search for songs, lyrics, artists......"
 			},
 			"supportText": "AMLL TTML DB is a free and open-source lyrics' database built by the AMLL community. Want to contribute your lyrics to AMLL TTML DB? Head over to the <1>GitHub repository</1> to learn more on how to submit!",
+			"sync": {
+				"empty": "Lyrics database is empty",
+				"error": "Sync error: {error}",
+				"failed": "Sync failed: {error}",
+				"skipped": "Lyrics database is up to date",
+				"updated": "Updated {count} lyrics"
+			},
 			"tip": "Type your search keywords above, and click on a suggestion to import the lyrics into the database directly.",
 			"title": "Search / Import lyrics from AMLL TTML DB"
 		}

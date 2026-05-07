@@ -1,3 +1,6 @@
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use std::net::SocketAddr;
 
 use amll_player_core::AudioInfo;
@@ -17,6 +20,7 @@ use crate::server::AMLLWebSocketServer;
 mod player;
 mod screen_capture;
 mod server;
+mod ttml_db;
 
 #[cfg(target_os = "windows")]
 mod taskbar_lyric;
@@ -65,10 +69,7 @@ fn restart_app<R: Runtime>(app: AppHandle<R>) {
 }
 
 #[tauri::command]
-fn set_window_always_on_top<R: Runtime>(
-    enabled: bool,
-    app: AppHandle<R>,
-) -> Result<(), String> {
+fn set_window_always_on_top<R: Runtime>(enabled: bool, app: AppHandle<R>) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         if let Some(window) = app.get_webview_window("main") {
@@ -338,6 +339,72 @@ async fn open_screenshot_window(app: AppHandle) {
     recreate_window(&app, "screenshot", Some("screenshot.html")).await;
 }
 
+#[tauri::command]
+async fn sync_lyrics(
+    app: AppHandle,
+    reader_state: State<'_, ttml_db::LyricDbReader>,
+) -> Result<ttml_db::model::SyncResult, String> {
+    let data_dir = ttml_db::get_lyric_db_dir(&app)?;
+    std::fs::create_dir_all(&data_dir)
+        .map_err(|e| format!("Failed to create lyric-db dir: {e}"))?;
+
+    let mut syncer = ttml_db::sync::LyricSyncer::new(data_dir);
+    let result = syncer.sync().await.map_err(|e| format!("{:#}", e))?;
+
+    if result.status == ttml_db::model::SyncStatus::Updated {
+        let index_file = ttml_db::get_index_file_path(&app)?;
+        if index_file.exists() {
+            let _ = ttml_db::refresh_shared_reader(&reader_state, &index_file).await;
+        }
+    }
+
+    Ok(result)
+}
+
+#[tauri::command]
+async fn search_lyrics(
+    app: AppHandle,
+    reader_state: State<'_, ttml_db::LyricDbReader>,
+    filters: Vec<ttml_db::model::SearchFilter>,
+) -> Result<Vec<ttml_db::model::LyricSearchResult>, String> {
+    let index_file = ttml_db::get_index_file_path(&app)?;
+
+    if !index_file.exists() {
+        return Ok(Vec::new());
+    }
+
+    ttml_db::get_or_create_reader(&reader_state, &index_file).await?;
+
+    let reader_guard = reader_state.read().await;
+    let reader = reader_guard
+        .as_ref()
+        .ok_or_else(|| "Reader not initialized".to_string())?;
+
+    Ok(reader.search(&filters))
+}
+
+#[tauri::command]
+async fn get_lyric_detail(
+    app: AppHandle,
+    reader_state: State<'_, ttml_db::LyricDbReader>,
+    file_path: String,
+) -> Result<Option<String>, String> {
+    let index_file = ttml_db::get_index_file_path(&app)?;
+
+    if !index_file.exists() {
+        return Ok(None);
+    }
+
+    ttml_db::get_or_create_reader(&reader_state, &index_file).await?;
+
+    let reader_guard = reader_state.read().await;
+    let reader = reader_guard
+        .as_ref()
+        .ok_or_else(|| "Reader not initialized".to_string())?;
+
+    Ok(reader.get_lyric_detail(&file_path))
+}
+
 fn init_logging() {
     #[cfg(not(debug_assertions))]
     {
@@ -426,6 +493,9 @@ pub fn run() {
             resolve_content_uri,
             read_local_music_metadata,
             restart_app,
+            sync_lyrics,
+            search_lyrics,
+            get_lyric_detail,
             #[cfg(target_os = "windows")]
             set_window_always_on_top,
             #[cfg(target_os = "windows")]
@@ -465,6 +535,9 @@ pub fn run() {
             let _ = app
                 .handle()
                 .plugin(tauri_plugin_global_shortcut::Builder::new().build());
+
+            app.manage(ttml_db::create_shared_reader());
+
             app.manage::<AMLLWebSocketServerWrapper>(RwLock::new(AMLLWebSocketServer::new(
                 app.handle().clone(),
             )));

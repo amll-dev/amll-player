@@ -18,3 +18,4 @@ target/
 .vscode/
 *.tsbuildinfo
 .million/
+.opencode

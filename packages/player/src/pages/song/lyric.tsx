@@ -251,7 +251,7 @@ export const LyricTabContent: FC = () => {
 					</>
 				)}
 				<TTMLImportDialog
-					defaultValue={song ? `${song.songArtists} - ${song.songName}` : ""}
+					defaultValue={song ? `${song.songName}` : ""}
 					onSelectedLyric={(ttmlContent) => {
 						saveData("ttml", ttmlContent, "", "");
 					}}

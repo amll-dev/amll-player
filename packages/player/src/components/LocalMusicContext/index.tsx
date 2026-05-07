@@ -47,8 +47,8 @@ import {
 } from "../../states/appAtoms.ts";
 import {
 	SyncStatus,
-	syncLyricsDatabase,
-} from "../../utils/lyric-sync-manager.ts";
+	syncLyrics,
+} from "../../utils/lyric-db-api.ts";
 import {
 	type AudioQuality,
 	type AudioThreadEvent,
@@ -190,10 +190,9 @@ const LyricContext: FC = () => {
 		() => (musicId ? db.songs.get(musicId) : undefined),
 		[musicId],
 	);
-	const store = useStore();
 
 	useEffect(() => {
-		syncLyricsDatabase(store).then((result) => {
+		syncLyrics().then((result) => {
 			switch (result.status) {
 				case SyncStatus.Updated:
 					console.log(

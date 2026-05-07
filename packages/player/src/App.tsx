@@ -2,7 +2,7 @@ import { Box, Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
 import classNames from "classnames";
 import { useAtomValue } from "jotai";
-import { lazy, StrictMode, Suspense } from "react";
+import { lazy, StrictMode, Suspense, useEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import styles from "./App.module.css";
@@ -27,6 +27,10 @@ import {
 	musicContextModeAtom,
 	showStatJSFrameAtom,
 } from "./states/appAtoms.ts";
+import {
+	cleanupOldIndexedDB,
+	isMigrationCompleted,
+} from "./utils/indexeddb-migration.ts";
 import { useInitializeWindow } from "./utils/useInitializeWindow.ts";
 
 const ExtensionContext = lazy(() => import("./components/ExtensionContext"));
@@ -41,6 +45,12 @@ function App() {
 	const hasBackground = useAtomValue(hasBackgroundAtom);
 
 	useInitializeWindow();
+
+	useEffect(() => {
+		if (!isMigrationCompleted()) {
+			cleanupOldIndexedDB();
+		}
+	}, []);
 
 	return (
 		<>

@@ -33,6 +33,13 @@
 				"placeholder": "搜尋歌曲、歌詞內容、歌手等……"
 			},
 			"supportText": "AMLL TTML DB 是由 AMLL 社群愛好者們一同建立的開源無版權歌詞資料庫，想為 AMLL TTML DB 貢獻歌詞嗎？前往<1>GitHub 倉庫</1>即可了解提交歌詞流程！",
+			"sync": {
+				"empty": "歌词库为空",
+				"error": "同步出错: {error}",
+				"failed": "同步失败: {error}",
+				"skipped": "歌词库已是最新",
+				"updated": "已更新 {count} 首歌词"
+			},
 			"tip": "在上方輸入搜尋關鍵字，點選候選項即可將歌詞內容直接匯入歌詞資料。",
 			"title": "從 AMLL TTML DB 搜尋 / 導入歌詞"
 		}
