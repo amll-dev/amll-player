@@ -1,7 +1,5 @@
 <div align=center>
 
-![Apple Music-like Lyrics - A lyric page component library for Web](https://github.com/user-attachments/assets/48f77628-03db-4326-a2a5-c9e1b2a32e37)
-
 # AMLL Player
 
 English / [简体中文](./README-CN.md)
