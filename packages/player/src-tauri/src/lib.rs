@@ -447,6 +447,7 @@ fn init_logging() {
 pub fn run() {
     // Install ring as the default crypto provider for rustls, because multiple providers
     // (aws-lc-rs and ring) might be enabled in our dependency tree and rustls demands one to be explicitly chosen.
+    #[cfg(target_os = "android")]
     let _ = rustls::crypto::ring::default_provider().install_default();
 
     init_logging();
