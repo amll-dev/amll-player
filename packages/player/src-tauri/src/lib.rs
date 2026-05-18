@@ -535,14 +535,8 @@ pub fn run() {
                                 );
                             }
 
-                            // rustls-platform-verifier also needs the JVM + Context on Android
-                            // for TLS certificate verification via the system trust store.
-                            // init() reads from ndk_context internally, so it must be called
-                            // after ndk_context::initialize_android_context above.
-                            rustls_platform_verifier::init();
-
                             ANDROID_NDK_READY.get_or_init(|| ());
-                            info!("Android NDK context and TLS verifier initialized.");
+                            info!("Android NDK context initialized.");
                         });
                     });
                 } else {

@@ -52,7 +52,10 @@ rodio = "0.22"
 
 rkyv = { version = "0.7", features = ["validation"] }
 memmap2 = "0.9"
-reqwest = { version = "0.13", features = ["json", "stream"] }
+# Use webpki-roots instead of the default rustls-platform-verifier backend.
+# rustls-platform-verifier requires JNI_OnLoad which Tauri does not trigger on Android.
+# webpki-roots embeds Mozilla's root certs statically and needs no runtime initialization.
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls-tls-webpki-roots"] }
 zip = "8.6"
 ttml_processor = "0.3"
 tempfile = "3.27"
@@ -64,8 +67,7 @@ default-features = false
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-context = "0.1.1"
-jni = "0.22"
-rustls-platform-verifier = "0.7"
+jni = "0.21"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "^0.6"
