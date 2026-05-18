@@ -96,6 +96,7 @@ dependencies = [
  "reqwest 0.13.3",
  "rkyv",
  "rodio",
+ "rustls",
  "serde",
  "serde_json",
  "taskbar-lyric",
@@ -116,6 +117,7 @@ dependencies = [
  "tracing-subscriber",
  "ttml_processor",
  "urlencoding",
+ "webpki-roots 0.26.11",
  "webview2-com",
  "windows 0.62.2",
  "ws-protocol",
@@ -2247,7 +2249,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower-service",
- "webpki-roots",
+ "webpki-roots 1.0.7",
 ]
 
 [[package]]
@@ -4208,7 +4210,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "webpki-roots",
+ "webpki-roots 1.0.7",
 ]
 
 [[package]]
@@ -6726,6 +6728,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31141ce3fc3e300ae89b78c0dd67f9708061d1d2eda54b8209346fd6be9a92c"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "webpki-roots"
+version = "0.26.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "521bc38abb08001b01866da9f51eb7c5d647a19260e00054a8c7fd5f9e57f7a9"
+dependencies = [
+ "webpki-roots 1.0.7",
 ]
 
 [[package]]

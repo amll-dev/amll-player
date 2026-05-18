@@ -67,7 +67,7 @@ ndk-context = "0.1.1"
 jni = "0.21"
 # Used in sync.rs to build a reqwest client with WebPKI roots on Android,
 # bypassing rustls-platform-verifier which requires JNI_OnLoad (not called by Tauri).
-rustls = "0.23"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 webpki-roots = "0.26"
 
 [target.'cfg(target_os = "macos")'.dependencies]

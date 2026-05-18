@@ -445,6 +445,10 @@ fn init_logging() {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Install ring as the default crypto provider for rustls, because multiple providers
+    // (aws-lc-rs and ring) might be enabled in our dependency tree and rustls demands one to be explicitly chosen.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     init_logging();
     info!("AMLL Player is starting!");
     #[allow(unused_mut)]
