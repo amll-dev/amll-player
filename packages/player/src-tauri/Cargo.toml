@@ -64,7 +64,8 @@ default-features = false
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-context = "0.1.1"
-jni = "0.21"
+jni = "0.22"
+rustls-platform-verifier = "0.7"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "^0.6"
