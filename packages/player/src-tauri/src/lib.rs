@@ -514,6 +514,25 @@ pub fn run() {
             theme_watcher::get_system_theme
         ])
         .setup(|app| {
+            #[cfg(target_os = "android")]
+            {
+                if let Some(webview) = app.get_webview_window("main") {
+                    let _ = webview.with_webview(|webview| {
+                        webview.jni_handle().exec(|env, context, _webview| {
+                            let vm = env.get_java_vm().expect("Failed to get JavaVM");
+                            unsafe {
+                                ndk_context::initialize_android_context(
+                                    vm.get_java_vm_pointer() as *mut _,
+                                    context.as_raw() as *mut _,
+                                );
+                            }
+                        });
+                    });
+                } else {
+                    tracing::warn!("Could not find main webview, ndk-context may not be initialized!");
+                }
+            }
+
             player::init_local_player(app.handle().clone());
 
             #[cfg(target_os = "windows")]
