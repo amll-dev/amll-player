@@ -37,6 +37,24 @@ pub async fn set_media_controls_enabled(enabled: bool) {
 
 pub fn init_local_player<R: Runtime>(app: AppHandle<R>) {
     std::thread::spawn(move || {
+        // On Android, ndk_context must be initialized before cpal/AAudio can be used.
+        // with_webview() dispatches to the Android UI thread asynchronously, so we
+        // spin here until ANDROID_NDK_READY is signalled from that callback.
+        #[cfg(target_os = "android")]
+        {
+            use tracing::info;
+            info!("Audio thread: waiting for Android NDK context...");
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+            while crate::ANDROID_NDK_READY.get().is_none() {
+                if std::time::Instant::now() > deadline {
+                    tracing::error!("Timed out waiting for Android NDK context; proceeding anyway.");
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            info!("Audio thread: NDK context ready, opening audio device.");
+        }
+
         let stream = DeviceSinkBuilder::open_default_sink().expect("无法创建默认的音频输出流");
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()

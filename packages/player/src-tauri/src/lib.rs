@@ -1,6 +1,11 @@
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
+/// Signals that ndk_context has been initialized on Android.
+/// The audio thread waits on this before opening the audio device.
+#[cfg(target_os = "android")]
+pub(crate) static ANDROID_NDK_READY: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+
 use std::net::SocketAddr;
 
 use amll_player_core::AudioInfo;
@@ -518,6 +523,9 @@ pub fn run() {
             {
                 if let Some(webview) = app.get_webview_window("main") {
                     let _ = webview.with_webview(|webview| {
+                        // with_webview is dispatched to the Android UI thread (async).
+                        // After initialize_android_context we set ANDROID_NDK_READY so
+                        // the audio thread (which spins on it) can proceed safely.
                         webview.jni_handle().exec(|env, context, _webview| {
                             let vm = env.get_java_vm().expect("Failed to get JavaVM");
                             unsafe {
@@ -526,10 +534,15 @@ pub fn run() {
                                     context.as_raw() as *mut _,
                                 );
                             }
+                            ANDROID_NDK_READY.get_or_init(|| ());
+                            info!("Android NDK context initialized.");
                         });
                     });
                 } else {
-                    tracing::warn!("Could not find main webview, ndk-context may not be initialized!");
+                    // Webview not available yet at setup time; signal anyway so the
+                    // audio thread doesn't block forever (best-effort fallback).
+                    warn!("Main webview not found at setup time; signalling NDK ready without init.");
+                    ANDROID_NDK_READY.get_or_init(|| ());
                 }
             }
 
