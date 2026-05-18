@@ -29,6 +29,24 @@ impl LyricSyncer {
         let writer = TtmlDbWriter::new(index_file.clone());
         let reader = TtmlDbReader::new(&index_file).ok();
 
+        // On Android, reqwest's default TLS backend is rustls-platform-verifier, which needs
+        // JNI_OnLoad to store the JavaVM. Tauri does not call JNI_OnLoad for companion crates,
+        // so we override the TLS config with a pre-built rustls config using WebPKI roots.
+        #[cfg(target_os = "android")]
+        let client = {
+            let mut root_store = rustls::RootCertStore::empty();
+            root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+            let tls_config = rustls::ClientConfig::builder()
+                .with_root_certificates(root_store)
+                .with_no_client_auth();
+            reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .use_preconfigured_tls(tls_config)
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new())
+        };
+
+        #[cfg(not(target_os = "android"))]
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .build()
