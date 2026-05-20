@@ -19,3 +19,4 @@ target/
 *.tsbuildinfo
 .million/
 .opencode
+/vendor

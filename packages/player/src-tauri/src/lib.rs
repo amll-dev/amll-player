@@ -27,6 +27,9 @@ mod screen_capture;
 mod server;
 mod ttml_db;
 
+#[cfg(desktop)]
+mod extension_window;
+
 #[cfg(target_os = "windows")]
 mod taskbar_lyric;
 #[cfg(target_os = "windows")]
@@ -509,6 +512,30 @@ pub fn run() {
             sync_lyrics,
             search_lyrics,
             get_lyric_detail,
+            #[cfg(desktop)]
+            extension_window::extension_window_create,
+            #[cfg(desktop)]
+            extension_window::extension_window_get,
+            #[cfg(desktop)]
+            extension_window::extension_window_close,
+            #[cfg(desktop)]
+            extension_window::extension_window_close_all,
+            #[cfg(desktop)]
+            extension_window::extension_window_show,
+            #[cfg(desktop)]
+            extension_window::extension_window_hide,
+            #[cfg(desktop)]
+            extension_window::extension_window_focus,
+            #[cfg(desktop)]
+            extension_window::extension_window_center,
+            #[cfg(desktop)]
+            extension_window::extension_window_set_title,
+            #[cfg(desktop)]
+            extension_window::extension_window_set_size,
+            #[cfg(desktop)]
+            extension_window::extension_window_set_position,
+            #[cfg(desktop)]
+            extension_window::extension_window_get_current,
             #[cfg(target_os = "windows")]
             set_window_always_on_top,
             #[cfg(target_os = "windows")]
@@ -579,6 +606,9 @@ pub fn run() {
 
             app.manage(ttml_db::create_shared_reader());
 
+            #[cfg(desktop)]
+            app.manage(extension_window::ExtensionWindowState::default());
+
             app.manage::<AMLLWebSocketServerWrapper>(RwLock::new(AMLLWebSocketServer::new(
                 app.handle().clone(),
             )));
@@ -589,6 +619,14 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            #[cfg(desktop)]
+            if let tauri::WindowEvent::Destroyed = event {
+                extension_window::cleanup_destroyed_window(window.app_handle(), window.label());
+                if window.label() == "main" {
+                    extension_window::destroy_all_extension_windows(window.app_handle());
+                }
+            }
+
             #[cfg(target_os = "windows")]
             if let tauri::WindowEvent::Destroyed = event
                 && window.label() == "main"

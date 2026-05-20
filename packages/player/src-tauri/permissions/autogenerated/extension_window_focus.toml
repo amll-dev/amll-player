@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-extension-window-focus"
+description = "Enables the extension_window_focus command without any pre-configured scope."
+commands.allow = ["extension_window_focus"]
+
+[[permission]]
+identifier = "deny-extension-window-focus"
+description = "Denies the extension_window_focus command without any pre-configured scope."
+commands.deny = ["extension_window_focus"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-extension-window-set-size"
+description = "Enables the extension_window_set_size command without any pre-configured scope."
+commands.allow = ["extension_window_set_size"]
+
+[[permission]]
+identifier = "deny-extension-window-set-size"
+description = "Denies the extension_window_set_size command without any pre-configured scope."
+commands.deny = ["extension_window_set_size"]

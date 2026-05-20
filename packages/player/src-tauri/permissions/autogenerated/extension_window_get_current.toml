@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-extension-window-get-current"
+description = "Enables the extension_window_get_current command without any pre-configured scope."
+commands.allow = ["extension_window_get_current"]
+
+[[permission]]
+identifier = "deny-extension-window-get-current"
+description = "Denies the extension_window_get_current command without any pre-configured scope."
+commands.deny = ["extension_window_get_current"]

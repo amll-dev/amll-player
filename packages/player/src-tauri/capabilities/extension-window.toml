@@ -1,0 +1,18 @@
+"$schema" = "../gen/schemas/desktop-schema.json"
+
+identifier = "extension-window"
+local = true
+windows = ["extension-window/*"]
+platforms = ["macOS", "windows", "linux"]
+
+[[permissions]]
+identifier = "core:event:allow-listen"
+[[permissions]]
+identifier = "core:event:allow-emit"
+[[permissions]]
+identifier = "core:event:allow-emit-to"
+[[permissions]]
+identifier = "core:event:allow-unlisten"
+
+[[permissions]]
+identifier = "allow-extension-window-get-current"
