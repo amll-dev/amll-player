@@ -86,6 +86,7 @@ export default defineConfig({
 			shimMissingExports: true,
 			input: {
 				index: resolve(__dirname, "index.html"),
+				"extension-window": resolve(__dirname, "extension-window.html"),
 				screenshot: resolve(__dirname, "screenshot.html"),
 				"taskbar-lyric": resolve(__dirname, "taskbar-lyric.html"),
 			},
