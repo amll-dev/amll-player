@@ -517,14 +517,12 @@ const LyricAppearanceSettings = () => {
 		value: LyricPlayerImplementationObject,
 	): string => {
 		if (!value?.lyricPlayer) return LyricPlayerImplementation.Dom;
-		if (value.lyricPlayer === DomLyricPlayer)
-			return LyricPlayerImplementation.Dom;
 		return LyricPlayerImplementation.Dom;
 	};
 
 	const handleLyricPlayerChange = (selectedString: string) => {
 		const implementationObject: LyricPlayerImplementationObject = {
-			lyricPlayer: DomLyricPlayer,
+			lyricPlayer: DomLyricPlayer as unknown as LyricPlayerImplementationObject["lyricPlayer"],
 		};
 		setLyricPlayerImplValue(implementationObject);
 		localStorage.setItem(
@@ -934,8 +932,8 @@ const LyricBackgroundSettings = () => {
 	): string => {
 		if (typeof value.renderer === "string" && value.renderer === "css-bg")
 			return "css-bg";
-		if (value.renderer === MeshGradientRenderer) return "mesh";
-		if (value.renderer === PixiRenderer) return "pixi";
+		if ((value.renderer as unknown) === MeshGradientRenderer) return "mesh";
+		if ((value.renderer as unknown) === PixiRenderer) return "pixi";
 		return "mesh";
 	};
 
@@ -943,10 +941,14 @@ const LyricBackgroundSettings = () => {
 		let rendererObject: LyricBackgroundRenderer;
 		switch (selectedString) {
 			case "mesh":
-				rendererObject = { renderer: MeshGradientRenderer };
+				rendererObject = {
+					renderer: MeshGradientRenderer as unknown as LyricBackgroundRenderer["renderer"],
+				};
 				break;
 			case "pixi":
-				rendererObject = { renderer: PixiRenderer };
+				rendererObject = {
+					renderer: PixiRenderer as unknown as LyricBackgroundRenderer["renderer"],
+				};
 				break;
 			default:
 				rendererObject = { renderer: "css-bg" };
