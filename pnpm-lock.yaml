@@ -60,8 +60,8 @@ importers:
         specifier: 0.5.1
         version: 0.5.1(@pixi/app@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3))(@pixi/filter-blur@7.4.3(@pixi/core@7.4.3))(@pixi/filter-bulge-pinch@5.1.1(@pixi/core@7.4.3))(@pixi/filter-color-matrix@7.4.3(@pixi/core@7.4.3))(@pixi/sprite@7.4.3(@pixi/core@7.4.3)(@pixi/display@7.4.3(@pixi/core@7.4.3)))
       '@applemusic-like-lyrics/fft':
-        specifier: ^0.2.1
-        version: 0.2.1
+        specifier: ^0.2.2
+        version: 0.2.2
       '@applemusic-like-lyrics/lyric':
         specifier: 1.0.1
         version: 1.0.1
@@ -250,8 +250,8 @@ packages:
       '@pixi/filter-color-matrix': '*'
       '@pixi/sprite': '*'
 
-  '@applemusic-like-lyrics/fft@0.2.1':
-    resolution: {integrity: sha512-npdep5kOcIYe32gLFAyHydVNiPHxUgSX/17f+8ZWFxDUBiewEx8hINwb+iqc5f0gJsWUPEAKihKKQ1EKKNfrLQ==}
+  '@applemusic-like-lyrics/fft@0.2.2':
+    resolution: {integrity: sha512-38Mm1JiLZ9+WOndvR11WJFoWitvju0G8CV6dj9XSLODINfdApknRm5AZHMQwXD7Gf7KG/N/ePG70v39rCiYA6w==}
 
   '@applemusic-like-lyrics/lyric@1.0.1':
     resolution: {integrity: sha512-b4/9MUTdp9AuW59JTBpOxb8P+4SF8NjaoZYpLD/nkVHSM/4kfbnYpo9HldSMOjRLwlKVv8bTF6Vr9K3OLHL85Q==}
@@ -3516,7 +3516,7 @@ snapshots:
       deep-freeze: 0.0.1
       gl-matrix: 4.0.0-beta.2
 
-  '@applemusic-like-lyrics/fft@0.2.1': {}
+  '@applemusic-like-lyrics/fft@0.2.2': {}
 
   '@applemusic-like-lyrics/lyric@1.0.1':
     dependencies:

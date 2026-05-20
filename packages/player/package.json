@@ -14,7 +14,7 @@
 	},
 	"dependencies": {
 		"@applemusic-like-lyrics/core": "0.5.1",
-		"@applemusic-like-lyrics/fft": "^0.2.1",
+		"@applemusic-like-lyrics/fft": "^0.2.2",
 		"@applemusic-like-lyrics/lyric": "1.0.1",
 		"@applemusic-like-lyrics/react-full": "0.4.1",
 		"@applemusic-like-lyrics/ttml": "^1.0.1",
