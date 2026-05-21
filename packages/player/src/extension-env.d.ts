@@ -45,11 +45,20 @@ declare interface NetworkSongData extends AnySongData {
 }
 
 declare interface ExtensionRuntimeInfo {
+	/**
+	 * 当前扩展程序运行所在的宿主环境
+	 */
 	kind: "main" | "extension-window";
 }
 
 declare interface ExtensionWindowRuntimeInfo {
+	/**
+	 * 当前扩展窗口在宿主中的唯一 windowId
+	 */
 	id: string;
+	/**
+	 * 当前扩展窗口对应的受控 label
+	 */
 	label: string;
 }
 
@@ -83,12 +92,24 @@ declare interface ExtensionWindowHandle {
 }
 
 declare interface ExtensionWindowsApi {
+	/**
+	 * 创建或聚焦一个受控扩展窗口
+	 */
 	create(
 		id: string,
 		options?: ExtensionWindowOptions,
 	): Promise<ExtensionWindowHandle>;
+	/**
+	 * 获取当前扩展下已存在的受控窗口
+	 */
 	get(id: string): Promise<ExtensionWindowHandle | undefined>;
+	/**
+	 * 关闭指定受控窗口
+	 */
 	close(id: string): Promise<void>;
+	/**
+	 * 关闭当前扩展创建的全部受控窗口
+	 */
 	closeAll(): Promise<void>;
 }
 
@@ -117,8 +138,17 @@ declare interface ExtensionContext extends EventTarget {
 	 * 扩展程序接口的版本号，会随着扩展接口更新而递增数字
 	 */
 	extensionApiNumber: number;
+	/**
+	 * 当前扩展脚本运行时信息，可用于区分主窗口和扩展窗口宿主
+	 */
 	runtime: ExtensionRuntimeInfo;
+	/**
+	 * 当前扩展窗口信息，仅在 `runtime.kind === "extension-window"` 时存在
+	 */
 	window?: ExtensionWindowRuntimeInfo;
+	/**
+	 * 当前扩展可用的受控窗口管理 API
+	 */
 	windows: ExtensionWindowsApi;
 	jotaiStore: ReturnType<typeof createStore>;
 	/**
@@ -144,6 +174,9 @@ declare interface ExtensionContext extends EventTarget {
 		injectPointName: string,
 		injectComponent: ComponentType,
 	): void;
+	/**
+	 * 为指定 windowId 注册扩展窗口组件，供 extension-window 宿主渲染
+	 */
 	registerWindowComponent(windowId: string, component: ComponentType): void;
 	/**
 	 * 注册一个音频源

@@ -20,5 +20,4 @@ target/
 *.tsbuildinfo
 .million/
 .opencode
-/vendor
 AGENTS.md

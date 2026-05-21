@@ -27,6 +27,9 @@
 - 2026-05-21：完成 Phase 6 窗口控制与生命周期清理。
 - 处理方式：在 `packages/player/src/components/ExtensionContext/windows.ts` 为窗口句柄增加失效检查，避免扩展卸载后继续调用已失效句柄；在 `packages/player/src/components/ExtensionContext/ext-ctx.ts` 增加上下文失效/析构处理，并在主窗口插件卸载时通过 `extension_window_close_all` 主动关闭该扩展窗口；在 `packages/player/src/components/ExtensionContext/index.tsx` 与 `packages/player/src/extension-window.tsx` 的卸载/失败清理链路中统一触发 `extension-unload`，并清理已加载上下文，保证主窗口与扩展窗口宿主在卸载时不会遗留可用句柄。
 - 背景：Phase 7 将继续整理类型定义与文档，补充更完整的示例和验证说明；当前阶段重点是把窗口控制收口到可控生命周期内，并确保重复创建时仍会聚焦已有窗口。
+- 2026-05-21：完成 Phase 7 类型注释与文档补充。
+- 处理方式：在 `packages/player/src/extension-env.d.ts` 为 `runtime`、`window`、`windows`、`registerWindowComponent` 等公开类型补充说明注释，明确扩展窗口宿主与窗口 API 的使用场景；在 `README-CN.md` 与 `README.md` 中新增插件窗口 API 章节，给出 `extensionContext.windows.create()` 与 `registerWindowComponent()` 的最小示例，并列出可用窗口操作。
+- 背景：Phase 8 将继续执行构建、类型检查与手动验证，确认最新类型说明和文档与实际 API 行为一致；当前阶段重点是把插件窗口能力写入开发者文档，方便后续扩展程序接入。
 - 2026-05-20：记录 Windows 本地启动/编译 FFmpeg 准备流程。
 - 处理方式：新增“本地启动/编译方式”章节，说明下载 `ffmpeg-8.0.1-windows-x64.zip`、解压到 `vendor/ffmpeg`、设置 `FFMPEG_DIR` 和 `PKG_CONFIG_PATH` 后运行 `pnpm -F player tauri dev`。
 - 背景：`cargo check -p amll-player` / `pnpm -F player tauri dev` 需要使用项目内 vendor FFmpeg，避免 MSVC 误用 MSYS2 MinGW 头文件导致 `ffmpeg-sys-next` 编译失败。
