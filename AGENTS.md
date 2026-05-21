@@ -21,6 +21,12 @@
 - 2026-05-20：完成 Phase 4 扩展 `ExtensionContext` API。
 - 处理方式：在 `packages/player/src/extension-env.d.ts` 中新增 `runtime`、`window`、`windows`、`registerWindowComponent` 类型定义并将 `extensionApiNumber` 提升到 2；在 `packages/player/src/components/ExtensionContext/ext-ctx.ts` 中为 `PlayerExtensionContext` 增加 `runtime/window/windows` 数据与 `registerWindowComponent()` 实现，同时将 `windows` API 绑定到当前插件 ID，供主窗口和未来窗口宿主复用。
 - 背景：Phase 5 将在 `extension-window.tsx` 中开始消费这些新增 API，实现插件窗口的宿主渲染与组件注册；当前阶段只扩展上下文能力，不改动旧插件的主窗口执行流程。
+- 2026-05-21：完成 Phase 5 插件窗口宿主页面。
+- 处理方式：将 `packages/player/src/extension-window.tsx` 实现为真正的宿主入口，先通过 `extension_window_get_current` 确认当前窗口归属，再调用新命令 `extension_window_get_current_extension_files` 读取当前插件及依赖闭包的脚本文件，按依赖顺序重新执行插件脚本，渲染目标窗口通过 `registerWindowComponent(windowId, Component)` 注册的 React 组件，并在加载失败、缺失窗口组件或组件运行错误时显示包含插件 ID / 窗口 ID 的友好错误页；同时抽出 `packages/player/src/utils/extension-loader.ts` 的文件解析能力，复用现有元数据解析与依赖排序逻辑，新增 Rust 命令、权限与自动生成的 app command 声明来支持宿主读取必要脚本。
+- 背景：Phase 6 将继续补齐窗口控制和清理策略，例如重复 `windowId` 聚焦复用、卸载时关闭所有窗口，以及更细的生命周期回收；当前阶段只让宿主页面真正渲染插件窗口组件，不改动主窗口插件执行语义。
+- 2026-05-21：完成 Phase 6 窗口控制与生命周期清理。
+- 处理方式：在 `packages/player/src/components/ExtensionContext/windows.ts` 为窗口句柄增加失效检查，避免扩展卸载后继续调用已失效句柄；在 `packages/player/src/components/ExtensionContext/ext-ctx.ts` 增加上下文失效/析构处理，并在主窗口插件卸载时通过 `extension_window_close_all` 主动关闭该扩展窗口；在 `packages/player/src/components/ExtensionContext/index.tsx` 与 `packages/player/src/extension-window.tsx` 的卸载/失败清理链路中统一触发 `extension-unload`，并清理已加载上下文，保证主窗口与扩展窗口宿主在卸载时不会遗留可用句柄。
+- 背景：Phase 7 将继续整理类型定义与文档，补充更完整的示例和验证说明；当前阶段重点是把窗口控制收口到可控生命周期内，并确保重复创建时仍会聚焦已有窗口。
 - 2026-05-20：记录 Windows 本地启动/编译 FFmpeg 准备流程。
 - 处理方式：新增“本地启动/编译方式”章节，说明下载 `ffmpeg-8.0.1-windows-x64.zip`、解压到 `vendor/ffmpeg`、设置 `FFMPEG_DIR` 和 `PKG_CONFIG_PATH` 后运行 `pnpm -F player tauri dev`。
 - 背景：`cargo check -p amll-player` / `pnpm -F player tauri dev` 需要使用项目内 vendor FFmpeg，避免 MSVC 误用 MSYS2 MinGW 头文件导致 `ffmpeg-sys-next` 编译失败。
