@@ -130,6 +130,12 @@ export const TTMLImportDialog: FC<{
 		}
 	}, [searchWord, performSearch, t]);
 
+	useEffect(() => {
+		if (opened) {
+			handleSync();
+		}
+	}, [opened, handleSync]);
+
 	const handleSelectLyric = useCallback(
 		async (result: LyricSearchResult) => {
 			try {

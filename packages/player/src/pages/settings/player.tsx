@@ -880,10 +880,14 @@ const LyricBackgroundSettings = () => {
 		let rendererObject: LyricBackgroundRenderer;
 		switch (selectedString) {
 			case "mesh":
-				rendererObject = { renderer: MeshGradientRenderer };
+				rendererObject = {
+					renderer: MeshGradientRenderer,
+				};
 				break;
 			case "pixi":
-				rendererObject = { renderer: PixiRenderer };
+				rendererObject = {
+					renderer: PixiRenderer,
+				};
 				break;
 			default:
 				rendererObject = { renderer: "css-bg" };
