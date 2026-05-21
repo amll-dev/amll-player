@@ -41,6 +41,18 @@ class Notify {
 	}
 }
 
+async function closeExtensionWindows(
+	context: PlayerExtensionContext,
+	extensionId: string,
+) {
+	try {
+		await context.dispose();
+	} catch (err) {
+		console.warn(EXTENSION_LOG_TAG, "关闭扩展程序窗口失败", extensionId, err);
+		context.deactivate();
+	}
+}
+
 const SingleExtensionContext: FC<{
 	extensionMeta: ExtensionMetaState;
 	waitForDependency: (extensionId: string) => Promise<void>;
@@ -116,6 +128,7 @@ const SingleExtensionContext: FC<{
 			cancelRef.current = notify;
 			(async () => {
 				context.dispatchEvent(new Event("extension-unload"));
+				await closeExtensionWindows(context, extensionMeta.id);
 				setLoadedExtension((v) => v.filter((e) => e !== loadedExt));
 				notify.notify();
 			})();

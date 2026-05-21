@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { type InvokeArgs, invoke } from "@tauri-apps/api/core";
 import type ExtensionEnv from "../../extension-env.ts";
 
 type NativeExtensionWindowInfo = {
@@ -11,7 +11,7 @@ function buildWindowCommandArgs(
 	extensionId: string,
 	windowId?: string,
 	extra?: Record<string, unknown>,
-) {
+): InvokeArgs {
 	return {
 		extensionId,
 		...(typeof windowId === "string" ? { windowId } : {}),
@@ -22,15 +22,23 @@ function buildWindowCommandArgs(
 function toExtensionWindowHandle(
 	info: NativeExtensionWindowInfo,
 	extensionId: string,
+	isActive: () => boolean,
 ): ExtensionEnv.ExtensionWindowHandle {
 	const callWindowCommand = <T>(
 		command: string,
 		extra?: Record<string, unknown>,
-	) =>
-		invoke<T>(
+	) => {
+		if (!isActive()) {
+			return Promise.reject(
+				new Error(`Extension ${extensionId} has already been unloaded`),
+			);
+		}
+
+		return invoke<T>(
 			command,
 			buildWindowCommandArgs(extensionId, info.windowId, extra),
 		);
+	};
 
 	return {
 		id: info.windowId,
@@ -51,12 +59,24 @@ function toExtensionWindowHandle(
 
 export function createExtensionWindowsApi(
 	extensionId: string,
+	isActive: () => boolean = () => true,
 ): ExtensionEnv.ExtensionWindowsApi {
 	const invokeWindowCommand = <T>(
 		command: string,
 		windowId?: string,
 		extra?: Record<string, unknown>,
-	) => invoke<T>(command, buildWindowCommandArgs(extensionId, windowId, extra));
+	) => {
+		if (!isActive()) {
+			return Promise.reject(
+				new Error(`Extension ${extensionId} has already been unloaded`),
+			);
+		}
+
+		return invoke<T>(
+			command,
+			buildWindowCommandArgs(extensionId, windowId, extra),
+		);
+	};
 
 	return {
 		async create(id, options) {
@@ -65,14 +85,16 @@ export function createExtensionWindowsApi(
 				id,
 				options ? { options } : undefined,
 			);
-			return toExtensionWindowHandle(info, extensionId);
+			return toExtensionWindowHandle(info, extensionId, isActive);
 		},
 		async get(id) {
 			const info = await invokeWindowCommand<NativeExtensionWindowInfo | null>(
 				"extension_window_get",
 				id,
 			);
-			return info ? toExtensionWindowHandle(info, extensionId) : undefined;
+			return info
+				? toExtensionWindowHandle(info, extensionId, isActive)
+				: undefined;
 		},
 		close(id) {
 			return invokeWindowCommand<void>("extension_window_close", id);

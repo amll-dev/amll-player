@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import type * as TauriHttp from "@tauri-apps/plugin-http";
 import type { ComponentType } from "react";
 import type { db } from "../../dexie.ts";
@@ -19,6 +20,7 @@ export class PlayerExtensionContext
 	registeredWindowComponent: {
 		[windowId: string]: ComponentType | undefined;
 	} = {};
+	private active = true;
 	readonly windows: ExtensionEnv.ExtensionWindowsApi;
 	constructor(
 		readonly playerStates: ExtensionEnv.PlayerStates,
@@ -35,9 +37,25 @@ export class PlayerExtensionContext
 		readonly window?: ExtensionEnv.ExtensionWindowRuntimeInfo,
 	) {
 		super();
-		this.windows = createExtensionWindowsApi(extensionMeta.id);
+		this.windows = createExtensionWindowsApi(
+			extensionMeta.id,
+			() => this.active,
+		);
 	}
 	extensionApiNumber = 2;
+	deactivate() {
+		this.active = false;
+	}
+	async dispose() {
+		if (!this.active) return;
+		try {
+			await invoke<void>("extension_window_close_all", {
+				extensionId: this.extensionMeta.id,
+			});
+		} finally {
+			this.deactivate();
+		}
+	}
 	registerLocale<T>(localeData: { [langId: string]: T }) {
 		for (const [lng, data] of Object.entries(localeData)) {
 			i18n.addResourceBundle(lng, this.extensionMeta.id, data);

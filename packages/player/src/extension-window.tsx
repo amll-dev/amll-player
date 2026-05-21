@@ -50,6 +50,25 @@ type HostState =
 	| { status: "ready"; component: LoadedWindowComponent }
 	| { status: "error"; error: Error };
 
+async function cleanupLoadedContexts(contexts: PlayerExtensionContext[]) {
+	for (let index = contexts.length - 1; 0 <= index; index -= 1) {
+		const context = contexts[index];
+		if (!context) continue;
+		context.dispatchEvent(new Event("extension-unload"));
+		try {
+			await context.dispose();
+		} catch (err) {
+			console.warn(
+				EXTENSION_LOG_TAG,
+				"关闭扩展窗口失败",
+				context.extensionMeta.id,
+				err,
+			);
+			context.deactivate();
+		}
+	}
+}
+
 function getLoadableExtensionMeta(
 	extensionMetaById: Map<string, ExtensionMetaState>,
 	extensionId: string,
@@ -119,12 +138,6 @@ async function loadWindowComponent(
 	});
 	const amllStatesObject = Object.freeze({ ...amllStates });
 	const contexts: PlayerExtensionContext[] = [];
-	const destroyLoadedContexts = () => {
-		for (let index = contexts.length - 1; 0 <= index; index -= 1) {
-			contexts[index]?.dispatchEvent(new Event("extension-unload"));
-		}
-		contexts.length = 0;
-	};
 	const waitForDependency = async (extensionId: string) => {
 		if (!loadedExtensionIds.has(extensionId)) {
 			throw new Error(`Missing Dependency: ${extensionId}`);
@@ -174,7 +187,7 @@ async function loadWindowComponent(
 			);
 		}
 	} catch (err) {
-		destroyLoadedContexts();
+		await cleanupLoadedContexts(contexts);
 		throw err;
 	}
 
@@ -184,7 +197,7 @@ async function loadWindowComponent(
 	const WindowComponent =
 		targetContext?.registeredWindowComponent[current.windowId];
 	if (!WindowComponent) {
-		destroyLoadedContexts();
+		await cleanupLoadedContexts(contexts);
 		throw new Error(
 			`Extension ${current.extensionId} did not register window component: ${current.windowId}`,
 		);
@@ -280,12 +293,6 @@ const ExtensionWindowApp = () => {
 	useEffect(() => {
 		let canceled = false;
 		let loadedContexts: PlayerExtensionContext[] = [];
-		const cleanupContexts = () => {
-			for (let index = loadedContexts.length - 1; 0 <= index; index -= 1) {
-				loadedContexts[index]?.dispatchEvent(new Event("extension-unload"));
-			}
-			loadedContexts = [];
-		};
 
 		(async () => {
 			try {
@@ -295,7 +302,7 @@ const ExtensionWindowApp = () => {
 				const component = await loadWindowComponent(current, store, i18n);
 				loadedContexts = component.contexts;
 				if (canceled) {
-					cleanupContexts();
+					await cleanupLoadedContexts(loadedContexts);
 					return;
 				}
 				setState({ status: "ready", component });
@@ -307,7 +314,9 @@ const ExtensionWindowApp = () => {
 
 		return () => {
 			canceled = true;
-			cleanupContexts();
+			const contextsToCleanup = loadedContexts;
+			loadedContexts = [];
+			void cleanupLoadedContexts(contextsToCleanup);
 		};
 	}, [i18n, store]);
 
