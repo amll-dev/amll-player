@@ -457,6 +457,9 @@ pub fn run() {
 
     let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
 
+    #[cfg(target_os = "macos")]
+    let builder = builder.plugin(tauri_plugin_macos_fps::init());
+
     #[cfg(not(mobile))]
     let pubkey = {
         if let Some(Value::Object(updater_config)) = context.config().plugins.0.get("updater") {

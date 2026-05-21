@@ -32,6 +32,7 @@
 	"version": "0.0.1",
 	"identifier": "net.stevexmh.amllplayer",
 	"plugins": {
+		"macos-fps": {},
 		"updater": {
 			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVBMzY2M0I2Qjc4MjBBNTUKUldSVkNvSzN0bU0yV2k0bUhxcm9jczBNYk9lTllYaTFyWHVEZ2xaSloxaVhpSnQ1RHZFSUtnS2IK",
 			"endpoints": [
