@@ -30,6 +30,9 @@
 - 2026-05-21：完成 Phase 7 类型注释与文档补充。
 - 处理方式：在 `packages/player/src/extension-env.d.ts` 为 `runtime`、`window`、`windows`、`registerWindowComponent` 等公开类型补充说明注释，明确扩展窗口宿主与窗口 API 的使用场景；在 `README-CN.md` 与 `README.md` 中新增插件窗口 API 章节，给出 `extensionContext.windows.create()` 与 `registerWindowComponent()` 的最小示例，并列出可用窗口操作。
 - 背景：Phase 8 将继续执行构建、类型检查与手动验证，确认最新类型说明和文档与实际 API 行为一致；当前阶段重点是把插件窗口能力写入开发者文档，方便后续扩展程序接入。
+- 2026-05-21：完成 Phase 8 构建与运行时验证收尾。
+- 处理方式：使用 `pnpm -F player build` 验证前端入口与扩展窗口宿主可以正常打包，使用带项目内 `vendor/ffmpeg` 环境变量的 `cargo check -p amll-player` 验证 Rust/Tauri 侧命令与窗口状态模块可以正常编译；`pnpm typecheck` 仍只剩 `packages/player/src/pages/settings/player.tsx` 里与本次插件窗口改动无关的旧类型错误。
+- 背景：当前插件窗口功能已完成 P1–P8 的代码、类型、文档与构建验证，后续如需继续打磨只需针对现存 settings 页面类型问题做单独修复即可。
 - 2026-05-20：记录 Windows 本地启动/编译 FFmpeg 准备流程。
 - 处理方式：新增“本地启动/编译方式”章节，说明下载 `ffmpeg-8.0.1-windows-x64.zip`、解压到 `vendor/ffmpeg`、设置 `FFMPEG_DIR` 和 `PKG_CONFIG_PATH` 后运行 `pnpm -F player tauri dev`。
 - 背景：`cargo check -p amll-player` / `pnpm -F player tauri dev` 需要使用项目内 vendor FFmpeg，避免 MSVC 误用 MSYS2 MinGW 头文件导致 `ffmpeg-sys-next` 编译失败。
