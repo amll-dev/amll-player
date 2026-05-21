@@ -20,8 +20,5 @@ target/
 *.tsbuildinfo
 .million/
 .opencode
-<<<<<<< HEAD
 /vendor
-=======
 AGENTS.md
->>>>>>> 8ad051da (feat: 忽略文件)
