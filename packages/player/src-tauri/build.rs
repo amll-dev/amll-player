@@ -13,6 +13,7 @@ fn main() {
             "extension_window_set_size",
             "extension_window_set_position",
             "extension_window_get_current",
+            "extension_window_get_current_extension_files",
         ]));
     tauri_build::try_build(attrs).expect("failed to run tauri build script");
 }

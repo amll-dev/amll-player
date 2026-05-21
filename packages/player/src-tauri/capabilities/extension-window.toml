@@ -16,3 +16,6 @@ identifier = "core:event:allow-unlisten"
 
 [[permissions]]
 identifier = "allow-extension-window-get-current"
+
+[[permissions]]
+identifier = "allow-extension-window-get-current-extension-files"

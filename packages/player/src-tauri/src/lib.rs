@@ -536,6 +536,8 @@ pub fn run() {
             extension_window::extension_window_set_position,
             #[cfg(desktop)]
             extension_window::extension_window_get_current,
+            #[cfg(desktop)]
+            extension_window::extension_window_get_current_extension_files,
             #[cfg(target_os = "windows")]
             set_window_always_on_top,
             #[cfg(target_os = "windows")]

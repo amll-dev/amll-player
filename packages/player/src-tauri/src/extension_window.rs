@@ -1,10 +1,11 @@
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 use tauri::{
     AppHandle, LogicalPosition, LogicalSize, LogicalUnit, Manager, PixelUnit, State, WebviewUrl,
-    WebviewWindow, WebviewWindowBuilder, WindowSizeConstraints,
+    WebviewWindow, WebviewWindowBuilder, WindowSizeConstraints, path::BaseDirectory,
 };
 
 const EXTENSION_WINDOW_LABEL_PREFIX: &str = "extension-window/";
@@ -18,6 +19,20 @@ pub struct ExtensionWindowInfo {
     pub extension_id: String,
     pub window_id: String,
     pub label: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtensionScriptFile {
+    pub file_name: String,
+    pub script_data: String,
+}
+
+struct ExtensionScriptSource {
+    file_name: String,
+    script_data: String,
+    id: Option<String>,
+    dependency: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -145,6 +160,75 @@ fn validate_finite_number(value: f64, name: &str) -> Result<f64, String> {
     } else {
         Err(format!("{name} must be a finite number"))
     }
+}
+
+fn parse_extension_script_source(file_name: String, script_data: String) -> ExtensionScriptSource {
+    let mut source = ExtensionScriptSource {
+        file_name,
+        script_data,
+        id: None,
+        dependency: Vec::new(),
+    };
+
+    for line in source.script_data.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let Some(comment) = trimmed.strip_prefix("//") else {
+            break;
+        };
+        let Some(meta_line) = comment.trim_start().strip_prefix('@') else {
+            break;
+        };
+        let mut parts = meta_line.splitn(2, char::is_whitespace);
+        let key = parts.next().unwrap_or_default();
+        let value = parts.next().unwrap_or_default().trim();
+        if key.is_empty() || value.is_empty() {
+            break;
+        }
+
+        match key {
+            "id" if source.id.is_none() => source.id = Some(value.to_string()),
+            "dependency" => source.dependency.push(value.to_string()),
+            _ => {}
+        }
+    }
+
+    source
+}
+
+fn collect_extension_file_indices(
+    extension_id: &str,
+    sources: &[ExtensionScriptSource],
+    sources_by_id: &HashMap<String, Vec<usize>>,
+    visiting: &mut HashSet<String>,
+    collected_indices: &mut HashSet<usize>,
+) -> Result<(), String> {
+    if !visiting.insert(extension_id.to_string()) {
+        return Err(format!("circular extension dependency: {extension_id}"));
+    }
+
+    if let Some(indices) = sources_by_id.get(extension_id) {
+        for index in indices {
+            if let Some(source) = sources.get(*index) {
+                for dependency_id in &source.dependency {
+                    collect_extension_file_indices(
+                        dependency_id,
+                        sources,
+                        sources_by_id,
+                        visiting,
+                        collected_indices,
+                    )?;
+                }
+                collected_indices.insert(*index);
+            }
+        }
+    }
+
+    visiting.remove(extension_id);
+    Ok(())
 }
 
 fn extension_id_hash(extension_id: &str) -> String {
@@ -573,6 +657,83 @@ pub fn extension_window_get_current(
     state
         .get_by_label(label)
         .ok_or_else(|| "extension window ownership is not registered".to_string())
+}
+
+#[tauri::command]
+pub fn extension_window_get_current_extension_files(
+    app: AppHandle,
+    caller: WebviewWindow,
+    state: State<'_, ExtensionWindowState>,
+) -> Result<Vec<ExtensionScriptFile>, String> {
+    let current = extension_window_get_current(caller, state)?;
+
+    let extension_dir = app
+        .path()
+        .resolve("extensions", BaseDirectory::AppData)
+        .map_err(|err| format!("failed to resolve extension directory: {err}"))?;
+    if !extension_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let entries = fs::read_dir(&extension_dir)
+        .map_err(|err| format!("failed to read extension directory: {err}"))?;
+    let mut sources = Vec::new();
+
+    for entry in entries {
+        let entry = entry.map_err(|err| format!("failed to read extension entry: {err}"))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|err| format!("failed to read extension entry type: {err}"))?;
+        if !file_type.is_file() {
+            continue;
+        }
+
+        let file_name = entry.file_name().to_string_lossy().into_owned();
+        if !(file_name.ends_with(".js") || file_name.ends_with(".js.disabled")) {
+            continue;
+        }
+
+        let script_data = fs::read_to_string(entry.path())
+            .map_err(|err| format!("failed to read extension script {file_name}: {err}"))?;
+        sources.push(parse_extension_script_source(file_name, script_data));
+    }
+
+    sources.sort_by(|a, b| a.file_name.cmp(&b.file_name));
+
+    let mut sources_by_id: HashMap<String, Vec<usize>> = HashMap::new();
+    for (index, source) in sources.iter().enumerate() {
+        if let Some(id) = &source.id {
+            sources_by_id.entry(id.clone()).or_default().push(index);
+        }
+    }
+
+    if !sources_by_id.contains_key(&current.extension_id) {
+        return Err(format!(
+            "missing extension script for current extension: {}",
+            current.extension_id
+        ));
+    }
+
+    let mut collected_indices = HashSet::new();
+    collect_extension_file_indices(
+        &current.extension_id,
+        &sources,
+        &sources_by_id,
+        &mut HashSet::new(),
+        &mut collected_indices,
+    )?;
+
+    let mut collected_sources = collected_indices.into_iter().collect::<Vec<_>>();
+    collected_sources.sort_by(|a, b| sources[*a].file_name.cmp(&sources[*b].file_name));
+
+    Ok(collected_sources
+        .into_iter()
+        .filter_map(|index| sources.get(index))
+        .map(|source| ExtensionScriptFile {
+            file_name: source.file_name.clone(),
+            script_data: source.script_data.clone(),
+        })
+        .collect())
 }
 
 pub fn cleanup_destroyed_window(app: &AppHandle, label: &str) {

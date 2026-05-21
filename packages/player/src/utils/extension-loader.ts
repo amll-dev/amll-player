@@ -8,6 +8,11 @@ import {
 
 const META_REGEX = /^\/\/\s*@(\S+)\s*(.+)$/;
 
+export interface ExtensionScriptFile {
+	fileName: string;
+	scriptData: string;
+}
+
 export async function getExtensionDir() {
 	const appDir = await appDataDir();
 	return await join(appDir, "extensions");
@@ -57,19 +62,16 @@ function registerExtensionLocale(extensionMeta: ExtensionMetaState) {
 	}
 }
 
-async function loadExtensionMeta(
-	extensionDir: string,
-	fileName: string,
-): Promise<ExtensionMetaState> {
+function parseExtensionMetaFile({
+	fileName,
+	scriptData,
+}: ExtensionScriptFile): ExtensionMetaState {
 	const extensionMeta = createEmptyExtensionMeta(fileName);
 	if (fileName.endsWith(".js.disabled") || fileName.endsWith(".js")) {
 		if (fileName.endsWith(".js.disabled")) {
 			extensionMeta.loadResult = ExtensionLoadResult.Disabled;
 		}
-		const extensionData = await readTextFile(
-			await join(extensionDir, fileName),
-		);
-		for (const line of extensionData.split("\n")) {
+		for (const line of scriptData.split("\n")) {
 			const trimmed = line.trim();
 			if (trimmed.length > 0) {
 				const matched = META_REGEX.exec(trimmed);
@@ -81,7 +83,7 @@ async function loadExtensionMeta(
 			}
 		}
 		extensionMeta.fileName = fileName;
-		extensionMeta.scriptData = extensionData;
+		extensionMeta.scriptData = scriptData;
 
 		for (const key of ["id", "version", "icon"]) {
 			if (!(key in extensionMeta)) {
@@ -96,6 +98,17 @@ async function loadExtensionMeta(
 	}
 
 	return Object.seal(extensionMeta);
+}
+
+async function loadExtensionMeta(
+	extensionDir: string,
+	fileName: string,
+): Promise<ExtensionMetaState> {
+	const scriptData =
+		fileName.endsWith(".js.disabled") || fileName.endsWith(".js")
+			? await readTextFile(await join(extensionDir, fileName))
+			: "";
+	return parseExtensionMetaFile({ fileName, scriptData });
 }
 
 function applyExtensionLoadResults(extensionMetas: ExtensionMetaState[]) {
@@ -150,6 +163,15 @@ export async function loadExtensionMetas(extensionDir?: string) {
 				loadExtensionMeta(resolvedExtensionDir, extensionEntry.name),
 			),
 	);
+	applyExtensionLoadResults(extensionMetas);
+	sortExtensionMetas(extensionMetas);
+	return extensionMetas;
+}
+
+export function loadExtensionMetasFromFiles(
+	extensionFiles: ExtensionScriptFile[],
+) {
+	const extensionMetas = extensionFiles.map(parseExtensionMetaFile);
 	applyExtensionLoadResults(extensionMetas);
 	sortExtensionMetas(extensionMetas);
 	return extensionMetas;
