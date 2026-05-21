@@ -522,7 +522,7 @@ const LyricAppearanceSettings = () => {
 
 	const handleLyricPlayerChange = (selectedString: string) => {
 		const implementationObject: LyricPlayerImplementationObject = {
-			lyricPlayer: DomLyricPlayer as unknown as LyricPlayerImplementationObject["lyricPlayer"],
+			lyricPlayer: DomLyricPlayer,
 		};
 		setLyricPlayerImplValue(implementationObject);
 		localStorage.setItem(
@@ -932,8 +932,8 @@ const LyricBackgroundSettings = () => {
 	): string => {
 		if (typeof value.renderer === "string" && value.renderer === "css-bg")
 			return "css-bg";
-		if ((value.renderer as unknown) === MeshGradientRenderer) return "mesh";
-		if ((value.renderer as unknown) === PixiRenderer) return "pixi";
+		if (value.renderer === MeshGradientRenderer) return "mesh";
+		if (value.renderer === PixiRenderer) return "pixi";
 		return "mesh";
 	};
 
@@ -942,12 +942,12 @@ const LyricBackgroundSettings = () => {
 		switch (selectedString) {
 			case "mesh":
 				rendererObject = {
-					renderer: MeshGradientRenderer as unknown as LyricBackgroundRenderer["renderer"],
+					renderer: MeshGradientRenderer,
 				};
 				break;
 			case "pixi":
 				rendererObject = {
-					renderer: PixiRenderer as unknown as LyricBackgroundRenderer["renderer"],
+					renderer: PixiRenderer,
 				};
 				break;
 			default:
