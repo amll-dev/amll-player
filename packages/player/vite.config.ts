@@ -1,10 +1,10 @@
 import { execSync } from "node:child_process";
 import { resolve } from "node:path";
+import babel from "@rolldown/plugin-babel";
 import react from "@vitejs/plugin-react";
 import jotaiDebugLabel from "jotai-babel/plugin-debug-label";
 import jotaiReactRefresh from "jotai-babel/plugin-react-refresh";
 import { defineConfig, type Plugin } from "vite";
-import babel from "vite-plugin-babel";
 import i18nextLoader from "vite-plugin-i18next-loader";
 import svgr from "vite-plugin-svgr";
 import wasm from "vite-plugin-wasm";
@@ -40,41 +40,47 @@ const GitMetadataPlugin = (): Plugin => {
 	let gitBranch = "";
 	return {
 		name: "git-metadata-plugin",
-		async buildStart() {
-			const metadata = {
-				commit: "",
-				branch: "",
-			};
-			if (!gitCommit)
-				try {
-					gitCommit = getCommitHash();
-				} catch (err) {
-					console.warn("警告：获取 Git Commit Hash 失败", err);
-				}
-			if (!gitBranch)
-				try {
-					gitBranch = getBranchName();
-				} catch (err) {
-					console.warn("警告：获取 Git Branch Name 失败", err);
-				}
-			this.emitFile({
-				fileName: "git-metadata.json",
-				name: "git-metadata",
-				source: JSON.stringify(metadata),
-				type: "asset",
-			});
+		buildStart: {
+			async handler() {
+				const metadata = {
+					commit: "",
+					branch: "",
+				};
+				if (!gitCommit)
+					try {
+						gitCommit = getCommitHash();
+					} catch (err) {
+						console.warn("警告：获取 Git Commit Hash 失败", err);
+					}
+				if (!gitBranch)
+					try {
+						gitBranch = getBranchName();
+					} catch (err) {
+						console.warn("警告：获取 Git Branch Name 失败", err);
+					}
+				this.emitFile({
+					fileName: "git-metadata.json",
+					name: "git-metadata",
+					source: JSON.stringify(metadata),
+					type: "asset",
+				});
+			},
 		},
-		resolveId(id) {
-			if (id === VIRTUAL_ID) {
-				return RESOLVED_VIRTUAL_ID;
-			}
+		resolveId: {
+			handler(id) {
+				if (id === VIRTUAL_ID) {
+					return RESOLVED_VIRTUAL_ID;
+				}
+			},
 		},
-		load(id) {
-			if (id === RESOLVED_VIRTUAL_ID) {
-				return `export const commit = ${JSON.stringify(
-					gitCommit,
-				)};\nexport const branch = ${JSON.stringify(gitBranch)};`;
-			}
+		load: {
+			handler(id) {
+				if (id === RESOLVED_VIRTUAL_ID) {
+					return `export const commit = ${JSON.stringify(
+						gitCommit,
+					)};\nexport const branch = ${JSON.stringify(gitBranch)};`;
+				}
+			},
 		},
 	};
 };
@@ -82,7 +88,8 @@ const GitMetadataPlugin = (): Plugin => {
 // https://vitejs.dev/config/
 export default defineConfig({
 	build: {
-		rollupOptions: {
+		chunkSizeWarningLimit: 2000,
+		rolldownOptions: {
 			shimMissingExports: true,
 			input: {
 				index: resolve(__dirname, "index.html"),
@@ -95,9 +102,8 @@ export default defineConfig({
 	plugins: [
 		react(),
 		babel({
-			babelConfig: {
-				plugins: [jotaiDebugLabel, jotaiReactRefresh],
-			},
+			plugins: [jotaiDebugLabel, jotaiReactRefresh],
+			include: /\.[jt]sx?$/,
 		}),
 		wasm(),
 		svgr({

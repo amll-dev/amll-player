@@ -12,11 +12,14 @@ use amll_player_core::AudioInfo;
 use anyhow::Context;
 use ffmpeg_next as ffmpeg;
 use serde::*;
+#[cfg(not(mobile))]
 use serde_json::Value;
 use tauri::{
-    AppHandle, Manager, PhysicalSize, Runtime, Size, State, WebviewWindowBuilder, ipc::Channel,
-    path::BaseDirectory, utils::config::WindowEffectsConfig, window::Effect,
+    AppHandle, Manager, Runtime, State, WebviewWindowBuilder, ipc::Channel,
+    path::BaseDirectory,
 };
+#[cfg(desktop)]
+use tauri::{PhysicalSize, Size, utils::config::WindowEffectsConfig, window::Effect};
 use tokio::sync::RwLock;
 use tracing::*;
 
@@ -76,20 +79,13 @@ fn restart_app<R: Runtime>(app: AppHandle<R>) {
     tauri::process::restart(&app.env())
 }
 
+#[cfg(target_os = "windows")]
 #[tauri::command]
 fn set_window_always_on_top<R: Runtime>(enabled: bool, app: AppHandle<R>) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        if let Some(window) = app.get_webview_window("main") {
-            window.set_always_on_top(enabled).map_err(|e| e.to_string())
-        } else {
-            Err("Main window not found.".to_string())
-        }
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let _ = (enabled, app);
-        Err("Unsupported on this platform.".to_string())
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_always_on_top(enabled).map_err(|e| e.to_string())
+    } else {
+        Err("Main window not found.".to_string())
     }
 }
 
@@ -310,6 +306,8 @@ async fn recreate_window(app: &AppHandle, label: &str, path: Option<&str>) {
             let _ = win.show();
             let _ = win.set_focus();
         }
+        #[cfg(not(desktop))]
+        let _ = win;
         return;
     }
     #[cfg(debug_assertions)]
@@ -338,6 +336,8 @@ async fn recreate_window(app: &AppHandle, label: &str, path: Option<&str>) {
             let _ = win.set_size(orig_size);
         }
     }
+    #[cfg(not(desktop))]
+    let _ = win;
 
     info!("Created window: {}", label);
 }
@@ -622,19 +622,19 @@ pub fn run() {
             }
             Ok(())
         })
-        .on_window_event(|window, event| {
+        .on_window_event(|_window, _event| {
             #[cfg(desktop)]
-            if let tauri::WindowEvent::Destroyed = event {
-                extension_window::cleanup_destroyed_window(window.app_handle(), window.label());
-                if window.label() == "main" {
-                    extension_window::destroy_all_extension_windows(window.app_handle());
+            if let tauri::WindowEvent::Destroyed = _event {
+                extension_window::cleanup_destroyed_window(_window.app_handle(), _window.label());
+                if _window.label() == "main" {
+                    extension_window::destroy_all_extension_windows(_window.app_handle());
                 }
             }
 
             #[cfg(target_os = "windows")]
-            if let tauri::WindowEvent::Destroyed = event
-                && window.label() == "main"
-                && let Some(taskbar_win) = window.app_handle().get_webview_window("taskbar-lyric")
+            if let tauri::WindowEvent::Destroyed = _event
+                && _window.label() == "main"
+                && let Some(taskbar_win) = _window.app_handle().get_webview_window("taskbar-lyric")
             {
                 let _ = taskbar_win.destroy();
             }

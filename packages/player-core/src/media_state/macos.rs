@@ -1,7 +1,7 @@
 use std::{
     cell::Cell,
     ptr::NonNull,
-    sync::{Mutex, RwLock},
+    sync::Mutex,
 };
 
 use super::*;
@@ -19,6 +19,7 @@ pub struct MediaStateManagerMacOSBackend {
     cmd_ctr: Retained<MPRemoteCommandCenter>,
     info: Mutex<Retained<NSMutableDictionary<NSString, AnyObject>>>,
     playing: Cell<bool>,
+    #[allow(dead_code)]
     sender: UnboundedSender<MediaStateMessage>,
 }
 
@@ -221,7 +222,7 @@ impl MediaStateManagerBackend for MediaStateManagerMacOSBackend {
         let cover_data = NSData::from_vec(cover_data);
         let img = NSImage::alloc();
         let img = NSImage::initWithData(img, &cover_data).context("initWithData")?;
-        let img_size = unsafe { img.size() };
+        let img_size = img.size();
         let img = NonNull::new(Retained::into_raw(img)).unwrap();
         let artwork = MPMediaItemArtwork::alloc();
         let req_handler = block2::RcBlock::new(move |_: NSSize| img);
