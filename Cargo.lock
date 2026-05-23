@@ -93,6 +93,7 @@ dependencies = [
  "ndk-context",
  "objc2",
  "objc2-avf-audio",
+ "objc2-foundation",
  "reqwest 0.13.3",
  "rkyv",
  "rodio",
@@ -1530,7 +1531,7 @@ dependencies = [
 [[package]]
 name = "ffmpeg-sys-next"
 version = "8.1.0"
-source = "git+https://github.com/apoint123/rust-ffmpeg-sys#65d35b3b7d34f20b37e310165a41548db12a4833"
+source = "git+https://github.com/apoint123/rust-ffmpeg-sys#1c40a58859bd32b3e51acad2a6675b59d29d8a74"
 dependencies = [
  "bindgen",
  "cc",
