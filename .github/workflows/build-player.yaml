@@ -335,7 +335,7 @@ jobs:
         run: |
           node ./packages/player/scripts/gen-dev-version.mjs
 
-      - name: 构建 AMLL Player 安卓移动版程序
+      - name: 构建 AMLL Player 安卓版本
         env:
           CARGO_NDK_ANDROID_PLATFORM: 26
         run: |
@@ -352,7 +352,7 @@ jobs:
             packages/player/src-tauri/gen/android/app/build/outputs/**/*.aab
 
   build-tauri-ios:
-    name: 自动构建 iOS 移动版 (无签名 IPA)
+    name: 构建 Tauri iOS 版本
     needs: clean-pre-release
     runs-on: macos-14
 
@@ -390,7 +390,7 @@ jobs:
             packages/player/src-tauri -> target
           key: ios-aarch64-only
 
-      - name: 自动拉取并链接 iOS 预编译 FFmpeg 静态库
+      - name: 拉取并链接 iOS 预编译 FFmpeg 静态库
         shell: bash
         env:
           BUILDER_REPO: apoint123/ffmpeg-builder
@@ -427,7 +427,7 @@ jobs:
         env:
           AMLL_IOS_BUILD: "true"
 
-      - name: 自动初始化 iOS 工程并配置图标
+      - name: 初始化 iOS 工程并配置图标
         run: |
           pnpm -F player tauri ios init
           # 从高分辨率主图生成符合 iOS 规范的无切边专属图标集
