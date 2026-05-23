@@ -238,7 +238,7 @@ jobs:
             target/**/release/amll-player
 
   build-tauri-android:
-    name: 构建 Tauri 安卓移动版本
+    name: 构建 Tauri 安卓版本
     needs: clean-pre-release
     runs-on: ubuntu-latest
 
