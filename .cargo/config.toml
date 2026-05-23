@@ -1,0 +1,3 @@
+[env]
+FFMPEG_DIR_AARCH64_APPLE_IOS = { value = "vendor/ffmpeg_ios", relative = true }
+FFMPEG_DIR_aarch64_apple_ios = { value = "vendor/ffmpeg_ios", relative = true }
