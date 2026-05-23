@@ -29,10 +29,20 @@ if (!/^[0-9]+\.[0-9]+\.[0-9]+$/.test(baseVersion)) {
 // const branch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
 const commitCount = execSync("git rev-list --count HEAD").toString().trim();
 
-const devVersion = `${baseVersion}+${commitCount}`;
+const isIos = process.env.AMLL_IOS_BUILD === "true";
 
-tauriConf.version = devVersion;
-
-console.log(`Generated dev version: ${baseVersion} -> ${devVersion}`);
+if (isIos) {
+	// iOS：版本号严格保持 3 位，构建号单独写入 bundle.iOS.bundleVersion
+	tauriConf.version = baseVersion;
+	if (!tauriConf.bundle) tauriConf.bundle = {};
+	if (!tauriConf.bundle.iOS) tauriConf.bundle.iOS = {};
+	tauriConf.bundle.iOS.bundleVersion = commitCount;
+	console.log(`Generated iOS dev version: ${baseVersion} (${commitCount})`);
+} else {
+	// 其它平台：保留原有逻辑
+	const devVersion = `${baseVersion}+${commitCount}`;
+	tauriConf.version = devVersion;
+	console.log(`Generated dev version: ${baseVersion} -> ${devVersion}`);
+}
 
 writeFileSync(tauriConfPath, JSON.stringify(tauriConf, null, "\t"));
