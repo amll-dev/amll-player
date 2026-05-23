@@ -527,6 +527,23 @@ pub fn run() {
             theme_watcher::get_system_theme
         ])
         .setup(|app| {
+            #[cfg(target_os = "ios")]
+            {
+                use objc2::msg_send;
+                use objc2_avf_audio::AVAudioSession;
+                use objc2_foundation::ns_string;
+
+                info!("Initializing iOS AVAudioSession Category to Playback...");
+                unsafe {
+                    let session = AVAudioSession::sharedInstance();
+                    let category = ns_string!("AVAudioSessionCategoryPlayback");
+
+                    let _: () = msg_send![&session, setCategory: category, error: std::ptr::null_mut::<*mut *mut objc2_foundation::NSError>()];
+
+                    let _: bool = msg_send![&session, setActive: true, error: std::ptr::null_mut::<*mut *mut objc2_foundation::NSError>()];
+                }
+                info!("iOS AVAudioSession Category set to Playback successfully!");
+            }
             #[cfg(target_os = "android")]
             {
                 if let Some(webview) = app.get_webview_window("main") {
