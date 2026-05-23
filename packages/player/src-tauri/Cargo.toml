@@ -75,6 +75,11 @@ objc2 = "^0.6"
 objc2-avf-audio = "^0.3"
 tauri-plugin-macos-fps = "0.1.0"
 
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = "^0.6"
+objc2-avf-audio = "^0.3"
+objc2-foundation = "^0.3"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 webview2-com = "0.38"
 taskbar-lyric = { git = "https://github.com/apoint123/taskbar-lyric.git", features = [
