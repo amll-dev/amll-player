@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import * as Stats from "stats.js";
+import { statsHooks } from "../../utils/merge-raf";
 
 export const StatsComponent = () => {
 	const containerRef = useRef<HTMLDivElement | null>(null);
@@ -11,7 +12,11 @@ export const StatsComponent = () => {
 			return;
 		}
 
+		// 创建 stats.js 的性能指标监控实例
 		const statsInstance = new StatsConstructor();
+
+		// 设置显示面板指标（0表示帧率FPS，1表示单帧耗时MS）
+		statsInstance.showPanel(0);
 
 		const domNode = statsInstance.dom || statsInstance.domElement;
 
@@ -32,16 +37,14 @@ export const StatsComponent = () => {
 		(domNode as HTMLElement).style.left = "0";
 		(domNode as HTMLElement).style.top = "0";
 
-		let animationFrameId: number;
-		const update = () => {
-			statsInstance.begin();
-			statsInstance.end();
-			animationFrameId = requestAnimationFrame(update);
-		};
-		animationFrameId = requestAnimationFrame(update);
+		// 绑定生命周期钩子，借助全局动画调度循环记录时间
+		statsHooks.begin = () => statsInstance.begin();
+		statsHooks.end = () => statsInstance.end();
 
 		return () => {
-			cancelAnimationFrame(animationFrameId);
+			// 组件卸载时重置钩子函数，避免引起空引用或内存泄漏
+			statsHooks.begin = () => {};
+			statsHooks.end = () => {};
 			if (container.contains(domNode)) {
 				container.removeChild(domNode);
 			}
