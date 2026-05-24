@@ -24,7 +24,17 @@ let manualMode = false;
 let manualRafStepTime = 0;
 let animateState = newState();
 
+/**
+ * 全局性能指标钩子，用于绑定性能监控面板的计时起点与终点
+ */
+export const statsHooks = {
+	begin: () => {},
+	end: () => {},
+};
+
 function runRafs(time: number) {
+	// 记录本帧开始执行渲染和动画逻辑的时间
+	statsHooks.begin();
 	const curState = animateState;
 	animateState = newState();
 	for (const raf of curState.rafMap.values()) {
@@ -34,6 +44,8 @@ function runRafs(time: number) {
 			console.error(e);
 		}
 	}
+	// 记录本帧执行结束的时间并进行渲染耗时统计
+	statsHooks.end();
 }
 
 window.manualRafEnable = () => {
