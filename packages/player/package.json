@@ -54,7 +54,7 @@
 		"save-file": "^2.3.1",
 		"semver": "^7.7.4",
 		"source-map-js": "^1.2.1",
-		"stats.js": "^1.0.0",
+		"stats.js": "^0.17.0",
 		"uid": "^2.0.2",
 		"vite-plugin-svgr": "catalog:",
 		"vite-plugin-wasm": "catalog:"
