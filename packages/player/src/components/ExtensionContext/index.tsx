@@ -1,12 +1,9 @@
 import * as lyric from "@applemusic-like-lyrics/lyric";
 import * as amllStates from "@applemusic-like-lyrics/react-full";
 import * as http from "@tauri-apps/plugin-http";
-import chalk from "chalk";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { type FC, useCallback, useEffect, useMemo, useRef } from "react";
-import type * as JSXRuntime from "react/jsx-runtime";
 import { useTranslation } from "react-i18next";
-import { uid } from "uid";
 import { db } from "../../dexie.ts";
 import * as appAtoms from "../../states/appAtoms";
 import { extensionMetaAtom } from "../../states/extension.ts";
@@ -16,21 +13,8 @@ import type {
 	LoadedExtension,
 } from "../../states/extensionsAtoms.ts";
 import { ExtensionLoadResult } from "../../states/extensionsAtoms.ts";
-import { PlayerExtensionContext, sourceMapOffsetLines } from "./ext-ctx.ts";
-
-const AsyncFunction: FunctionConstructor = Object.getPrototypeOf(
-	async () => {},
-).constructor;
-
-declare global {
-	interface Window {
-		React: typeof React;
-		ReactDOM: typeof ReactDOM;
-		Jotai: typeof Jotai;
-		RadixTheme: typeof RadixTheme;
-		JSXRuntime: typeof JSXRuntime;
-	}
-}
+import { PlayerExtensionContext } from "./ext-ctx.ts";
+import { EXTENSION_LOG_TAG, runExtensionScript } from "./runtime.ts";
 
 class Notify {
 	promise: Promise<void>;
@@ -57,7 +41,17 @@ class Notify {
 	}
 }
 
-const LOG_TAG = chalk.bgHex("#00AAFF").hex("#FFFFFF")(" EXTENSION ");
+async function closeExtensionWindows(
+	context: PlayerExtensionContext,
+	extensionId: string,
+) {
+	try {
+		await context.dispose();
+	} catch (err) {
+		console.warn(EXTENSION_LOG_TAG, "关闭扩展程序窗口失败", extensionId, err);
+		context.deactivate();
+	}
+}
 
 const SingleExtensionContext: FC<{
 	extensionMeta: ExtensionMetaState;
@@ -97,87 +91,30 @@ const SingleExtensionContext: FC<{
 		};
 
 		(async () => {
-			const [React, ReactDOM, Jotai, RadixTheme, JSXRuntime] =
-				await Promise.all([
-					import("react"),
-					import("react-dom"),
-					import("jotai"),
-					import("@radix-ui/themes"),
-					import("react/jsx-runtime"),
-				]);
-			window.React = React;
-			window.ReactDOM = ReactDOM;
-			window.Jotai = Jotai;
-			window.RadixTheme = RadixTheme;
-			window.JSXRuntime = JSXRuntime;
-
 			const cancelNotify = cancelRef.current;
 			if (cancelNotify) {
 				await cancelNotify.wait();
 			}
 			if (canceled) return;
 			console.log(
-				LOG_TAG,
+				EXTENSION_LOG_TAG,
 				"正在加载扩展程序",
 				extensionMeta.id,
 				extensionMeta.fileName,
 			);
-			const genFuncName = () => `__amll_internal_${uid()}`;
-			const resolveFuncName = genFuncName();
-			const rejectFuncName = genFuncName();
-			const waitForDependencyFuncName = genFuncName();
-			const wrapperScript: string[] = [];
-			wrapperScript.push('"use strict";');
-			wrapperScript.push("try {");
-
-			for (const dependencyId of extensionMeta.dependency) {
-				wrapperScript.push(
-					`await ${waitForDependencyFuncName}(${JSON.stringify(dependencyId)})`,
-				);
-			}
-
-			let comment = "";
-			const offsetLines = wrapperScript.length + 2;
-
-			try {
-				// 修正源映射表的行数，方便调试
-				const [code, sourceMapComment] = await sourceMapOffsetLines(
-					extensionMeta.scriptData,
-					extensionMeta.id,
-					offsetLines,
-				);
-				if (canceled) return;
-				wrapperScript.push(code);
-				comment = sourceMapComment;
-			} catch (err) {
-				console.log(
-					LOG_TAG,
-					"无法转换源映射表，可能是扩展程序并不包含源映射表",
-					err,
-				);
-				wrapperScript.push(extensionMeta.scriptData);
-			}
-
-			wrapperScript.push(`${resolveFuncName}();`);
-			wrapperScript.push("} catch (err) {");
-			wrapperScript.push(`${rejectFuncName}(err);`);
-			wrapperScript.push("}");
-			wrapperScript.push(comment);
-
-			const extensionFunc: () => Promise<void> = new AsyncFunction(
-				"extensionContext",
-				resolveFuncName,
-				rejectFuncName,
-				waitForDependencyFuncName,
-				wrapperScript.join("\n"),
-			).bind(context, context, extPromise[1], extPromise[2], waitForDependency);
-
+			await runExtensionScript({
+				extensionMeta,
+				context,
+				waitForDependency,
+				resolveExtensionLoad: extPromise[1],
+				rejectExtensionLoad: extPromise[2],
+				isCanceled: () => canceled,
+			});
 			if (canceled) return;
-			await extensionFunc();
 			context.dispatchEvent(new Event("extension-load"));
 
 			console.log(
-				LOG_TAG,
+				EXTENSION_LOG_TAG,
 				"扩展程序",
 				extensionMeta.id,
 				extensionMeta.fileName,
@@ -191,6 +128,7 @@ const SingleExtensionContext: FC<{
 			cancelRef.current = notify;
 			(async () => {
 				context.dispatchEvent(new Event("extension-unload"));
+				await closeExtensionWindows(context, extensionMeta.id);
 				setLoadedExtension((v) => v.filter((e) => e !== loadedExt));
 				notify.notify();
 			})();

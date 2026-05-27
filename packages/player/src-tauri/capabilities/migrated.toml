@@ -63,3 +63,26 @@ identifier = "fs:read-app-specific-dirs-recursive"
 identifier = "fs:create-app-specific-dirs"
 [[permissions]]
 identifier = "dialog:default"
+
+[[permissions]]
+identifier = "allow-extension-window-create"
+[[permissions]]
+identifier = "allow-extension-window-get"
+[[permissions]]
+identifier = "allow-extension-window-close"
+[[permissions]]
+identifier = "allow-extension-window-close-all"
+[[permissions]]
+identifier = "allow-extension-window-show"
+[[permissions]]
+identifier = "allow-extension-window-hide"
+[[permissions]]
+identifier = "allow-extension-window-focus"
+[[permissions]]
+identifier = "allow-extension-window-center"
+[[permissions]]
+identifier = "allow-extension-window-set-title"
+[[permissions]]
+identifier = "allow-extension-window-set-size"
+[[permissions]]
+identifier = "allow-extension-window-set-position"

@@ -1,0 +1,46 @@
+"$schema" = "../gen/schemas/desktop-schema.json"
+
+identifier = "extension-window"
+local = true
+windows = ["extension-window/*"]
+platforms = ["macOS", "windows", "linux"]
+
+[[permissions]]
+identifier = "core:event:allow-listen"
+[[permissions]]
+identifier = "core:event:allow-emit"
+[[permissions]]
+identifier = "core:event:allow-emit-to"
+[[permissions]]
+identifier = "core:event:allow-unlisten"
+
+[[permissions]]
+identifier = "allow-extension-window-get-current"
+
+[[permissions]]
+identifier = "allow-extension-window-get-current-extension-files"
+
+[[permissions]]
+identifier = "allow-extension-window-create"
+[[permissions]]
+identifier = "allow-extension-window-get"
+[[permissions]]
+identifier = "allow-extension-window-close"
+[[permissions]]
+identifier = "allow-extension-window-close-all"
+[[permissions]]
+identifier = "allow-extension-window-show"
+[[permissions]]
+identifier = "allow-extension-window-hide"
+[[permissions]]
+identifier = "allow-extension-window-focus"
+[[permissions]]
+identifier = "allow-extension-window-center"
+[[permissions]]
+identifier = "allow-extension-window-set-title"
+[[permissions]]
+identifier = "allow-extension-window-set-size"
+[[permissions]]
+identifier = "allow-extension-window-set-position"
+[[permissions]]
+identifier = "allow-extension-window-mark-ready"

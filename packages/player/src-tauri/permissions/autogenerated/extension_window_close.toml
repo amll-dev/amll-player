@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-extension-window-close"
+description = "Enables the extension_window_close command without any pre-configured scope."
+commands.allow = ["extension_window_close"]
+
+[[permission]]
+identifier = "deny-extension-window-close"
+description = "Denies the extension_window_close command without any pre-configured scope."
+commands.deny = ["extension_window_close"]

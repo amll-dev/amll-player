@@ -1,54 +1,11 @@
+import { invoke } from "@tauri-apps/api/core";
 import type * as TauriHttp from "@tauri-apps/plugin-http";
-import { fromObject, fromSource, removeComments } from "convert-source-map";
 import type { ComponentType } from "react";
-import { SourceMapConsumer, SourceMapGenerator } from "source-map-js";
 import type { db } from "../../dexie.ts";
 import type ExtensionEnv from "../../extension-env.ts";
 import i18n from "../../i18n.ts";
 import type { ExtensionMetaState } from "../../states/extensionsAtoms.ts";
-
-export async function sourceMapOffsetLines(
-	code: string,
-	sourceRoot: string,
-	lineOffset: number,
-): Promise<[string, string]> {
-	const incomingSourceConv = fromSource(code);
-	if (!incomingSourceConv) return [code, ""];
-	const incomingSourceMap = incomingSourceConv.toObject();
-	const consumer = await new SourceMapConsumer(incomingSourceMap);
-	const generator = new SourceMapGenerator({
-		file: incomingSourceMap.file,
-		sourceRoot: sourceRoot,
-	});
-	consumer.eachMapping((m) => {
-		// skip invalid (not-connected) mapping
-		// refs: https://github.com/mozilla/source-map/blob/182f4459415de309667845af2b05716fcf9c59ad/lib/source-map-generator.js#L268-L275
-		if (
-			typeof m.originalLine === "number" &&
-			0 < m.originalLine &&
-			typeof m.originalColumn === "number" &&
-			0 <= m.originalColumn &&
-			m.source
-		) {
-			generator.addMapping({
-				source:
-					m.source &&
-					`${location.origin}/extensions/${sourceRoot}/${m.source.replace(/^(\.*\/)+/, "")}`,
-				name: m.name,
-				original: { line: m.originalLine, column: m.originalColumn },
-				generated: {
-					line: m.generatedLine + lineOffset,
-					column: m.generatedColumn,
-				},
-			});
-		}
-	});
-	const outgoingSourceMap = JSON.parse(generator.toString());
-	if (typeof incomingSourceMap.sourcesContent !== "undefined") {
-		outgoingSourceMap.sourcesContent = incomingSourceMap.sourcesContent;
-	}
-	return [removeComments(code), fromObject(outgoingSourceMap).toComment()];
-}
+import { createExtensionWindowsApi } from "./windows.ts";
 
 export class PlayerExtensionContext
 	extends EventTarget
@@ -60,6 +17,11 @@ export class PlayerExtensionContext
 	registeredInjectPointComponent: {
 		[injectPointName: string]: ComponentType | undefined;
 	} = {};
+	registeredWindowComponent: {
+		[windowId: string]: ComponentType | undefined;
+	} = {};
+	private active = true;
+	readonly windows: ExtensionEnv.ExtensionWindowsApi;
 	constructor(
 		readonly playerStates: ExtensionEnv.PlayerStates,
 		readonly amllStates: ExtensionEnv.AMLLStates,
@@ -69,10 +31,31 @@ export class PlayerExtensionContext
 		readonly lyric: typeof import("@applemusic-like-lyrics/lyric"),
 		readonly playerDB: typeof db,
 		readonly http: typeof TauriHttp,
+		readonly runtime: ExtensionEnv.ExtensionRuntimeInfo = {
+			kind: "main",
+		},
+		readonly window?: ExtensionEnv.ExtensionWindowRuntimeInfo,
 	) {
 		super();
+		this.windows = createExtensionWindowsApi(
+			extensionMeta.id,
+			() => this.active,
+		);
 	}
-	extensionApiNumber = 1;
+	extensionApiNumber = 2;
+	deactivate() {
+		this.active = false;
+	}
+	async dispose() {
+		if (!this.active) return;
+		try {
+			await invoke<void>("extension_window_close_all", {
+				extensionId: this.extensionMeta.id,
+			});
+		} finally {
+			this.deactivate();
+		}
+	}
 	registerLocale<T>(localeData: { [langId: string]: T }) {
 		for (const [lng, data] of Object.entries(localeData)) {
 			i18n.addResourceBundle(lng, this.extensionMeta.id, data);
@@ -80,6 +63,9 @@ export class PlayerExtensionContext
 	}
 	registerComponent(injectPointName: string, injectComponent: ComponentType) {
 		this.registeredInjectPointComponent[injectPointName] = injectComponent;
+	}
+	registerWindowComponent(windowId: string, component: ComponentType) {
+		this.registeredWindowComponent[windowId] = component;
 	}
 	registerPlayerSource(_idPrefix: string) {
 		console.warn("Unimplemented");

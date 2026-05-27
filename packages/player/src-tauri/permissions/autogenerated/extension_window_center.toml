@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-extension-window-center"
+description = "Enables the extension_window_center command without any pre-configured scope."
+commands.allow = ["extension_window_center"]
+
+[[permission]]
+identifier = "deny-extension-window-center"
+description = "Denies the extension_window_center command without any pre-configured scope."
+commands.deny = ["extension_window_center"]
