@@ -15,9 +15,12 @@ use crate::{
     SongData,
     audio_quality::AudioQuality,
     ffmpeg_decoder::{FFmpegDecoder, FFmpegDecoderHandle},
-    media_state::{MediaStateManager, MediaStateManagerBackend, MediaStateMessage},
 };
 use anyhow::{Context, anyhow};
+use now_playing_controls::model::{
+    MetadataPayload, PlayStatePayload, PlaybackStatus, SystemMediaEvent, SystemMediaEventType,
+    TimelinePayload,
+};
 use parking_lot::RwLock as ParkingLotRwLock;
 use rodio::{MixerDeviceSink, Player, Source};
 use serde::{Deserialize, Serialize};
@@ -44,8 +47,7 @@ pub struct AudioPlayer {
     current_audio_quality: Arc<TokioRwLock<AudioQuality>>,
     play_pos_sx: UnboundedSender<(bool, Option<f64>)>,
     tasks: Vec<JoinHandle<()>>,
-    media_state_manager: Option<Arc<MediaStateManager>>,
-    media_state_rx: Option<UnboundedReceiver<MediaStateMessage>>,
+    npc_event_rx: Option<UnboundedReceiver<SystemMediaEvent>>,
     fft_player: Arc<ParkingLotRwLock<FFTPlayer>>,
 
     fft_broadcast_task: Option<JoinHandle<()>>,
@@ -115,11 +117,24 @@ impl AudioPlayer {
 
         let mut tasks = Vec::new();
 
-        let (media_state_manager, media_state_rx) = match MediaStateManager::new() {
-            Ok((manager, ms_rx)) => (Some(Arc::new(manager)), Some(ms_rx)),
+        let npc_event_rx = match now_playing_controls::initialize() {
+            Ok(()) => {
+                let (npc_tx, npc_rx) = tokio::sync::mpsc::unbounded_channel();
+                if let Err(e) = now_playing_controls::register_event_handler(Arc::new(
+                    move |event: SystemMediaEvent| {
+                        let _ = npc_tx.send(event);
+                    },
+                )) {
+                    tracing::warn!("注册系统媒体控件事件处理器失败：{e:?}");
+                }
+                if let Err(e) = now_playing_controls::enable_system_media() {
+                    tracing::warn!("启用系统媒体控件失败：{e:?}");
+                }
+                Some(npc_rx)
+            }
             Err(err) => {
-                tracing::warn!("初始化媒体状态管理器时出错：{err:?}");
-                (None, None)
+                tracing::warn!("初始化系统媒体控件时出错：{err:?}");
+                None
             }
         };
 
@@ -128,7 +143,6 @@ impl AudioPlayer {
         let emitter_pos = AudioPlayerEventEmitter::new(evt_sender.clone());
         let (play_pos_sx, mut play_pos_rx) =
             tokio::sync::mpsc::unbounded_channel::<(bool, Option<f64>)>();
-        let media_state_manager_clone = media_state_manager.clone();
 
         tasks.push(tokio::task::spawn(async move {
             let mut time_it = tokio::time::interval(Duration::from_secs(1));
@@ -155,10 +169,12 @@ impl AudioPlayer {
                             }
 
                             if is_playing
-                                && let Some(manager) = &media_state_manager_clone
-                                && let Err(e) = manager.set_position(local_current_pos)
                             {
-                                warn!("更新系统媒体控件进度失败: {e:?}");
+                                now_playing_controls::update_timeline(TimelinePayload {
+                                    current_time: local_current_pos * 1000.0,
+                                    total_time: audio_info_reader.read().await.duration * 1000.0,
+                                    seeked: None,
+                                });
                             }
                         } else {
                             break;
@@ -186,10 +202,11 @@ impl AudioPlayer {
                                     })
                                     .await;
 
-                                if let Some(manager) = &media_state_manager_clone
-                                    && let Err(e) = manager.set_position(local_current_pos) {
-                                        tracing::warn!("更新系统媒体控件进度失败: {e:?}");
-                                    }
+                                now_playing_controls::update_timeline(TimelinePayload {
+                                    current_time: local_current_pos * 1000.0,
+                                    total_time: duration * 1000.0,
+                                    seeked: None,
+                                });
                             }
                         }
                     }
@@ -239,8 +256,7 @@ impl AudioPlayer {
             current_audio_quality,
             play_pos_sx,
             tasks,
-            media_state_manager,
-            media_state_rx,
+            npc_event_rx,
             fft_player,
             fft_broadcast_task,
             target_channels,
@@ -256,27 +272,29 @@ impl AudioPlayer {
         AudioPlayerEventEmitter::new(self.evt_sender.clone())
     }
 
-    async fn update_media_manager_metadata(&self) -> anyhow::Result<()> {
-        if let Some(manager) = self.media_state_manager.as_ref() {
-            let audio_info = self.current_audio_info.read().await;
-            manager.set_title(&audio_info.name)?;
-            manager.set_artist(&audio_info.artist)?;
-            manager.set_duration(audio_info.duration)?;
-            if let Some(cover_data) = &audio_info.cover {
-                manager.set_cover_image(cover_data)?;
-            } else {
-                manager.set_cover_image(&[] as &[u8])?;
-            }
-            manager.update()?;
-        }
-        Ok(())
+    async fn update_npc_metadata(&self) {
+        let audio_info = self.current_audio_info.read().await;
+        now_playing_controls::update_metadata(MetadataPayload {
+            song_name: audio_info.name.clone(),
+            author_name: audio_info.artist.clone(),
+            album_name: audio_info.album.clone(),
+            cover_data: audio_info.cover.clone(),
+            original_cover_url: None,
+            genre: Vec::new(),
+            track_id: None,
+            discord_button_url: None,
+            duration: Some(audio_info.duration * 1000.0),
+        });
     }
 
-    async fn update_media_manager_playback_state(&self, is_playing: bool) -> anyhow::Result<()> {
-        if let Some(manager) = self.media_state_manager.as_ref() {
-            manager.set_playing(is_playing)?;
-        }
-        Ok(())
+    fn update_npc_play_state(is_playing: bool) {
+        now_playing_controls::update_play_state(PlayStatePayload {
+            status: if is_playing {
+                PlaybackStatus::Playing
+            } else {
+                PlaybackStatus::Paused
+            },
+        });
     }
 
     pub async fn run(
@@ -286,8 +304,8 @@ impl AudioPlayer {
         let mut check_end_interval = tokio::time::interval(Duration::from_millis(50));
 
         loop {
-            let media_state_fut = async {
-                if let Some(rx) = self.media_state_rx.as_mut() {
+            let npc_event_fut = async {
+                if let Some(rx) = self.npc_event_rx.as_mut() {
                     rx.recv().await
                 } else {
                     futures::future::pending().await
@@ -304,11 +322,11 @@ impl AudioPlayer {
                         }
                     } else { break; }
                 },
-                msg = media_state_fut => {
-                    if let Some(msg) = msg {
-                        self.on_media_state_msg(msg).await;
+                msg = npc_event_fut => {
+                    if let Some(event) = msg {
+                        self.on_system_media_event(event).await;
                     } else {
-                        self.media_state_rx = None;
+                        self.npc_event_rx = None;
                     }
                 }
                 evt = self.evt_receiver.recv() => {
@@ -329,44 +347,76 @@ impl AudioPlayer {
         }
     }
 
-    pub async fn on_media_state_msg(&mut self, msg: MediaStateMessage) {
+    pub async fn on_system_media_event(&self, event: SystemMediaEvent) {
         let handler = self.handler();
-        let result = match msg {
-            MediaStateMessage::Play => {
+        let result = match event.type_ {
+            SystemMediaEventType::Play => {
                 handler
                     .send_anonymous(AudioThreadMessage::ResumeAudio)
                     .await
             }
-            MediaStateMessage::Pause => {
+            SystemMediaEventType::Pause => {
                 handler.send_anonymous(AudioThreadMessage::PauseAudio).await
             }
-            MediaStateMessage::PlayOrPause => {
-                handler
-                    .send_anonymous(AudioThreadMessage::ResumeOrPauseAudio)
-                    .await
-            }
-            MediaStateMessage::Next => {
+            SystemMediaEventType::NextSong => {
                 self.emitter()
                     .emit(AudioThreadEvent::HardwareMediaCommand {
                         command: "next".into(),
                     })
                     .await
             }
-            MediaStateMessage::Previous => {
+            SystemMediaEventType::PreviousSong => {
                 self.emitter()
                     .emit(AudioThreadEvent::HardwareMediaCommand {
                         command: "prev".into(),
                     })
                     .await
             }
-            MediaStateMessage::Seek(pos) => {
+            SystemMediaEventType::Seek => {
+                if let Some(pos_ms) = event.position_ms {
+                    handler
+                        .send_anonymous(AudioThreadMessage::SeekAudio {
+                            position: pos_ms / 1000.0,
+                        })
+                        .await
+                } else {
+                    Ok(())
+                }
+            }
+            SystemMediaEventType::Stop => {
+                handler.send_anonymous(AudioThreadMessage::StopAudio).await
+            }
+            SystemMediaEventType::ToggleShuffle => {
                 handler
-                    .send_anonymous(AudioThreadMessage::SeekAudio { position: pos })
+                    .send_anonymous(AudioThreadMessage::ToggleShuffle)
                     .await
+            }
+            SystemMediaEventType::ToggleRepeat => {
+                handler
+                    .send_anonymous(AudioThreadMessage::ToggleRepeat)
+                    .await
+            }
+            SystemMediaEventType::SetRate => {
+                if let Some(rate) = event.rate {
+                    handler
+                        .send_anonymous(AudioThreadMessage::SetPlaybackRate { rate })
+                        .await
+                } else {
+                    Ok(())
+                }
+            }
+            SystemMediaEventType::SetVolume => {
+                if let Some(volume) = event.volume {
+                    handler
+                        .send_anonymous(AudioThreadMessage::SetVolume { volume })
+                        .await
+                } else {
+                    Ok(())
+                }
             }
         };
         if let Err(e) = result {
-            warn!("发送媒体状态消息失败: {e:?}");
+            warn!("发送系统媒体控件事件失败: {e:?}");
         }
     }
 
@@ -380,7 +430,7 @@ impl AudioPlayer {
                 AudioThreadMessage::ResumeAudio => {
                     self.audio_player.play();
                     let _ = self.play_pos_sx.send((true, None));
-                    self.update_media_manager_playback_state(true).await?;
+                    Self::update_npc_play_state(true);
                     let _ = emitter
                         .emit(AudioThreadEvent::PlayStatus { is_playing: true })
                         .await;
@@ -388,7 +438,7 @@ impl AudioPlayer {
                 AudioThreadMessage::PauseAudio => {
                     self.audio_player.pause();
                     let _ = self.play_pos_sx.send((false, None));
-                    self.update_media_manager_playback_state(false).await?;
+                    Self::update_npc_play_state(false);
                     let _ = emitter
                         .emit(AudioThreadEvent::PlayStatus { is_playing: false })
                         .await;
@@ -403,8 +453,7 @@ impl AudioPlayer {
 
                     let is_playing_now = was_paused;
                     let _ = self.play_pos_sx.send((is_playing_now, None));
-                    self.update_media_manager_playback_state(is_playing_now)
-                        .await?;
+                    Self::update_npc_play_state(is_playing_now);
                     let _ = emitter
                         .emit(AudioThreadEvent::PlayStatus {
                             is_playing: is_playing_now,
@@ -431,7 +480,7 @@ impl AudioPlayer {
                             .await?;
                             let is_playing = !self.audio_player.is_paused();
                             let _ = self.play_pos_sx.send((is_playing, Some(*position)));
-                            self.update_media_manager_playback_state(is_playing).await?;
+                            Self::update_npc_play_state(is_playing);
                         }
                     } else {
                         warn!("找不到解码器句柄, 无法执行跳转");
@@ -459,11 +508,40 @@ impl AudioPlayer {
                     .await?;
                 }
                 AudioThreadMessage::SetMediaControlsEnabled { enabled } => {
-                    if let Some(manager) = self.media_state_manager.as_ref()
-                        && let Err(e) = manager.set_enabled(*enabled)
-                    {
-                        warn!("设置媒体控制启用状态失败: {e:?}");
+                    if *enabled {
+                        if let Err(e) = now_playing_controls::enable_system_media() {
+                            warn!("启用系统媒体控件失败: {e:?}");
+                        }
+                    } else {
+                        if let Err(e) = now_playing_controls::disable_system_media() {
+                            warn!("禁用系统媒体控件失败: {e:?}");
+                        }
                     }
+                }
+                AudioThreadMessage::StopAudio => {
+                    self.audio_player.pause();
+                    let _ = self.play_pos_sx.send((false, None));
+                    Self::update_npc_play_state(false);
+                    let _ = emitter
+                        .emit(AudioThreadEvent::PlayStatus { is_playing: false })
+                        .await;
+                }
+                AudioThreadMessage::ToggleShuffle => {
+                    let _ = emitter
+                        .emit(AudioThreadEvent::HardwareMediaCommand {
+                            command: "toggleShuffle".into(),
+                        })
+                        .await;
+                }
+                AudioThreadMessage::ToggleRepeat => {
+                    let _ = emitter
+                        .emit(AudioThreadEvent::HardwareMediaCommand {
+                            command: "toggleRepeat".into(),
+                        })
+                        .await;
+                }
+                AudioThreadMessage::SetPlaybackRate { rate } => {
+                    now_playing_controls::update_playback_rate(*rate);
                 }
                 _ => {}
             }
@@ -520,10 +598,10 @@ impl AudioPlayer {
         *self.current_audio_quality.write().await = quality.clone();
 
         self.audio_player.append(source);
-        self.update_media_manager_metadata().await?;
+        self.update_npc_metadata().await;
 
         let is_playing = !self.audio_player.is_paused();
-        self.update_media_manager_playback_state(is_playing).await?;
+        Self::update_npc_play_state(is_playing);
         let _ = self.play_pos_sx.send((is_playing, Some(0.0)));
 
         let status_event = AudioThreadEvent::LoadAudio {
@@ -548,6 +626,7 @@ impl Drop for AudioPlayer {
         if let Some(handle) = self.fft_broadcast_task.take() {
             handle.abort();
         }
+        now_playing_controls::shutdown();
     }
 }
 

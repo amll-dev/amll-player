@@ -47,7 +47,9 @@ pub fn init_local_player<R: Runtime>(app: AppHandle<R>) {
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
             while crate::ANDROID_NDK_READY.get().is_none() {
                 if std::time::Instant::now() > deadline {
-                    tracing::error!("Timed out waiting for Android NDK context; proceeding anyway.");
+                    tracing::error!(
+                        "Timed out waiting for Android NDK context; proceeding anyway."
+                    );
                     break;
                 }
                 std::thread::sleep(std::time::Duration::from_millis(10));

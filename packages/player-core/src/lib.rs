@@ -8,7 +8,6 @@ use serde::*;
 mod audio_quality;
 mod ffmpeg_decoder;
 mod fft_player;
-mod media_state;
 mod player;
 pub mod utils;
 pub use player::*;
@@ -67,6 +66,14 @@ pub enum AudioThreadMessage {
     SetFFTRange { from_freq: f32, to_freq: f32 },
     #[serde(rename_all = "camelCase")]
     SetMediaControlsEnabled { enabled: bool },
+    #[serde(rename_all = "camelCase")]
+    StopAudio,
+    #[serde(rename_all = "camelCase")]
+    ToggleShuffle,
+    #[serde(rename_all = "camelCase")]
+    ToggleRepeat,
+    #[serde(rename_all = "camelCase")]
+    SetPlaybackRate { rate: f64 },
     #[serde(rename_all = "camelCase")]
     Close,
 }

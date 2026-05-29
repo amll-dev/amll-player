@@ -15,8 +15,7 @@ use serde::*;
 #[cfg(not(mobile))]
 use serde_json::Value;
 use tauri::{
-    AppHandle, Manager, Runtime, State, WebviewWindowBuilder, ipc::Channel,
-    path::BaseDirectory,
+    AppHandle, Manager, Runtime, State, WebviewWindowBuilder, ipc::Channel, path::BaseDirectory,
 };
 #[cfg(desktop)]
 use tauri::{PhysicalSize, Size, utils::config::WindowEffectsConfig, window::Effect};
@@ -431,7 +430,9 @@ fn init_logging() {
     #[cfg(debug_assertions)]
     {
         tracing_subscriber::fmt()
-            .with_env_filter("amll_player=trace,wry=info,taskbar_lyric=trace")
+            .with_env_filter(
+                "amll_player=trace,wry=info,taskbar_lyric=trace,now_playing_controls=trace",
+            )
             .with_thread_names(true)
             .with_timer(tracing_subscriber::fmt::time::uptime())
             .init();
