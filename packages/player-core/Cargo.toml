@@ -8,7 +8,6 @@ default = []
 
 [dependencies]
 anyhow = "^1.0"
-concat-string = "^1.0"
 cpal = "^0.17"
 crossbeam-channel = "0.5.15"
 crossbeam-utils = "0.8.21"

@@ -26,18 +26,10 @@ export interface AudioInfo {
 	position: number;
 }
 
-export type SongData =
-	| {
-			type: "local";
-			filePath: string;
-			origOrder: number;
-	  }
-	| {
-			type: "custom";
-			id: string;
-			songJsonData: string;
-			origOrder: number;
-	  };
+export interface SongData {
+	filePath: string;
+	songId?: string;
+}
 
 export type AudioThreadMessageMap = {
 	resumeAudio: undefined;
@@ -66,6 +58,10 @@ export type AudioThreadMessageMap = {
 		enabled: boolean;
 	};
 	close: undefined;
+	updatePlayMode: {
+		isShuffling: boolean;
+		repeatMode: "off" | "all" | "one";
+	};
 };
 
 export type AudioThreadMessageKeys = keyof AudioThreadMessageMap;

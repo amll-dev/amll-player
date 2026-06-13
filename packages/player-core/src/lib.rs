@@ -1,7 +1,5 @@
 use std::fmt::Debug;
 
-use concat_string::concat_string;
-
 use self::audio_quality::AudioQuality;
 use serde::*;
 
@@ -15,28 +13,29 @@ pub use now_playing_controls::model::NowPlayingOptions;
 pub use player::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
-#[non_exhaustive]
-pub enum SongData {
-    #[serde(rename_all = "camelCase")]
-    Local { file_path: String },
-    /// 自定义的歌曲数据，可以交由宿主程序注册的歌曲元数据处理器处理
-    #[serde(rename_all = "camelCase")]
-    Custom {
-        id: String,
-        song_json_data: String,
-        preloaded_info: Option<AudioInfo>,
-    },
+pub struct SongData {
+    pub file_path: String,
+    pub song_id: Option<String>,
 }
 
 impl SongData {
     fn get_id(&self) -> String {
-        match self {
-            SongData::Local { file_path, .. } => format!("local:{:x}", md5::compute(file_path)),
-            SongData::Custom { id, .. } => concat_string!("custom:", id),
-        }
+        self.song_id
+            .clone()
+            .unwrap_or_else(|| format!("{:x}", md5::compute(&self.file_path)))
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum RepeatMode {
+    #[serde(rename_all = "camelCase")]
+    Off,
+    #[serde(rename_all = "camelCase")]
+    All,
+    #[serde(rename_all = "camelCase")]
+    One,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -71,6 +70,11 @@ pub enum AudioThreadMessage {
     ToggleShuffle,
     #[serde(rename_all = "camelCase")]
     ToggleRepeat,
+    #[serde(rename_all = "camelCase")]
+    UpdatePlayMode {
+        is_shuffling: bool,
+        repeat_mode: RepeatMode,
+    },
     #[serde(rename_all = "camelCase")]
     SetPlaybackRate { rate: f64 },
     #[serde(rename_all = "camelCase")]

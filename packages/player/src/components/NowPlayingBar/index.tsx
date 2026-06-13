@@ -1,3 +1,15 @@
+import {
+	isLyricPageOpenedAtom,
+	MediaButton,
+	musicArtistsAtom,
+	musicCoverAtom,
+	musicNameAtom,
+	musicPlayingAtom,
+	onPlayOrResumeAtom,
+	onRequestNextSongAtom,
+	onRequestPrevSongAtom,
+	TextMarquee,
+} from "@applemusic-like-lyrics/react-full";
 import lyricIcon from "@iconify/icons-ic/round-lyrics";
 import { Icon } from "@iconify/react";
 import {
@@ -15,25 +27,12 @@ import IconForward from "../../assets/icon_forward.svg?react";
 import IconPause from "../../assets/icon_pause.svg?react";
 import IconPlay from "../../assets/icon_play.svg?react";
 import IconRewind from "../../assets/icon_rewind.svg?react";
-import { NowPlaylistCard } from "../NowPlaylistCard/index.tsx";
-import styles from "./index.module.css";
-
-import {
-	isLyricPageOpenedAtom,
-	MediaButton,
-	musicArtistsAtom,
-	musicCoverAtom,
-	musicNameAtom,
-	musicPlayingAtom,
-	onPlayOrResumeAtom,
-	onRequestNextSongAtom,
-	onRequestPrevSongAtom,
-	TextMarquee,
-} from "@applemusic-like-lyrics/react-full";
 import {
 	hideNowPlayingBarAtom,
 	playlistCardOpenedAtom,
 } from "../../states/appAtoms.ts";
+import { NowPlaylistCard } from "../NowPlaylistCard/index.tsx";
+import styles from "./index.module.css";
 
 export const NowPlayingBar: FC = () => {
 	const hideNowPlayingBar = useAtomValue(hideNowPlayingBarAtom);

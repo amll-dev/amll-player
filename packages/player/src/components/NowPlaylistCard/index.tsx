@@ -2,59 +2,29 @@ import { PlayIcon } from "@radix-ui/react-icons";
 import { Avatar, Box, Flex, type FlexProps, Inset } from "@radix-ui/themes";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { useAtomValue, useSetAtom } from "jotai";
-import {
-	type FC,
-	type HTMLProps,
-	useEffect,
-	useLayoutEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { useAtomValue } from "jotai";
+import { type FC, type HTMLProps, useEffect, useRef } from "react";
 import { Trans } from "react-i18next";
-import {
-	currentPlaylistAtom,
-	currentPlaylistMusicIndexAtom,
-} from "../../states/appAtoms.ts";
+import { queueManagerAtom } from "../../states/appAtoms.ts";
 import type { Song } from "../../utils/db-client.ts";
-import { emitAudioThread, type SongData } from "../../utils/player.ts";
+import {
+	queueCurrentIndexAtom,
+	queuePlaylistAtom,
+} from "../../utils/play-queue-manager.ts";
 import styles from "./index.module.css";
 
 const PlaylistSongItem: FC<
 	{
-		songData: SongData;
+		song: Song;
 		index: number;
 	} & HTMLProps<HTMLDivElement>
-> = ({ songData, className, index, ...props }) => {
-	const playlistIndex = useAtomValue(currentPlaylistMusicIndexAtom);
-	const [cover, setCover] = useState("");
-	const setPlaylistIndex = useSetAtom(currentPlaylistMusicIndexAtom);
+> = ({ song, className, index, ...props }) => {
+	const playlistIndex = useAtomValue(queueCurrentIndexAtom);
+	const queueManager = useAtomValue(queueManagerAtom);
 
-	const song: Song | null = useMemo(() => {
-		if (songData.type === "custom" && songData.songJsonData) {
-			try {
-				return JSON.parse(songData.songJsonData);
-			} catch (e) {
-				console.error("Failed to parse songJsonData:", e);
-				return null;
-			}
-		}
-		return null;
-	}, [songData]);
-
-	useLayoutEffect(() => {
-		if (song?.coverPath) {
-			setCover(convertFileSrc(song.coverPath));
-		} else {
-			setCover("");
-		}
-	}, [song]);
-
-	const name =
-		song?.songName ??
-		(songData.type === "local" ? songData.filePath : "未知歌曲");
-	const artists = song?.songArtists ?? "未知艺术家";
+	const cover = song.coverPath ? convertFileSrc(song.coverPath) : "";
+	const name = song.songName || "未知歌曲";
+	const artists = song.songArtists || "未知艺术家";
 
 	return (
 		<div className={className} {...props}>
@@ -62,10 +32,7 @@ const PlaylistSongItem: FC<
 				type="button"
 				className={styles.playlistSongItem}
 				onDoubleClick={() => {
-					setPlaylistIndex(index);
-					emitAudioThread("playAudio", {
-						song: songData,
-					});
+					queueManager?.playAt(index);
 				}}
 				aria-label={`播放 ${name} - ${artists}`}
 			>
@@ -81,8 +48,8 @@ const PlaylistSongItem: FC<
 };
 
 export const NowPlaylistCard: FC<FlexProps> = (props) => {
-	const playlist = useAtomValue(currentPlaylistAtom);
-	const playlistIndex = useAtomValue(currentPlaylistMusicIndexAtom);
+	const playlist = useAtomValue(queuePlaylistAtom);
+	const playlistIndex = useAtomValue(queueCurrentIndexAtom);
 	const playlistContainerRef = useRef<HTMLDivElement>(null);
 
 	const rowVirtualizer = useVirtualizer({
@@ -93,10 +60,14 @@ export const NowPlaylistCard: FC<FlexProps> = (props) => {
 	});
 
 	useEffect(() => {
-		if (rowVirtualizer) {
+		if (
+			rowVirtualizer &&
+			playlistIndex >= 0 &&
+			playlistIndex < playlist.length
+		) {
 			rowVirtualizer.scrollToIndex(playlistIndex, { align: "center" });
 		}
-	}, [playlistIndex, rowVirtualizer]);
+	}, [playlistIndex, rowVirtualizer, playlist.length]);
 
 	return (
 		<Flex
@@ -129,8 +100,8 @@ export const NowPlaylistCard: FC<FlexProps> = (props) => {
 					}}
 				>
 					{rowVirtualizer.getVirtualItems().map((virtualItem) => {
-						const songData = playlist[virtualItem.index];
-						if (!songData) return null;
+						const song = playlist[virtualItem.index];
+						if (!song) return null;
 						return (
 							<PlaylistSongItem
 								key={virtualItem.key}
@@ -142,7 +113,7 @@ export const NowPlaylistCard: FC<FlexProps> = (props) => {
 									height: `${virtualItem.size}px`,
 									transform: `translateY(${virtualItem.start}px)`,
 								}}
-								songData={songData}
+								song={song}
 								index={virtualItem.index}
 							/>
 						);

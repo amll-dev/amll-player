@@ -1,9 +1,9 @@
-import type { SongData } from "@applemusic-like-lyrics/react-full";
 import { invoke } from "@tauri-apps/api/core";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import i18n from "../i18n";
+import type { PlayQueueManager } from "../utils/play-queue-manager.ts";
 
 export enum DarkMode {
 	Auto = "auto",
@@ -136,11 +136,7 @@ export const currentLyricAuthorsAtom = atom<string[]>([]);
 
 export const currentSongWritersAtom = atom<string[]>([]);
 
-export const currentPlaylistAtom = atom<SongData[]>([]);
-
-export const currentPlayingPlaylistIdAtom = atom<number | null>(null);
-
-export const currentPlaylistMusicIndexAtom = atom(0);
+export const queueManagerAtom = atom<PlayQueueManager | null>(null);
 
 const _languageBaseAtom = atom(i18n.language);
 export const languageAtom = atom(

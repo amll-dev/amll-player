@@ -22,12 +22,14 @@ import {
 	onChangeVolumeAtom,
 	onClickAudioQualityTagAtom,
 	onClickControlThumbAtom,
+	onCycleRepeatModeAtom,
 	onLyricLineClickAtom,
 	onPlayOrResumeAtom,
 	onRequestNextSongAtom,
 	onRequestOpenMenuAtom,
 	onRequestPrevSongAtom,
 	onSeekPositionAtom,
+	onToggleShuffleAtom,
 } from "@applemusic-like-lyrics/react-full";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import chalk from "chalk";
@@ -39,13 +41,13 @@ import { useLyricParser } from "../../hooks/useLyricParser.ts";
 import {
 	audioQualityDialogOpenedAtom,
 	currentLyricAuthorsAtom,
-	currentPlaylistAtom,
-	currentPlaylistMusicIndexAtom,
 	currentSongWritersAtom,
 	enableMediaControlsAtom,
+	queueManagerAtom,
 } from "../../states/appAtoms.ts";
 import { db } from "../../utils/db-client.ts";
 import { SyncStatus, syncLyrics } from "../../utils/lyric-db-api.ts";
+import { PlayQueueManager } from "../../utils/play-queue-manager.ts";
 import {
 	type AudioQuality,
 	type AudioThreadEvent,
@@ -270,9 +272,7 @@ export const LocalMusicContext: FC = () => {
 			return;
 		}
 
-		const musicId = data.musicId.startsWith("local:")
-			? data.musicId.substring(6)
-			: data.musicId;
+		const musicId = data.musicId;
 
 		try {
 			store.set(musicIdAtom, musicId);
@@ -374,25 +374,39 @@ export const LocalMusicContext: FC = () => {
 		initAudioThread();
 		const toEmit = <T,>(onEmit: T) => ({ onEmit });
 
-		const playSongAtIndex = (newIndex: number) => {
-			const playlist = store.get(currentPlaylistAtom);
-			if (!playlist || playlist.length === 0) return;
+		const queueManager = new PlayQueueManager(store);
+		store.set(queueManagerAtom, queueManager);
 
-			let safeIndex = newIndex;
-			if (safeIndex >= playlist.length) safeIndex = 0;
-			if (safeIndex < 0) safeIndex = playlist.length - 1;
+		// 恢复上次的队列信息
+		queueManager.restore().then(({ restored, position }) => {
+			if (restored) {
+				const currentSong = queueManager.getCurrentSong();
+				if (currentSong) {
+					// 恢复播放进度
+					emitAudioThread("playAudio", {
+						song: {
+							songId: currentSong.id,
+							filePath: currentSong.filePath,
+						},
+					});
+					emitAudioThread("pauseAudio");
 
-			const targetSong = playlist[safeIndex];
+					if (position > 0) {
+						lastSyncRef.current = {
+							position,
+							timestamp: performance.now(),
+						};
+						store.set(musicPlayingPositionAtom, (position * 1000) | 0);
+						emitAudioThread("seekAudio", { position });
+					}
+				}
+			}
+		});
 
-			lastSyncRef.current = {
-				position: 0,
-				timestamp: performance.now(),
-			};
-			store.set(musicPlayingPositionAtom, 0);
-			store.set(currentPlaylistMusicIndexAtom, safeIndex);
-
-			emitAudioThread("playAudio", { song: targetSong });
+		const onBeforeUnload = () => {
+			queueManager.dispose();
 		};
+		window.addEventListener("beforeunload", onBeforeUnload);
 
 		store.set(
 			onClickAudioQualityTagAtom,
@@ -411,16 +425,26 @@ export const LocalMusicContext: FC = () => {
 		store.set(
 			onRequestNextSongAtom,
 			toEmit(() => {
-				const currentIndex = store.get(currentPlaylistMusicIndexAtom);
-				playSongAtIndex(currentIndex + 1);
+				queueManager.advanceForUser();
 			}),
 		);
 
 		store.set(
 			onRequestPrevSongAtom,
 			toEmit(() => {
-				const currentIndex = store.get(currentPlaylistMusicIndexAtom);
-				playSongAtIndex(currentIndex - 1);
+				queueManager.retreatForUser();
+			}),
+		);
+		store.set(
+			onToggleShuffleAtom,
+			toEmit(() => {
+				queueManager.toggleShuffle();
+			}),
+		);
+		store.set(
+			onCycleRepeatModeAtom,
+			toEmit(() => {
+				queueManager.cycleRepeatMode();
 			}),
 		);
 		store.set(
@@ -509,10 +533,14 @@ export const LocalMusicContext: FC = () => {
 						store.set(musicDurationAtom, (data.musicInfo.duration * 1000) | 0);
 					}
 
+					lastSyncRef.current = {
+						position: 0,
+						timestamp: performance.now(),
+					};
+					store.set(musicPlayingPositionAtom, 0);
+
 					const currentMusicId = store.get(musicIdAtom);
-					const newMusicId = data.musicId?.startsWith("local:")
-						? data.musicId.substring(6)
-						: data.musicId || "";
+					const newMusicId = data.musicId || "";
 
 					if (newMusicId && newMusicId !== currentMusicId) {
 						await syncMusicInfo(data);
@@ -526,17 +554,19 @@ export const LocalMusicContext: FC = () => {
 				}
 
 				case "trackEnded": {
-					const currentIndex = store.get(currentPlaylistMusicIndexAtom);
-					playSongAtIndex(currentIndex + 1);
+					queueManager.advanceForAutoEnd();
 					break;
 				}
 
 				case "hardwareMediaCommand": {
-					const currentIndex = store.get(currentPlaylistMusicIndexAtom);
 					if (evtData.data.command === "next") {
-						playSongAtIndex(currentIndex + 1);
+						queueManager.advanceForUser();
 					} else if (evtData.data.command === "prev") {
-						playSongAtIndex(currentIndex - 1);
+						queueManager.retreatForUser();
+					} else if (evtData.data.command === "toggleShuffle") {
+						queueManager.toggleShuffle();
+					} else if (evtData.data.command === "toggleRepeat") {
+						queueManager.cycleRepeatMode();
 					}
 					break;
 				}
@@ -565,6 +595,11 @@ export const LocalMusicContext: FC = () => {
 
 		return () => {
 			unlistenPromise.then((unlisten) => unlisten());
+
+			window.removeEventListener("beforeunload", onBeforeUnload);
+
+			queueManager.dispose();
+			store.set(queueManagerAtom, null);
 
 			const doNothing = toEmit(() => {});
 			store.set(onClickAudioQualityTagAtom, doNothing);

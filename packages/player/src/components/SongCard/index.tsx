@@ -1,18 +1,11 @@
-import {
-	musicPlayingPositionAtom,
-	toDuration,
-} from "@applemusic-like-lyrics/react-full";
+import { toDuration } from "@applemusic-like-lyrics/react-full";
 import { Avatar, Box, Card, ContextMenu, Flex, Text } from "@radix-ui/themes";
-import { useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import { type CSSProperties, forwardRef, type PropsWithChildren } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { router } from "../../router.tsx";
-import {
-	currentPlaylistAtom,
-	currentPlaylistMusicIndexAtom,
-} from "../../states/appAtoms.ts";
+import { queueManagerAtom } from "../../states/appAtoms.ts";
 import type { Song } from "../../utils/db-client.ts";
-import { emitAudioThread } from "../../utils/player.ts";
 import { useSongCover } from "../../utils/use-song-cover.ts";
 
 export const SongCard = forwardRef<
@@ -24,9 +17,7 @@ export const SongCard = forwardRef<
 >(({ song, style, children }, ref) => {
 	const songImgUrl = useSongCover(song);
 	const { t } = useTranslation();
-	const setPlaylist = useSetAtom(currentPlaylistAtom);
-	const setPlayIndex = useSetAtom(currentPlaylistMusicIndexAtom);
-	const setPosition = useSetAtom(musicPlayingPositionAtom);
+	const queueManager = useAtomValue(queueManagerAtom);
 
 	return (
 		<Box py="1" style={style} ref={ref}>
@@ -65,18 +56,8 @@ export const SongCard = forwardRef<
 				</ContextMenu.Trigger>
 				<ContextMenu.Content>
 					<ContextMenu.Item
-						onClick={async () => {
-							const targetSong = {
-								type: "local" as const,
-								filePath: song.filePath,
-								origOrder: 0,
-							};
-
-							setPlaylist([targetSong]);
-							setPlayIndex(0);
-							setPosition(0);
-
-							await emitAudioThread("playAudio", { song: targetSong });
+						onClick={() => {
+							queueManager?.replaceQueueAndPlay(song);
 						}}
 					>
 						<Trans i18nKey="amll.contextMenu.play">播放</Trans>

@@ -51,7 +51,6 @@ pub struct AudioPlayer {
     playback_state: Arc<ParkingLotRwLock<PlaybackState>>,
     npc_event_rx: UnboundedReceiver<SystemMediaEvent>,
     fft_player: Arc<ParkingLotRwLock<FFTPlayer>>,
-    custom_song_loader: Option<Arc<CustomSongLoaderFn>>,
 }
 
 #[derive(Clone, Debug)]
@@ -107,9 +106,6 @@ impl Debug for AudioInfo {
 
 pub trait CustomMediaSource: Read + Seek + Send + 'static {}
 impl<T: Read + Seek + Send + 'static> CustomMediaSource for T {}
-pub type CustomSongLoaderReturn =
-    Box<dyn futures::Future<Output = anyhow::Result<Box<dyn CustomMediaSource>>> + Send + Unpin>;
-pub type CustomSongLoaderFn = Box<dyn Fn(String) -> CustomSongLoaderReturn + Send + Sync>;
 
 pub struct AudioPlayerConfig {
     pub media_controls_options: NowPlayingOptions,
@@ -237,12 +233,7 @@ impl AudioPlayer {
             playback_state,
             npc_event_rx,
             fft_player,
-            custom_song_loader: None,
         })
-    }
-
-    pub fn set_custom_song_loader(&mut self, loader: CustomSongLoaderFn) {
-        self.custom_song_loader = Some(Arc::new(loader));
     }
 
     pub fn handler(&self) -> AudioPlayerHandle {
@@ -436,6 +427,13 @@ impl AudioPlayer {
                 AudioThreadMessage::SetPlaybackRate { rate } => {
                     self.media_manager.update_playback_rate(*rate);
                 }
+                AudioThreadMessage::UpdatePlayMode {
+                    is_shuffling,
+                    repeat_mode,
+                } => {
+                    self.media_manager
+                        .update_play_mode(*is_shuffling, *repeat_mode);
+                }
                 _ => {}
             }
         }
@@ -456,25 +454,9 @@ impl AudioPlayer {
 
         let song_data = self.current_song.clone().context("没有当前歌曲可播放")?;
 
-        let (source_stream, preloaded_info) = match &song_data {
-            SongData::Local { file_path, .. } => {
-                let file =
-                    File::open(file_path).with_context(|| format!("打开 {file_path} 失败"))?;
-                (Box::new(file) as Box<dyn CustomMediaSource>, None)
-            }
-            SongData::Custom {
-                song_json_data,
-                preloaded_info,
-                ..
-            } => {
-                if let Some(loader) = &self.custom_song_loader {
-                    let stream = loader(song_json_data.clone()).await?;
-                    (stream, preloaded_info.clone())
-                } else {
-                    anyhow::bail!("传入了自定义音乐源但未设置自定义音乐加载器");
-                }
-            }
-        };
+        let file = File::open(&song_data.file_path)
+            .with_context(|| format!("打开 {} 失败", song_data.file_path))?;
+        let source_stream: Box<dyn CustomMediaSource> = Box::new(file);
 
         let target_channels = self.target_channels;
         let target_sample_rate = self.target_sample_rate;
@@ -491,33 +473,8 @@ impl AudioPlayer {
             state.samples_counter = Some(spawned.samples_counter);
             state.base_time_sec = 0.0;
         }
-        let mut info = spawned.source.audio_info();
+        let info = spawned.source.audio_info();
         let quality = spawned.source.audio_quality();
-
-        if let Some(preloaded) = preloaded_info {
-            if !preloaded.name.is_empty() {
-                info.name = preloaded.name;
-            }
-            if !preloaded.artist.is_empty() {
-                info.artist = preloaded.artist;
-            }
-            if !preloaded.album.is_empty() {
-                info.album = preloaded.album;
-            }
-            if !preloaded.lyric.is_empty() {
-                info.lyric = preloaded.lyric;
-            }
-            if !preloaded.cover_media_type.is_empty() {
-                info.cover_media_type = preloaded.cover_media_type;
-            }
-            if preloaded.cover.is_some() {
-                info.cover = preloaded.cover;
-            }
-
-            if info.duration <= 0.0 && preloaded.duration > 0.0 {
-                info.duration = preloaded.duration;
-            }
-        }
 
         *self.current_audio_info.write().await = info.clone();
         *self.current_audio_quality.write().await = quality.clone();

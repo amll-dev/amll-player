@@ -85,7 +85,10 @@ async fn main() -> anyhow::Result<()> {
 
     handler
         .send_anonymous(AudioThreadMessage::PlayAudio {
-            song: SongData::Local { file_path },
+            song: SongData {
+                file_path,
+                song_id: None,
+            },
         })
         .await?;
 

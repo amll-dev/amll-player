@@ -1,4 +1,3 @@
-import { musicPlayingPositionAtom } from "@applemusic-like-lyrics/react-full";
 import {
 	ArrowLeftIcon,
 	Pencil1Icon,
@@ -21,7 +20,7 @@ import { path } from "@tauri-apps/api";
 import { open } from "@tauri-apps/plugin-dialog";
 import { platform } from "@tauri-apps/plugin-os";
 import { motion, useMotionTemplate, useScroll } from "framer-motion";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue, useStore } from "jotai";
 import md5 from "md5";
 import { type FC, useCallback, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
@@ -31,14 +30,10 @@ import { ViewportList } from "react-viewport-list";
 import { PageContainer } from "../../components/PageContainer/index.tsx";
 import { PlaylistCover } from "../../components/PlaylistCover/index.tsx";
 import { PlaylistSongCard } from "../../components/PlaylistSongCard/index.tsx";
-import {
-	currentPlayingPlaylistIdAtom,
-	currentPlaylistAtom,
-	currentPlaylistMusicIndexAtom,
-} from "../../states/appAtoms.ts";
+import { queueManagerAtom } from "../../states/appAtoms.ts";
 import { db, type Song } from "../../utils/db-client.ts";
+import { queuePlaylistIdAtom } from "../../utils/play-queue-manager.ts";
 import {
-	emitAudioThread,
 	readLocalMusicMetadata,
 	resolveContentUri,
 } from "../../utils/player.ts";
@@ -124,12 +119,8 @@ export const Component: FC = () => {
 		{ path: string; error: string }[]
 	>([]);
 
-	const setPlaylist = useSetAtom(currentPlaylistAtom);
-	const currentPlaylist = useAtomValue(currentPlaylistAtom);
-	const currentPlayingPlaylistId = useAtomValue(currentPlayingPlaylistIdAtom);
-	const setPlayingPlaylistId = useSetAtom(currentPlayingPlaylistIdAtom);
-	const setPlayIndex = useSetAtom(currentPlaylistMusicIndexAtom);
-	const setPosition = useSetAtom(musicPlayingPositionAtom);
+	const store = useStore();
+	const queueManager = useAtomValue(queueManagerAtom);
 
 	const onAddLocalMusics = useCallback(async () => {
 		let filters = [
@@ -232,20 +223,15 @@ export const Component: FC = () => {
 			.map((v) => v.id)
 			.filter((v) => !playlist?.songIds.includes(v));
 		await db.playlists.addSongs(Number(param.id), shouldAddIds);
-		// Sync in-memory playback playlist if it originates from this playlist
-		if (
-			shouldAddIds.length > 0 &&
-			currentPlayingPlaylistId === Number(param.id)
-		) {
-			const nextOrder = currentPlaylist.length;
-			const newEntries = transformed
-				.filter((v) => shouldAddIds.includes(v.id))
-				.map((v, i) => ({
-					type: "local" as const,
-					filePath: v.filePath,
-					origOrder: nextOrder + i,
-				}));
-			setPlaylist([...currentPlaylist, ...newEntries]);
+
+		if (shouldAddIds.length > 0 && queueManager) {
+			const queuePlaylistId = store.get(queuePlaylistIdAtom);
+			if (queuePlaylistId === Number(param.id)) {
+				const newSongs = transformed.filter((v) => shouldAddIds.includes(v.id));
+				for (const song of newSongs) {
+					queueManager.addToQueue(song);
+				}
+			}
 		}
 		toast.done(id);
 		if (currentFailedList.length > 0) {
@@ -284,66 +270,36 @@ export const Component: FC = () => {
 				),
 			);
 		}
-	}, [playlist, param.id, t, currentPlaylist, setPlaylist]);
+	}, [playlist, param.id, t, queueManager]);
 
 	const onPlayList = useCallback(
 		async (songIndex = 0, shuffle = false) => {
-			if (playlist === undefined) return;
+			if (playlist === undefined || !queueManager) return;
 			const collected = await db.playlists.getSongs(Number(param.id));
 			if (shuffle) {
-				for (let i = 0; i < collected.length; i++) {
-					const j = Math.floor(Math.random() * (i + 1));
-					[collected[i], collected[j]] = [collected[j], collected[i]];
-				}
+				queueManager.toggleShuffleOn();
+			} else {
+				queueManager.toggleShuffleOff();
 			}
+			queueManager.setQueue(collected, Number(param.id));
 
-			const newPlaylist = collected.map((v, i) => ({
-				type: "local" as const,
-				filePath: v.filePath,
-				origOrder: i,
-			}));
-
-			setPlaylist(newPlaylist);
-			setPlayingPlaylistId(Number(param.id));
-			setPlayIndex(songIndex);
-			setPosition(0);
-
-			await emitAudioThread("playAudio", {
-				song: newPlaylist[songIndex],
-			});
+			if (songIndex > 0 && songIndex < collected.length) {
+				queueManager.playAt(songIndex);
+			}
 		},
-		[playlist, param.id, setPlaylist, setPlayIndex, setPosition],
+		[playlist, param.id, queueManager],
 	);
 
 	const onDeleteSong = useCallback(
 		async (songId: string) => {
 			if (playlist === undefined) return;
 			await db.playlists.removeSong(Number(param.id), songId);
-			// Sync in-memory playback playlist if it originates from this playlist
-			if (currentPlayingPlaylistId === Number(param.id)) {
-				const removedSong = playlist.songIds.includes(songId)
-					? (await db.songs.get(songId))?.filePath
-					: undefined;
-				if (removedSong) {
-					const removeIndex = currentPlaylist.findIndex(
-						(entry) => entry.type === "local" && entry.filePath === removedSong,
-					);
-					if (removeIndex >= 0) {
-						const newPlaylist = currentPlaylist.filter(
-							(_, i) => i !== removeIndex,
-						);
-						setPlaylist(newPlaylist);
-					}
-				}
+
+			if (queueManager?.getPlaylistId() === Number(param.id)) {
+				queueManager.removeSong(songId);
 			}
 		},
-		[
-			playlist,
-			param.id,
-			currentPlayingPlaylistId,
-			currentPlaylist,
-			setPlaylist,
-		],
+		[playlist, param.id, queueManager],
 	);
 
 	const onPlaylistDefault = useCallback(onPlayList.bind(null, 0), [onPlayList]);

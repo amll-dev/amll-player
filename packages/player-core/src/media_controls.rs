@@ -6,12 +6,12 @@ use tracing::warn;
 
 use crate::{
     AudioInfo, AudioPlayerEventSender, AudioPlayerHandle, AudioThreadEvent,
-    AudioThreadEventMessage, AudioThreadMessage,
+    AudioThreadEventMessage, AudioThreadMessage, RepeatMode,
 };
 use now_playing_controls::NowPlayingSession;
 use now_playing_controls::model::{
-    MetadataPayload, NowPlayingOptions, PlayStatePayload, PlaybackStatus, SystemMediaEvent,
-    SystemMediaEventType, TimelinePayload,
+    MetadataPayload, NowPlayingOptions, PlayModePayload, PlayStatePayload, PlaybackStatus,
+    RepeatMode as NpcRepeatMode, SystemMediaEvent, SystemMediaEventType, TimelinePayload,
 };
 
 pub struct SystemMediaManager {
@@ -97,6 +97,20 @@ impl SystemMediaManager {
     pub fn update_playback_rate(&self, rate: f64) {
         if let Some(session) = &self.session {
             session.update_playback_rate(rate);
+        }
+    }
+
+    pub fn update_play_mode(&self, is_shuffling: bool, repeat_mode: RepeatMode) {
+        if let Some(session) = &self.session {
+            let repeat = match repeat_mode {
+                RepeatMode::All => NpcRepeatMode::List,
+                RepeatMode::One => NpcRepeatMode::Track,
+                RepeatMode::Off => NpcRepeatMode::None,
+            };
+            session.update_play_mode(PlayModePayload {
+                is_shuffling,
+                repeat_mode: repeat,
+            });
         }
     }
 
