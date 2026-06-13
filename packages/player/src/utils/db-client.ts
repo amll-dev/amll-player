@@ -40,6 +40,12 @@ interface UpdateSongPayload {
 	coverPath?: string | null;
 }
 
+export interface CoverGcResult {
+	totalScanned: number;
+	deleted: number;
+	errors: string[];
+}
+
 class PlaylistsClient {
 	async getAll(): Promise<Playlist[]> {
 		return invoke("get_all_playlists");
@@ -100,9 +106,16 @@ class SongsClient {
 	}
 }
 
+class MiscClient {
+	async cleanupOrphanedCovers(): Promise<CoverGcResult> {
+		return invoke("cleanup_orphaned_covers");
+	}
+}
+
 class DbClient {
 	playlists = new PlaylistsClient();
 	songs = new SongsClient();
+	misc = new MiscClient();
 }
 
 export const db = new DbClient();

@@ -1,3 +1,4 @@
+pub mod cleanup;
 pub mod commands;
 pub mod entity;
 pub mod migrate;

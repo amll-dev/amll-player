@@ -1,10 +1,53 @@
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QueryOrder, Set};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
+};
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use tracing::warn;
 
 use crate::db::DbConnection;
 use crate::db::entity::{playlist, playlist_songs, song};
 use crate::db_events;
+
+async fn cleanup_orphaned_songs(
+    db: &DbConnection,
+    song_ids: &[String],
+) -> Result<Vec<String>, String> {
+    let mut deleted = Vec::new();
+
+    for song_id in song_ids {
+        let ref_count = playlist_songs::Entity::find()
+            .filter(playlist_songs::Column::SongId.eq(song_id))
+            .count(db)
+            .await
+            .map_err(|e| format!("Failed to count song references: {e}"))?;
+
+        if ref_count > 0 {
+            continue;
+        }
+
+        if let Some(s) = song::Entity::find_by_id(song_id)
+            .one(db)
+            .await
+            .map_err(|e| format!("Failed to find song: {e}"))?
+        {
+            if let Some(ref cover_path) = s.cover_path
+                && !cover_path.is_empty()
+            {
+                let _ = std::fs::remove_file(cover_path);
+            }
+
+            let active: song::ActiveModel = s.into();
+            active
+                .delete(db)
+                .await
+                .map_err(|e| format!("Failed to delete orphaned song: {e}"))?;
+            deleted.push(song_id.clone());
+        }
+    }
+
+    Ok(deleted)
+}
 
 // ============ Playlist Commands ============
 
@@ -134,6 +177,15 @@ pub async fn update_playlist(
 
 #[tauri::command]
 pub async fn delete_playlist(db: State<'_, DbConnection>, id: i32) -> Result<(), String> {
+    let song_ids: Vec<String> = playlist_songs::Entity::find()
+        .filter(playlist_songs::Column::PlaylistId.eq(id))
+        .all(&*db)
+        .await
+        .map_err(|e| format!("Failed to query playlist songs: {e}"))?
+        .into_iter()
+        .map(|ps| ps.song_id)
+        .collect();
+
     playlist_songs::Entity::delete_many()
         .filter(playlist_songs::Column::PlaylistId.eq(id))
         .exec(&*db)
@@ -145,8 +197,27 @@ pub async fn delete_playlist(db: State<'_, DbConnection>, id: i32) -> Result<(),
         .await
         .map_err(|e| format!("Failed to delete playlist: {e}"))?
     {
+        if let Some(ref cover_path) = p.cover_path
+            && !cover_path.is_empty()
+        {
+            let _ = std::fs::remove_file(cover_path);
+        }
         let active: playlist::ActiveModel = p.into();
         active.delete(&*db).await.map_err(|e| format!("{e}"))?;
+    }
+
+    if !song_ids.is_empty() {
+        match cleanup_orphaned_songs(&db, &song_ids).await {
+            Ok(deleted) if !deleted.is_empty() => {
+                tracing::info!(
+                    "[delete_playlist] Cleaned up {} orphaned songs: {:?}",
+                    deleted.len(),
+                    deleted
+                );
+            }
+            Err(e) => warn!("[delete_playlist] Failed to cleanup orphaned songs: {e}"),
+            _ => {}
+        }
     }
 
     Ok(())
@@ -229,6 +300,14 @@ pub async fn remove_song_from_playlist(
         "delete",
         serde_json::json!({ "playlistId": playlist_id }),
     );
+
+    match cleanup_orphaned_songs(&db, &[song_id]).await {
+        Ok(deleted) if !deleted.is_empty() => {
+            tracing::info!("[remove_song_from_playlist] Cleaned up orphaned song: {deleted:?}",);
+        }
+        Err(e) => warn!("[remove_song_from_playlist] Failed to cleanup orphaned song: {e}"),
+        _ => {}
+    }
 
     let now = chrono::Utc::now().timestamp_millis();
     if let Some(p) = playlist::Entity::find_by_id(playlist_id)

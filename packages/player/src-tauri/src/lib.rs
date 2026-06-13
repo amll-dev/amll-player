@@ -193,7 +193,7 @@ async fn resolve_content_uri(
     Ok(target_path.to_string_lossy().into_owned())
 }
 
-fn get_covers_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+pub(crate) fn get_covers_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     app.path()
         .resolve("covers", BaseDirectory::AppData)
         .map_err(|e| format!("Failed to resolve covers dir: {e}"))
@@ -577,6 +577,7 @@ pub fn run() {
             db::commands::clear_playlist_cover,
             db::migrate::migrate_songs_batch,
             db::migrate::migrate_playlists_batch,
+            db::cleanup::cleanup_orphaned_covers,
             #[cfg(desktop)]
             extension_window::extension_window_create,
             #[cfg(desktop)]
@@ -678,6 +679,23 @@ pub fn run() {
             let db_conn = tauri::async_runtime::block_on(db::init_database(app.handle()))
                 .expect("Failed to initialize database");
             app.manage(db_conn);
+
+            {
+                let db_ref = app.state::<db::DbConnection>().inner().clone();
+                let gc_app = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    match db::cleanup::run_cover_gc(&db_ref, &gc_app).await {
+                        Ok(result) if result.deleted > 0 => {
+                            info!(
+                                "[Startup] Cover GC: scanned {}, deleted {} orphaned covers",
+                                result.total_scanned, result.deleted
+                            );
+                        }
+                        Ok(_) => {}
+                        Err(e) => warn!("[Startup] Cover GC failed: {e}"),
+                    }
+                });
+            }
 
             let app_handle = app.handle().clone();
             let mut rx = db_events::DB_EVENT_SENDER.subscribe();
