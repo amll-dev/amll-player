@@ -80,9 +80,22 @@ export function useMigration() {
 		}
 	}, []);
 
-	const skipMigration = useCallback(() => {
-		setState((prev) => ({ ...prev, status: "skipped" }));
-	}, []);
+	const skipMigration = useCallback(
+		async (opts?: { persist?: boolean; deleteOld?: boolean }) => {
+			if (opts?.persist) {
+				localStorage.setItem(MIGRATION_KEY, "true");
+			}
+			if (opts?.deleteOld) {
+				try {
+					await deleteOldDexieData();
+				} catch (error) {
+					console.warn("[Migration] Failed to delete old data:", error);
+				}
+			}
+			setState((prev) => ({ ...prev, status: "skipped" }));
+		},
+		[],
+	);
 
 	const deleteOldData = useCallback(async () => {
 		try {

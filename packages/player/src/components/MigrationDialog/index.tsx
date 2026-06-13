@@ -3,19 +3,20 @@ import {
 	Box,
 	Button,
 	Callout,
+	Checkbox,
 	Dialog,
 	Flex,
 	Progress,
 	Text,
 } from "@radix-ui/themes";
-import type { FC } from "react";
+import { type FC, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { MigrationState } from "../../hooks/useMigration";
 
 interface MigrationDialogProps {
 	state: MigrationState;
 	onStart: () => void;
-	onSkip: () => void;
+	onSkip: (opts?: { persist?: boolean; deleteOld?: boolean }) => void;
 	onDeleteOld: () => void;
 	onDismiss: () => void;
 }
@@ -29,6 +30,8 @@ export const MigrationDialog: FC<MigrationDialogProps> = ({
 }) => {
 	const { t } = useTranslation();
 	const { status, progress, totalSongs, totalPlaylists, fatalError } = state;
+	const [dontAskAgain, setDontAskAgain] = useState(false);
+	const [deleteOldDataOnSkip, setDeleteOldDataOnSkip] = useState(false);
 	const isOpen =
 		status === "prompt" ||
 		status === "migrating" ||
@@ -69,8 +72,43 @@ export const MigrationDialog: FC<MigrationDialogProps> = ({
 							</Text>
 						</Box>
 
+						<Box mb="3">
+							<Text as="label" size="2">
+								<Flex gap="2" align="center">
+									<Checkbox
+										checked={dontAskAgain}
+										onCheckedChange={(v) => setDontAskAgain(!!v)}
+									/>
+									{t("amll.migrationDialog.dontAskAgain")}
+								</Flex>
+							</Text>
+						</Box>
+
+						{dontAskAgain && (
+							<Box mb="3">
+								<Text as="label" size="2">
+									<Flex gap="2" align="center">
+										<Checkbox
+											checked={deleteOldDataOnSkip}
+											onCheckedChange={(v) => setDeleteOldDataOnSkip(!!v)}
+										/>
+										{t("amll.migrationDialog.deleteOldDataOnSkip")}
+									</Flex>
+								</Text>
+							</Box>
+						)}
+
 						<Flex gap="3" justify="end">
-							<Button variant="soft" color="gray" onClick={onSkip}>
+							<Button
+								variant="soft"
+								color="gray"
+								onClick={() =>
+									onSkip({
+										persist: dontAskAgain,
+										deleteOld: dontAskAgain && deleteOldDataOnSkip,
+									})
+								}
+							>
 								{t("amll.migrationDialog.skip")}
 							</Button>
 							<Button onClick={onStart}>
