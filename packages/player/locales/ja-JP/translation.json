@@ -42,6 +42,33 @@
 			},
 			"tip": "在上方输入搜索关键词，点击候选项即可将歌词内容直接导入到歌词数据中。",
 			"title": "从 AMLL TTML DB 搜索 / 导入歌词"
+		},
+		"migrationDialog": {
+			"title": "データ移行",
+			"description": "旧バージョンの AMLL Player のプレイリストデータが検出されました。移行しますか？",
+			"doNotClose": "移行中はアプリを閉じないでください",
+			"fatalError": "移行中にエラーが発生しました：",
+			"errorListTitle": "以下の項目の移行に失敗しました：",
+			"summary": "{songs} 曲と {playlists} つのプレイリストを移行します。",
+			"skip": "スキップ",
+			"start": "移行を開始",
+			"phaseSongs": "楽曲を移行中",
+			"phasePlaylists": "プレイリストを移行中",
+			"phaseDone": "移行完了",
+			"preparing": "準備中",
+			"progressSongs": "楽曲 {current}/{total}",
+			"progressPlaylists": "プレイリスト {current}/{total}",
+			"failedItems": "（{count} 件失敗）",
+			"completedTitle": "移行完了",
+			"completedDescWithFailures": "{count} 件のデータをインポートしました、{failed} 件失敗しました。",
+			"completedDesc": "{count} 件のデータをインポートしました。",
+			"completedDescDefault": "移行が完了しました。",
+			"failedTitle": "移行失敗",
+			"failedDesc": "移行中にエラーが発生しました：",
+			"failedRetryHint": "次回アプリ起動時に再試行できます。",
+			"deleteOldDataLabel": "旧バージョンのデータを削除してディスク容量を解放しますか？旧バージョンのデータは使用できなくなります。",
+			"keepOldData": "保持",
+			"deleteOldData": "削除"
 		}
 	},
 	"bottom_lyric": {

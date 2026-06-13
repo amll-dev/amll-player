@@ -42,6 +42,33 @@
 			},
 			"tip": "Type your search keywords above, and click on a suggestion to import the lyrics into the database directly.",
 			"title": "Search / Import lyrics from AMLL TTML DB"
+		},
+		"migrationDialog": {
+			"title": "Data Migration",
+			"description": "Legacy AMLL Player playlist data detected. Would you like to migrate?",
+			"doNotClose": "Do not close the app during migration",
+			"fatalError": "An error occurred during migration:",
+			"errorListTitle": "The following items failed to migrate:",
+			"summary": "Will migrate {songs} songs and {playlists} playlists.",
+			"skip": "Skip",
+			"start": "Start Migration",
+			"phaseSongs": "Migrating songs",
+			"phasePlaylists": "Migrating playlists",
+			"phaseDone": "Migration complete",
+			"preparing": "Preparing",
+			"progressSongs": "Songs {current}/{total}",
+			"progressPlaylists": "Playlists {current}/{total}",
+			"failedItems": "（{count} items failed）",
+			"completedTitle": "Migration Complete",
+			"completedDescWithFailures": "Successfully imported {count} items, {failed} failed.",
+			"completedDesc": "Successfully imported {count} items.",
+			"completedDescDefault": "Migration completed.",
+			"failedTitle": "Migration Failed",
+			"failedDesc": "An error occurred during migration:",
+			"failedRetryHint": "You can retry next time you launch the app.",
+			"deleteOldDataLabel": "Delete legacy data to free up disk space? You will not be able to use the old version's data.",
+			"keepOldData": "Keep",
+			"deleteOldData": "Delete"
 		}
 	},
 	"bottom_lyric": {

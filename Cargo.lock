@@ -95,6 +95,7 @@ dependencies = [
  "amll-player-core",
  "anyhow",
  "anyhow-tauri",
+ "base64 0.22.1",
  "chrono",
  "crossbeam-channel",
  "ffmpeg_audio",

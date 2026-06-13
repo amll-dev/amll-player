@@ -42,6 +42,33 @@
 			},
 			"tip": "在上方输入搜索关键词，点击候选项即可将歌词内容直接导入到歌词数据中。",
 			"title": "从 AMLL TTML DB 搜索 / 导入歌词"
+		},
+		"migrationDialog": {
+			"title": "Di chuyển dữ liệu",
+			"description": "Phát hiện dữ liệu danh sách phát từ AMLL Player phiên bản cũ. Bạn có muốn di chuyển không?",
+			"doNotClose": "Vui lòng không đóng ứng dụng trong quá trình di chuyển",
+			"fatalError": "Đã xảy ra lỗi trong quá trình di chuyển:",
+			"errorListTitle": "Các mục sau không thể di chuyển:",
+			"summary": "Sẽ di chuyển {songs} bài hát và {playlists} danh sách phát.",
+			"skip": "Bỏ qua",
+			"start": "Bắt đầu di chuyển",
+			"phaseSongs": "Đang di chuyển bài hát",
+			"phasePlaylists": "Đang di chuyển danh sách phát",
+			"phaseDone": "Di chuyển hoàn tất",
+			"preparing": "Đang chuẩn bị",
+			"progressSongs": "Bài hát {current}/{total}",
+			"progressPlaylists": "Danh sách phát {current}/{total}",
+			"failedItems": "（{count} mục thất bại）",
+			"completedTitle": "Di chuyển hoàn tất",
+			"completedDescWithFailures": "Đã nhập thành công {count} mục, {failed} mục thất bại.",
+			"completedDesc": "Đã nhập thành công {count} mục.",
+			"completedDescDefault": "Di chuyển đã hoàn tất.",
+			"failedTitle": "Di chuyển thất bại",
+			"failedDesc": "Đã xảy ra lỗi trong quá trình di chuyển:",
+			"failedRetryHint": "Bạn có thể thử lại vào lần khởi động ứng dụng tiếp theo.",
+			"deleteOldDataLabel": "Xóa dữ liệu phiên bản cũ để giải phóng dung lượng? Bạn sẽ không thể sử dụng dữ liệu của phiên bản cũ.",
+			"keepOldData": "Giữ lại",
+			"deleteOldData": "Xóa"
 		}
 	},
 	"bottom_lyric": {

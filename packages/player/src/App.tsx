@@ -2,19 +2,21 @@ import { Box, Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
 import classNames from "classnames";
 import { useAtomValue } from "jotai";
-import { lazy, StrictMode, Suspense, useEffect } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { RouterProvider } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import styles from "./App.module.css";
 import { AppContainer } from "./components/AppContainer/index.tsx";
 import { ExtensionInjectPoint } from "./components/ExtensionInjectPoint/index.tsx";
 import { LocalMusicContext } from "./components/LocalMusicContext/index.tsx";
+import { MigrationDialog } from "./components/MigrationDialog/index.tsx";
 import { NowPlayingBar } from "./components/NowPlayingBar/index.tsx";
 import { ShotcutContext } from "./components/ShotcutContext/index.tsx";
 import { TaskbarLyricBridge } from "./components/TaskbarLyricBridge/index.tsx";
 import { ThemeManager } from "./components/ThemeManager/index.tsx";
 import { UpdateContext } from "./components/UpdateContext/index.tsx";
 import { WSProtocolMusicContext } from "./components/WSProtocolMusicContext/index.tsx";
+import { useMigration } from "./hooks/useMigration.ts";
 import { enableTaskbarLyricAtom } from "./states/appAtoms.ts";
 import "./i18n";
 import { isLyricPageOpenedAtom } from "@applemusic-like-lyrics/react-full";
@@ -27,10 +29,6 @@ import {
 	musicContextModeAtom,
 	showStatJSFrameAtom,
 } from "./states/appAtoms.ts";
-import {
-	cleanupOldIndexedDB,
-	isMigrationCompleted,
-} from "./utils/indexeddb-migration.ts";
 import { useInitializeWindow } from "./utils/useInitializeWindow.ts";
 
 const ExtensionContext = lazy(() => import("./components/ExtensionContext"));
@@ -44,13 +42,9 @@ function App() {
 	const isDarkTheme = useAtomValue(isDarkThemeAtom);
 	const hasBackground = useAtomValue(hasBackgroundAtom);
 
-	useInitializeWindow();
+	const migration = useMigration();
 
-	useEffect(() => {
-		if (!isMigrationCompleted()) {
-			cleanupOldIndexedDB();
-		}
-	}, []);
+	useInitializeWindow();
 
 	return (
 		<>
@@ -82,6 +76,13 @@ function App() {
 					hasBackground={hasBackground}
 					className={styles.radixTheme}
 				>
+					<MigrationDialog
+						state={migration}
+						onStart={migration.startMigration}
+						onSkip={migration.skipMigration}
+						onDeleteOld={migration.deleteOldData}
+						onDismiss={migration.dismiss}
+					/>
 					<Box
 						className={classNames(
 							styles.body,

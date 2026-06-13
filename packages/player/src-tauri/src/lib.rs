@@ -574,6 +574,8 @@ pub fn run() {
             db::commands::get_playlist_songs,
             db::commands::save_playlist_cover,
             db::commands::clear_playlist_cover,
+            db::migrate::migrate_songs_batch,
+            db::migrate::migrate_playlists_batch,
             #[cfg(desktop)]
             extension_window::extension_window_create,
             #[cfg(desktop)]
