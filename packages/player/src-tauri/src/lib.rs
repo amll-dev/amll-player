@@ -700,8 +700,16 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let mut rx = db_events::DB_EVENT_SENDER.subscribe();
             tauri::async_runtime::spawn(async move {
-                while let Ok(event) = rx.recv().await {
-                    let _ = app_handle.emit("db-row-changed", &event);
+                loop {
+                    match rx.recv().await {
+                        Ok(event) => {
+                            let _ = app_handle.emit("db-row-changed", &event);
+                        }
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                            warn!("DB event broadcast lagged, {skipped} events dropped");
+                        }
+                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    }
                 }
             });
 

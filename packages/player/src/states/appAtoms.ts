@@ -138,6 +138,8 @@ export const currentSongWritersAtom = atom<string[]>([]);
 
 export const currentPlaylistAtom = atom<SongData[]>([]);
 
+export const currentPlayingPlaylistIdAtom = atom<number | null>(null);
+
 export const currentPlaylistMusicIndexAtom = atom(0);
 
 const _languageBaseAtom = atom(i18n.language);

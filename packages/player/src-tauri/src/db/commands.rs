@@ -2,6 +2,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 use tauri::State;
 use tracing::warn;
 
@@ -69,22 +70,34 @@ pub async fn get_all_playlists(
         .await
         .map_err(|e| format!("Failed to get playlists: {e}"))?;
 
-    let mut result = Vec::new();
-    for p in playlists {
-        let song_ids = playlist_songs::Entity::find()
-            .filter(playlist_songs::Column::PlaylistId.eq(p.id))
+    let playlist_ids: Vec<i32> = playlists.iter().map(|p| p.id).collect();
+
+    let all_playlist_songs = if playlist_ids.is_empty() {
+        Vec::new()
+    } else {
+        playlist_songs::Entity::find()
+            .filter(playlist_songs::Column::PlaylistId.is_in(playlist_ids))
             .order_by_asc(playlist_songs::Column::AddedAt)
             .all(&*db)
             .await
             .map_err(|e| format!("Failed to get playlist songs: {e}"))?
-            .into_iter()
-            .map(|ps| ps.song_id)
-            .collect();
-        result.push(PlaylistWithSongs {
-            playlist: p,
-            song_ids,
-        });
+    };
+
+    let mut ps_map: HashMap<i32, Vec<String>> = HashMap::new();
+    for ps in all_playlist_songs {
+        ps_map.entry(ps.playlist_id).or_default().push(ps.song_id);
     }
+
+    let result = playlists
+        .into_iter()
+        .map(|p| {
+            let song_ids = ps_map.remove(&p.id).unwrap_or_default();
+            PlaylistWithSongs {
+                playlist: p,
+                song_ids,
+            }
+        })
+        .collect();
 
     Ok(result)
 }
@@ -233,7 +246,7 @@ pub async fn add_songs_to_playlist(
 ) -> Result<(), String> {
     let now = chrono::Utc::now().timestamp_millis();
 
-    let existing: Vec<String> = playlist_songs::Entity::find()
+    let mut seen: HashSet<String> = playlist_songs::Entity::find()
         .filter(playlist_songs::Column::PlaylistId.eq(playlist_id))
         .all(&*db)
         .await
@@ -242,14 +255,19 @@ pub async fn add_songs_to_playlist(
         .map(|ps| ps.song_id)
         .collect();
 
+    let mut i = 0i64;
     let new_entries: Vec<playlist_songs::ActiveModel> = song_ids
         .into_iter()
-        .filter(|id| !existing.contains(id))
-        .map(|song_id| playlist_songs::ActiveModel {
-            playlist_id: Set(playlist_id),
-            song_id: Set(song_id),
-            added_at: Set(now),
-            ..Default::default()
+        .filter(|id| seen.insert(id.clone()))
+        .map(|song_id| {
+            let at = now + i;
+            i += 1;
+            playlist_songs::ActiveModel {
+                playlist_id: Set(playlist_id),
+                song_id: Set(song_id),
+                added_at: Set(at),
+                ..Default::default()
+            }
         })
         .collect();
 

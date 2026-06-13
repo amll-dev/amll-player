@@ -32,6 +32,7 @@ import { PageContainer } from "../../components/PageContainer/index.tsx";
 import { PlaylistCover } from "../../components/PlaylistCover/index.tsx";
 import { PlaylistSongCard } from "../../components/PlaylistSongCard/index.tsx";
 import {
+	currentPlayingPlaylistIdAtom,
 	currentPlaylistAtom,
 	currentPlaylistMusicIndexAtom,
 } from "../../states/appAtoms.ts";
@@ -125,6 +126,8 @@ export const Component: FC = () => {
 
 	const setPlaylist = useSetAtom(currentPlaylistAtom);
 	const currentPlaylist = useAtomValue(currentPlaylistAtom);
+	const currentPlayingPlaylistId = useAtomValue(currentPlayingPlaylistIdAtom);
+	const setPlayingPlaylistId = useSetAtom(currentPlayingPlaylistIdAtom);
 	const setPlayIndex = useSetAtom(currentPlaylistMusicIndexAtom);
 	const setPosition = useSetAtom(musicPlayingPositionAtom);
 
@@ -229,8 +232,11 @@ export const Component: FC = () => {
 			.map((v) => v.id)
 			.filter((v) => !playlist?.songIds.includes(v));
 		await db.playlists.addSongs(Number(param.id), shouldAddIds);
-		// Sync in-memory playback playlist if it matches this page
-		if (shouldAddIds.length > 0 && currentPlaylist.length > 0) {
+		// Sync in-memory playback playlist if it originates from this playlist
+		if (
+			shouldAddIds.length > 0 &&
+			currentPlayingPlaylistId === Number(param.id)
+		) {
 			const nextOrder = currentPlaylist.length;
 			const newEntries = transformed
 				.filter((v) => shouldAddIds.includes(v.id))
@@ -298,6 +304,7 @@ export const Component: FC = () => {
 			}));
 
 			setPlaylist(newPlaylist);
+			setPlayingPlaylistId(Number(param.id));
 			setPlayIndex(songIndex);
 			setPosition(0);
 
@@ -312,14 +319,31 @@ export const Component: FC = () => {
 		async (songId: string) => {
 			if (playlist === undefined) return;
 			await db.playlists.removeSong(Number(param.id), songId);
-			// Sync in-memory playback playlist by removing the matching entry
-			const removeIndex = playlist.songIds.indexOf(songId);
-			if (removeIndex >= 0 && currentPlaylist.length > removeIndex) {
-				const newPlaylist = currentPlaylist.filter((_, i) => i !== removeIndex);
-				setPlaylist(newPlaylist);
+			// Sync in-memory playback playlist if it originates from this playlist
+			if (currentPlayingPlaylistId === Number(param.id)) {
+				const removedSong = playlist.songIds.includes(songId)
+					? (await db.songs.get(songId))?.filePath
+					: undefined;
+				if (removedSong) {
+					const removeIndex = currentPlaylist.findIndex(
+						(entry) => entry.type === "local" && entry.filePath === removedSong,
+					);
+					if (removeIndex >= 0) {
+						const newPlaylist = currentPlaylist.filter(
+							(_, i) => i !== removeIndex,
+						);
+						setPlaylist(newPlaylist);
+					}
+				}
 			}
 		},
-		[playlist, param.id, currentPlaylist, setPlaylist],
+		[
+			playlist,
+			param.id,
+			currentPlayingPlaylistId,
+			currentPlaylist,
+			setPlaylist,
+		],
 	);
 
 	const onPlaylistDefault = useCallback(onPlayList.bind(null, 0), [onPlayList]);
