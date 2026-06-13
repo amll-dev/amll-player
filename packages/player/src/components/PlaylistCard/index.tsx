@@ -1,8 +1,8 @@
 import { Card, ContextMenu, Flex, Text } from "@radix-ui/themes";
-import { type PropsWithChildren, forwardRef, useMemo } from "react";
+import { forwardRef, type PropsWithChildren, useMemo } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { type Playlist, db } from "../../dexie.ts";
+import { db, type Playlist } from "../../utils/db-client.ts";
 import { PlaylistCover } from "../PlaylistCover/index.tsx";
 
 export const PlaylistCard = forwardRef<
@@ -67,7 +67,9 @@ export const PlaylistCard = forwardRef<
 				<ContextMenu.Separator />
 				<ContextMenu.Item
 					color="red"
-					onSelect={() => db.playlists.delete(playlist.id)}
+					onSelect={async () => {
+						await db.playlists.delete(playlist.id);
+					}}
 				>
 					<Trans i18nKey="page.main.playlistMenu.delete">删除</Trans>
 				</ContextMenu.Item>

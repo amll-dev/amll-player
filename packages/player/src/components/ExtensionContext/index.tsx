@@ -4,7 +4,6 @@ import * as http from "@tauri-apps/plugin-http";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { type FC, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { db } from "../../dexie.ts";
 import * as appAtoms from "../../states/appAtoms";
 import { extensionMetaAtom } from "../../states/extension.ts";
 import * as extensionsAtoms from "../../states/extensionsAtoms";
@@ -13,6 +12,7 @@ import type {
 	LoadedExtension,
 } from "../../states/extensionsAtoms.ts";
 import { ExtensionLoadResult } from "../../states/extensionsAtoms.ts";
+import { db } from "../../utils/db-client.ts";
 import { PlayerExtensionContext } from "./ext-ctx.ts";
 import { EXTENSION_LOG_TAG, runExtensionScript } from "./runtime.ts";
 

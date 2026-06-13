@@ -41,6 +41,15 @@
 	},
 	"app": {
 		"withGlobalTauri": true,
-		"windows": []
+		"windows": [],
+		"security": {
+			"assetProtocol": {
+				"enable": true,
+				"scope": {
+					"allow": ["$APPDATA/**/*"],
+					"deny": []
+				}
+			}
+		}
 	}
 }

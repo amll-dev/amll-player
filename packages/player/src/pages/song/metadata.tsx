@@ -1,4 +1,5 @@
 import { Button, Callout, Flex, TextField } from "@radix-ui/themes";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
 	type FC,
 	useCallback,
@@ -7,8 +8,11 @@ import {
 	useState,
 } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { db } from "../../dexie.ts";
-import { readLocalMusicMetadata } from "../../utils/player.ts";
+import { db } from "../../utils/db-client.ts";
+import {
+	readLocalMusicMetadata,
+	saveCoverFromPath,
+} from "../../utils/player.ts";
 import { getLyricFormatFromExtension, Option } from "./common.tsx";
 import { SongContext } from "./song-ctx.ts";
 
@@ -41,41 +45,37 @@ export const MetadataTabContent: FC = () => {
 		}
 	}, [song]);
 
-	const uploadCoverAsImage = useCallback(() => {
+	const uploadCoverAsImage = useCallback(async () => {
 		if (song === undefined) return;
-		const input = document.createElement("input");
-		input.type = "file";
-		input.accept = "image/*,video/*";
-		input.onchange = async () => {
-			const file = input.files?.[0];
-			if (file === undefined) return;
-			db.songs.update(song, (song) => {
-				song.cover = file;
-				song.cachedThumbnail = undefined;
-			});
-		};
-		input.click();
+		const selected = await open({
+			multiple: false,
+			filters: [
+				{
+					name: "图片和视频",
+					extensions: ["jpg", "jpeg", "png", "gif", "mp4", "webm"],
+				},
+				{ name: "所有文件", extensions: ["*"] },
+			],
+		});
+		if (!selected) return;
+		try {
+			const coverPath = await saveCoverFromPath(song.id, selected);
+			await db.songs.update(song.id, { coverPath });
+		} catch (err) {
+			console.error("Failed to save cover:", err);
+		}
 	}, [song]);
 
 	const readMetadataFromFile = useCallback(async () => {
 		if (song === undefined) return;
 		const newInfo = await readLocalMusicMetadata(song.filePath);
 
-		db.songs.update(song.id, (song) => {
-			song.songName = newInfo.name;
-			song.songAlbum = newInfo.album;
-			song.songArtists = newInfo.artist;
-			if (newInfo.lyric) {
-				song.lyricFormat = "lrc";
-				song.lyric = newInfo.lyric;
-			}
-			if (newInfo.cover) {
-				const coverData = new Uint8Array(newInfo.cover);
-				const coverBlob = new Blob([coverData], { type: "image" });
-
-				song.cover = coverBlob;
-				song.cachedThumbnail = undefined;
-			}
+		await db.songs.update(song.id, {
+			songName: newInfo.name,
+			songAlbum: newInfo.album,
+			songArtists: newInfo.artist,
+			...(newInfo.lyric ? { lyricFormat: "lrc", lyric: newInfo.lyric } : {}),
+			...(newInfo.coverPath ? { coverPath: newInfo.coverPath } : {}),
 		});
 	}, [song]);
 
@@ -90,24 +90,21 @@ export const MetadataTabContent: FC = () => {
 			const format = getLyricFormatFromExtension(file.name);
 			if (!format) return;
 			const content = await file.text();
-			db.songs.update(song, (s) => {
-				s.lyricFormat = format;
-				s.lyric = content;
-				if (format === "ttml") {
-					s.translatedLrc = "";
-					s.romanLrc = "";
-				}
+			await db.songs.update(song.id, {
+				lyricFormat: format,
+				lyric: content,
+				...(format === "ttml" ? { translatedLrc: "", romanLrc: "" } : {}),
 			});
 		};
 		input.click();
 	}, [song]);
 
-	const saveData = useCallback(() => {
+	const saveData = useCallback(async () => {
 		if (song === undefined) return;
-		db.songs.update(song, (song) => {
-			song.songName = songName;
-			song.songArtists = songArtists;
-			song.songAlbum = songAlbum;
+		await db.songs.update(song.id, {
+			songName,
+			songArtists,
+			songAlbum,
 		});
 	}, [song, songName, songArtists, songAlbum]);
 

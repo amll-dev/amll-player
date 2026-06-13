@@ -13,14 +13,14 @@ import {
 	Text,
 	TextField,
 } from "@radix-ui/themes";
-import { useLiveQuery } from "dexie-react-hooks";
 import { atom, useAtom } from "jotai";
 import { type ButtonHTMLAttributes, type FC, useCallback, useRef } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { AppContainer } from "../../components/AppContainer/index.tsx";
 import { PlaylistCard } from "../../components/PlaylistCard/index.tsx";
 import { SongCard } from "../../components/SongCard/index.tsx";
-import { db } from "../../dexie.ts";
+import { db } from "../../utils/db-client.ts";
+import { useDbQuery } from "../../utils/use-db-query.ts";
 import styles from "./index.module.css";
 
 const FilterButton: FC<
@@ -51,9 +51,14 @@ export const Component: FC = () => {
 	const { t } = useTranslation();
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	const songsSearchResult = useLiveQuery(
-		async () =>
-			db.songs
+	const { data: songsData, loading: songsLoading } = useDbQuery(
+		async () => {
+			if (filters.length === 0) return [];
+			const allPlaylists = await db.playlists.getAll();
+			const allSongIds = [...new Set(allPlaylists.flatMap((p) => p.songIds))];
+			if (allSongIds.length === 0) return [];
+			const allSongs = await db.songs.getByIds(allSongIds);
+			return allSongs
 				.filter((song) => {
 					for (const filter of filters) {
 						switch (filter.filterType) {
@@ -75,15 +80,18 @@ export const Component: FC = () => {
 					}
 					return true;
 				})
-				.distinct()
-				.limit(20)
-				.toArray(),
+				.slice(0, 20);
+		},
 		[filters],
+		[],
+		["songs", "playlists", "playlist_songs"],
 	);
 
-	const playlistsSearchResult = useLiveQuery(
-		async () =>
-			db.playlists
+	const { data: playlistsData, loading: playlistsLoading } = useDbQuery(
+		async () => {
+			if (filters.length === 0) return [];
+			const allPlaylists = await db.playlists.getAll();
+			return allPlaylists
 				.filter((playlist) => {
 					for (const filter of filters) {
 						switch (filter.filterType) {
@@ -96,10 +104,11 @@ export const Component: FC = () => {
 					}
 					return true;
 				})
-				.distinct()
-				.limit(20)
-				.toArray(),
+				.slice(0, 20);
+		},
 		[filters],
+		[],
+		["playlists", "playlist_songs"],
 	);
 
 	const addFilter = useCallback(
@@ -249,7 +258,7 @@ export const Component: FC = () => {
 					</Text>
 				) : (
 					<>
-						{!songsSearchResult && (
+						{songsLoading && (
 							<Flex
 								m="4"
 								direction="column"
@@ -261,19 +270,19 @@ export const Component: FC = () => {
 								<Text color="gray">搜索歌曲中</Text>
 							</Flex>
 						)}
-						{songsSearchResult && songsSearchResult.length > 0 && (
+						{!songsLoading && songsData.length > 0 && (
 							<>
 								<Text as="div" mt="4">
 									{t(
 										"page.search.searchSongResultAmount",
 										"搜索到 {amount} 首歌曲",
 										{
-											amount: songsSearchResult.length,
+											amount: songsData.length,
 										},
 									)}
 								</Text>
 
-								{songsSearchResult.map((song) => (
+								{songsData.map((song) => (
 									<SongCard
 										song={song}
 										key={`search-result-song-${song.id}`}
@@ -281,12 +290,12 @@ export const Component: FC = () => {
 								))}
 							</>
 						)}
-						{songsSearchResult?.length === 0 && (
+						{!songsLoading && songsData.length === 0 && (
 							<Text color="gray" align="center">
 								<Trans i18nKey="page.search.noSongResult">无歌曲结果</Trans>
 							</Text>
 						)}
-						{!playlistsSearchResult && (
+						{playlistsLoading && (
 							<Flex
 								m="4"
 								direction="column"
@@ -302,26 +311,26 @@ export const Component: FC = () => {
 								</Text>
 							</Flex>
 						)}
-						{playlistsSearchResult?.length === 0 && (
+						{!playlistsLoading && playlistsData.length === 0 && (
 							<Text>
 								<Trans i18nKey="page.search.noPlaylistResult">
 									无播放列表结果
 								</Trans>
 							</Text>
 						)}
-						{playlistsSearchResult && playlistsSearchResult.length > 0 && (
+						{!playlistsLoading && playlistsData.length > 0 && (
 							<>
 								<Text as="div" mt="4">
 									{t(
 										"page.search.searchPlaylistResultAmount",
 										"搜索到 {amount} 个播放列表",
 										{
-											amount: playlistsSearchResult.length,
+											amount: playlistsData.length,
 										},
 									)}
 								</Text>
 
-								{playlistsSearchResult.map((playlist) => (
+								{playlistsData.map((playlist) => (
 									<PlaylistCard
 										playlist={playlist}
 										key={`search-result-playlist-${playlist.id}`}

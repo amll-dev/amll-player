@@ -1,10 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import type * as TauriHttp from "@tauri-apps/plugin-http";
 import type { ComponentType } from "react";
-import type { db } from "../../dexie.ts";
 import type ExtensionEnv from "../../extension-env.ts";
 import i18n from "../../i18n.ts";
 import type { ExtensionMetaState } from "../../states/extensionsAtoms.ts";
+import type { db } from "../../utils/db-client.ts";
 import { createExtensionWindowsApi } from "./windows.ts";
 
 export class PlayerExtensionContext

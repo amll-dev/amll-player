@@ -9,7 +9,7 @@ import {
 } from "@radix-ui/themes";
 import { type FC, useMemo, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { db } from "../../dexie.ts";
+import { db } from "../../utils/db-client.ts";
 
 export const NewPlaylistButton: FC = () => {
 	const [name, setName] = useState("");
@@ -17,15 +17,10 @@ export const NewPlaylistButton: FC = () => {
 
 	const cannotCreate = useMemo(() => name.trim().length === 0, [name]);
 
-	const onAddPlaylist = () => {
+	const onAddPlaylist = async () => {
 		if (cannotCreate) return;
-		db.playlists.add({
-			name,
-			createTime: Date.now(),
-			updateTime: Date.now(),
-			playTime: 0,
-			songIds: [],
-		});
+		await db.playlists.create(name);
+		setName("");
 	};
 
 	return (

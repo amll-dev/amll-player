@@ -12,7 +12,7 @@ import {
 import { Trans, useTranslation } from "react-i18next";
 import { ExtensionInjectPoint } from "../../components/ExtensionInjectPoint/index.tsx";
 import { TTMLImportDialog } from "../../components/TTMLImportDialog/index.tsx";
-import { db } from "../../dexie.ts";
+import { db } from "../../utils/db-client.ts";
 import { getLyricFormatFromExtension, Option } from "./common.tsx";
 import { SongContext } from "./song-ctx.ts";
 
@@ -88,46 +88,49 @@ export const LyricTabContent: FC = () => {
 	}, [importFromFile]);
 
 	const saveData = useCallback(
-		(
+		async (
 			saveLyricFormat: string,
 			saveLyricContent: string,
 			saveTranslatedLyricContent: string,
 			saveRomanLyricContent: string,
 		) => {
 			if (song === undefined) return;
-			db.songs.update(song, (song) => {
-				song.lyric = saveLyricFormat;
-				if (saveLyricFormat === "none") {
-					song.lyricFormat = "none";
-					song.lyric = "";
-					song.translatedLrc = "";
-					song.romanLrc = "";
-					setLyricFormat("none");
-					setLyricContent("");
-					setTranslatedLyricContent("");
-					setRomanLyricContent("");
-					return;
-				}
-				if (saveLyricFormat === "ttml") {
-					song.lyricFormat = "ttml";
-					song.lyric = saveLyricContent;
-					song.translatedLrc = "";
-					song.romanLrc = "";
-					setLyricFormat("ttml");
-					setLyricContent(saveLyricContent);
-					setTranslatedLyricContent("");
-					setRomanLyricContent("");
-					return;
-				}
-				song.lyricFormat = saveLyricFormat;
-				song.lyric = saveLyricContent;
-				song.translatedLrc = saveTranslatedLyricContent;
-				song.romanLrc = saveRomanLyricContent;
-				setLyricFormat(saveLyricFormat);
+			if (saveLyricFormat === "none") {
+				await db.songs.update(song.id, {
+					lyricFormat: "none",
+					lyric: "",
+					translatedLrc: "",
+					romanLrc: "",
+				});
+				setLyricFormat("none");
+				setLyricContent("");
+				setTranslatedLyricContent("");
+				setRomanLyricContent("");
+				return;
+			}
+			if (saveLyricFormat === "ttml") {
+				await db.songs.update(song.id, {
+					lyricFormat: "ttml",
+					lyric: saveLyricContent,
+					translatedLrc: "",
+					romanLrc: "",
+				});
+				setLyricFormat("ttml");
 				setLyricContent(saveLyricContent);
-				setTranslatedLyricContent(saveTranslatedLyricContent);
-				setRomanLyricContent(saveRomanLyricContent);
+				setTranslatedLyricContent("");
+				setRomanLyricContent("");
+				return;
+			}
+			await db.songs.update(song.id, {
+				lyricFormat: saveLyricFormat,
+				lyric: saveLyricContent,
+				translatedLrc: saveTranslatedLyricContent,
+				romanLrc: saveRomanLyricContent,
 			});
+			setLyricFormat(saveLyricFormat);
+			setLyricContent(saveLyricContent);
+			setTranslatedLyricContent(saveTranslatedLyricContent);
+			setRomanLyricContent(saveRomanLyricContent);
 		},
 		[song],
 	);

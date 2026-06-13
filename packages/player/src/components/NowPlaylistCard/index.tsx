@@ -1,6 +1,7 @@
 import { PlayIcon } from "@radix-ui/react-icons";
 import { Avatar, Box, Flex, type FlexProps, Inset } from "@radix-ui/themes";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAtomValue, useSetAtom } from "jotai";
 import {
 	type FC,
@@ -12,11 +13,11 @@ import {
 	useState,
 } from "react";
 import { Trans } from "react-i18next";
-import { db, type Song } from "../../dexie.ts";
 import {
 	currentPlaylistAtom,
 	currentPlaylistMusicIndexAtom,
 } from "../../states/appAtoms.ts";
+import type { Song } from "../../utils/db-client.ts";
 import { emitAudioThread, type SongData } from "../../utils/player.ts";
 import styles from "./index.module.css";
 
@@ -43,26 +44,11 @@ const PlaylistSongItem: FC<
 	}, [songData]);
 
 	useLayoutEffect(() => {
-		let newUri: string | null = null;
-		let isActive = true;
-
-		if (song) {
-			db.songs.get(song.id).then((dbSong) => {
-				if (isActive && dbSong?.cover instanceof Blob) {
-					newUri = URL.createObjectURL(dbSong.cover);
-					setCover(newUri);
-				}
-			});
+		if (song?.coverPath) {
+			setCover(convertFileSrc(song.coverPath));
 		} else {
 			setCover("");
 		}
-
-		return () => {
-			isActive = false;
-			if (newUri) {
-				URL.revokeObjectURL(newUri);
-			}
-		};
 	}, [song]);
 
 	const name =

@@ -8,12 +8,12 @@ import {
 	Tabs,
 	Text,
 } from "@radix-ui/themes";
-import { useLiveQuery } from "dexie-react-hooks";
 import { type FC, useContext } from "react";
 import { Trans } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { ExtensionInjectPoint } from "../../components/ExtensionInjectPoint/index.tsx";
-import { db } from "../../dexie.ts";
+import { db } from "../../utils/db-client.ts";
+import { useDbQuery } from "../../utils/use-db-query.ts";
 import { useSongCover } from "../../utils/use-song-cover.ts";
 import { BasicTabContent } from "./basic.tsx";
 import { LyricTabContent } from "./lyric.tsx";
@@ -49,7 +49,12 @@ const SongPageHeader: FC = () => {
 
 export const Component: FC = () => {
 	const { id: musicId } = useParams<{ id: string }>();
-	const song = useLiveQuery(() => db.songs.get(musicId || ""), [musicId]);
+	const { data: song } = useDbQuery(
+		() => db.songs.get(musicId || ""),
+		[musicId],
+		undefined,
+		["songs"],
+	);
 
 	return (
 		<Container

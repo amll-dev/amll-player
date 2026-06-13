@@ -194,10 +194,17 @@ export async function readLocalMusicMetadata(filePath: string): Promise<{
 	album: string;
 	lyricFormat: string;
 	lyric: string;
-	cover: number[];
+	coverPath: string;
 	duration: number;
 }> {
 	return await invoke("read_local_music_metadata", { filePath });
+}
+
+export async function saveCoverFromPath(
+	songId: string,
+	sourcePath: string,
+): Promise<string> {
+	return await invoke("save_cover_from_path", { songId, sourcePath });
 }
 
 export async function restartApp(): Promise<never> {

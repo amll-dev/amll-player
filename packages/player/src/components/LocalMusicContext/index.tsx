@@ -29,13 +29,12 @@ import {
 	onRequestPrevSongAtom,
 	onSeekPositionAtom,
 } from "@applemusic-like-lyrics/react-full";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import chalk from "chalk";
-import { useLiveQuery } from "dexie-react-hooks";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { type FC, useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
-import { db } from "../../dexie.ts";
 import { useLyricParser } from "../../hooks/useLyricParser.ts";
 import {
 	audioQualityDialogOpenedAtom,
@@ -45,6 +44,7 @@ import {
 	currentSongWritersAtom,
 	enableMediaControlsAtom,
 } from "../../states/appAtoms.ts";
+import { db } from "../../utils/db-client.ts";
 import { SyncStatus, syncLyrics } from "../../utils/lyric-db-api.ts";
 import {
 	type AudioQuality,
@@ -53,6 +53,7 @@ import {
 	initAudioThread,
 	listenAudioThreadEvent,
 } from "../../utils/player.ts";
+import { useDbQuery } from "../../utils/use-db-query.ts";
 
 export const FFTToLowPassContext: FC = () => {
 	const store = useStore();
@@ -183,9 +184,11 @@ const LyricContext: FC = () => {
 	const setHideLyricView = useSetAtom(hideLyricViewAtom);
 	const setLyricAuthors = useSetAtom(currentLyricAuthorsAtom);
 	const setSongWriters = useSetAtom(currentSongWritersAtom);
-	const song = useLiveQuery(
-		() => (musicId ? db.songs.get(musicId) : undefined),
+	const { data: song } = useDbQuery(
+		() => (musicId ? db.songs.get(musicId) : Promise.resolve(undefined)),
 		[musicId],
+		undefined,
+		["songs"],
 	);
 
 	useEffect(() => {
@@ -213,8 +216,8 @@ const LyricContext: FC = () => {
 	const { lyricLines, hasLyrics, metadata } = useLyricParser(
 		song?.lyric,
 		song?.lyricFormat,
-		song?.translatedLrc,
-		song?.romanLrc,
+		song?.translatedLrc ?? undefined,
+		song?.romanLrc ?? undefined,
 	);
 
 	useEffect(() => {
@@ -287,16 +290,19 @@ export const LocalMusicContext: FC = () => {
 					})),
 				);
 
-				const oldUrl = store.get(musicCoverAtom);
-				if (oldUrl?.startsWith("blob:")) {
-					URL.revokeObjectURL(oldUrl);
+				if (songFromDb.coverPath) {
+					store.set(musicCoverAtom, convertFileSrc(songFromDb.coverPath));
+					store.set(
+						musicCoverIsVideoAtom,
+						songFromDb.coverPath.endsWith(".mp4"),
+					);
+				} else {
+					store.set(
+						musicCoverAtom,
+						"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+					);
+					store.set(musicCoverIsVideoAtom, false);
 				}
-				const imgUrl = URL.createObjectURL(songFromDb.cover);
-				store.set(musicCoverAtom, imgUrl);
-				store.set(
-					musicCoverIsVideoAtom,
-					songFromDb.cover.type.startsWith("video"),
-				);
 			} else {
 				store.set(musicNameAtom, data.musicInfo.name);
 				store.set(musicAlbumNameAtom, data.musicInfo.album);
@@ -307,11 +313,6 @@ export const LocalMusicContext: FC = () => {
 						name: v.trim(),
 					})),
 				);
-
-				const oldUrl = store.get(musicCoverAtom);
-				if (oldUrl?.startsWith("blob:")) {
-					URL.revokeObjectURL(oldUrl);
-				}
 
 				store.set(
 					musicCoverAtom,

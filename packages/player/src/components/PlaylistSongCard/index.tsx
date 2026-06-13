@@ -10,13 +10,13 @@ import {
 	Skeleton,
 	Text,
 } from "@radix-ui/themes";
-import { useLiveQuery } from "dexie-react-hooks";
 import type { Loadable } from "jotai/vanilla/utils/loadable";
-import { type CSSProperties, forwardRef } from "react";
+import { type CSSProperties, forwardRef, useMemo } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { type Song, db } from "../../dexie.ts";
 import { router } from "../../router.tsx";
+import { db, type Song } from "../../utils/db-client.ts";
+import { useDbQuery } from "../../utils/use-db-query.ts";
 import { useSongCover } from "../../utils/use-song-cover.ts";
 
 export const PlaylistSongCard = forwardRef<
@@ -29,25 +29,18 @@ export const PlaylistSongCard = forwardRef<
 		style?: CSSProperties;
 	}
 >(({ songId, songIndex, onPlayList, onDeleteSong, style }, ref) => {
-	const song: Loadable<Song> = useLiveQuery(
-		() =>
-			db.songs.get(songId).then((data) => {
-				if (!data) {
-					return {
-						state: "hasError",
-						error: new Error(`未找到歌曲 ID ${songId}`),
-					};
-				}
-				return {
-					state: "hasData",
-					data: data,
-				};
-			}),
+	const { data: songData, loading } = useDbQuery(
+		() => db.songs.get(songId),
 		[songId],
-		{
-			state: "loading",
-		},
+		undefined as Song | undefined,
+		["songs"],
 	);
+	const song: Loadable<Song> = useMemo(() => {
+		if (loading) return { state: "loading" };
+		if (!songData)
+			return { state: "hasError", error: new Error(`未找到歌曲 ID ${songId}`) };
+		return { state: "hasData", data: songData };
+	}, [loading, songData, songId]);
 	const songImgUrl = useSongCover(
 		song.state === "hasData" ? song.data : undefined,
 	);

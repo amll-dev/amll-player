@@ -1,7 +1,8 @@
+import { convertFileSrc } from "@tauri-apps/api/core";
 import classNames from "classnames";
-import { useLiveQuery } from "dexie-react-hooks";
 import { type FC, type HTMLProps, useEffect, useState } from "react";
-import { db } from "../../dexie.ts";
+import { db } from "../../utils/db-client.ts";
+import { useDbQuery } from "../../utils/use-db-query.ts";
 import styles from "./index.module.css";
 
 export const PlaylistCover: FC<
@@ -11,48 +12,41 @@ export const PlaylistCover: FC<
 > = ({ playlistId, className, ...props }) => {
 	const [playlistImgs, setPlaylistImgs] = useState([] as string[]);
 
-	const playlist = useLiveQuery(
+	const { data: playlist } = useDbQuery(
 		() => db.playlists.get(playlistId),
 		[playlistId],
+		undefined,
+		["playlists"],
 	);
 
-	const firstFourSongs = useLiveQuery(async () => {
-		if (playlist && !playlist.playlistCover) {
-			const result = [];
-			for (const songId of playlist.songIds) {
-				const song = await db.songs.get(songId);
-				if (song?.cover.type.startsWith("image") && song.cover.size > 0) {
-					result.push(song);
-					if (result.length === 4) break;
-				}
-			}
-			return result;
-		}
-		return [];
-	}, [playlist]);
+	const { data: songs } = useDbQuery(
+		async () => {
+			if (playlist && !playlist.songIds?.length) return [];
+			if (!playlist) return [];
+			const allSongs = await db.songs.getByIds(playlist.songIds.slice(0, 4));
+			return allSongs.filter((s) => s.coverPath);
+		},
+		[playlist],
+		[],
+		["songs"],
+	);
 
 	useEffect(() => {
-		if (playlist?.playlistCover) {
-			const coverUrl = URL.createObjectURL(playlist.playlistCover);
-
-			setPlaylistImgs([coverUrl]);
-
-			return () => {
-				URL.revokeObjectURL(coverUrl);
-			};
+		if (playlist?.coverPath) {
+			setPlaylistImgs([convertFileSrc(playlist.coverPath)]);
+			return;
 		}
-		if (firstFourSongs) {
-			const imgs = firstFourSongs.map((v) => URL.createObjectURL(v.cover));
-
+		if (songs && songs.length > 0) {
+			const imgs = songs
+				.filter((s) => s.coverPath && !s.coverPath.endsWith(".mp4"))
+				.slice(0, 4)
+				// biome-ignore lint/style/noNonNullAssertion: filter() 检查了 coverPath 的存在
+				.map((s) => convertFileSrc(s.coverPath!));
 			setPlaylistImgs(imgs);
-
-			return () => {
-				for (const img of imgs) {
-					URL.revokeObjectURL(img);
-				}
-			};
+		} else {
+			setPlaylistImgs([]);
 		}
-	}, [firstFourSongs, playlist]);
+	}, [songs, playlist]);
 
 	return (
 		<div

@@ -19,7 +19,7 @@ import {
 	EXTENSION_LOG_TAG,
 	runExtensionScript,
 } from "./components/ExtensionContext/runtime.ts";
-import { db } from "./dexie.ts";
+import { db } from "./utils/db-client.ts";
 import "./i18n";
 import * as appAtoms from "./states/appAtoms.ts";
 import * as extensionsAtoms from "./states/extensionsAtoms.ts";

@@ -20,9 +20,8 @@ import {
 import { path } from "@tauri-apps/api";
 import { open } from "@tauri-apps/plugin-dialog";
 import { platform } from "@tauri-apps/plugin-os";
-import { useLiveQuery } from "dexie-react-hooks";
 import { motion, useMotionTemplate, useScroll } from "framer-motion";
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import md5 from "md5";
 import { type FC, useCallback, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
@@ -32,16 +31,17 @@ import { ViewportList } from "react-viewport-list";
 import { PageContainer } from "../../components/PageContainer/index.tsx";
 import { PlaylistCover } from "../../components/PlaylistCover/index.tsx";
 import { PlaylistSongCard } from "../../components/PlaylistSongCard/index.tsx";
-import { db, type Song } from "../../dexie.ts";
 import {
 	currentPlaylistAtom,
 	currentPlaylistMusicIndexAtom,
 } from "../../states/appAtoms.ts";
+import { db, type Song } from "../../utils/db-client.ts";
 import {
 	emitAudioThread,
 	readLocalMusicMetadata,
 	resolveContentUri,
 } from "../../utils/player.ts";
+import { useDbQuery } from "../../utils/use-db-query.ts";
 import styles from "./index.module.css";
 
 export type Loadable<Value> =
@@ -106,7 +106,12 @@ const EditablePlaylistName: FC<{
 
 export const Component: FC = () => {
 	const param = useParams();
-	const playlist = useLiveQuery(() => db.playlists.get(Number(param.id)));
+	const { data: playlist } = useDbQuery(
+		() => db.playlists.get(Number(param.id)),
+		[param.id],
+		undefined,
+		["playlists", "playlist_songs", "songs"],
+	);
 	const { t } = useTranslation();
 	const playlistViewRef = useRef<HTMLDivElement>(null);
 	const playlistViewScroll = useScroll({
@@ -119,6 +124,7 @@ export const Component: FC = () => {
 	>([]);
 
 	const setPlaylist = useSetAtom(currentPlaylistAtom);
+	const currentPlaylist = useAtomValue(currentPlaylistAtom);
 	const setPlayIndex = useSetAtom(currentPlaylistMusicIndexAtom);
 	const setPosition = useSetAtom(musicPlayingPositionAtom);
 
@@ -182,9 +188,6 @@ export const Component: FC = () => {
 						const pathMd5 = md5(normalized);
 						const musicInfo = await readLocalMusicMetadata(normalized);
 
-						const coverData = new Uint8Array(musicInfo.cover);
-						const coverBlob = new Blob([coverData], { type: "image" });
-
 						success += 1;
 						return {
 							id: pathMd5,
@@ -194,8 +197,8 @@ export const Component: FC = () => {
 							songAlbum: musicInfo.album,
 							lyricFormat: musicInfo.lyricFormat || "none",
 							lyric: musicInfo.lyric,
-							cover: coverBlob,
 							duration: musicInfo.duration,
+							coverPath: musicInfo.coverPath || null,
 						} satisfies Song;
 					} catch (err) {
 						console.warn("解析歌曲元数据以添加歌曲失败", normalized, err);
@@ -221,14 +224,23 @@ export const Component: FC = () => {
 				}),
 			)
 		).filter((v) => !!v);
-		await db.songs.bulkPut(transformed);
+		await db.songs.upsert(transformed);
 		const shouldAddIds = transformed
 			.map((v) => v.id)
-			.filter((v) => !playlist?.songIds.includes(v))
-			.reverse();
-		await db.playlists.update(Number(param.id), (obj) => {
-			obj.songIds.unshift(...shouldAddIds);
-		});
+			.filter((v) => !playlist?.songIds.includes(v));
+		await db.playlists.addSongs(Number(param.id), shouldAddIds);
+		// Sync in-memory playback playlist if it matches this page
+		if (shouldAddIds.length > 0 && currentPlaylist.length > 0) {
+			const nextOrder = currentPlaylist.length;
+			const newEntries = transformed
+				.filter((v) => shouldAddIds.includes(v.id))
+				.map((v, i) => ({
+					type: "local" as const,
+					filePath: v.filePath,
+					origOrder: nextOrder + i,
+				}));
+			setPlaylist([...currentPlaylist, ...newEntries]);
+		}
 		toast.done(id);
 		if (currentFailedList.length > 0) {
 			setFailedImports(currentFailedList);
@@ -266,26 +278,17 @@ export const Component: FC = () => {
 				),
 			);
 		}
-	}, [playlist, param.id, t]);
+	}, [playlist, param.id, t, currentPlaylist, setPlaylist]);
 
 	const onPlayList = useCallback(
 		async (songIndex = 0, shuffle = false) => {
 			if (playlist === undefined) return;
-			const collected = await db.songs
-				.toCollection()
-				.filter((v) => playlist.songIds.includes(v.id))
-				.toArray();
+			const collected = await db.playlists.getSongs(Number(param.id));
 			if (shuffle) {
 				for (let i = 0; i < collected.length; i++) {
 					const j = Math.floor(Math.random() * (i + 1));
 					[collected[i], collected[j]] = [collected[j], collected[i]];
 				}
-			} else {
-				collected.sort((a, b) => {
-					return (
-						playlist.songIds.indexOf(a.id) - playlist.songIds.indexOf(b.id)
-					);
-				});
 			}
 
 			const newPlaylist = collected.map((v, i) => ({
@@ -302,17 +305,21 @@ export const Component: FC = () => {
 				song: newPlaylist[songIndex],
 			});
 		},
-		[playlist, setPlaylist, setPlayIndex, setPosition],
+		[playlist, param.id, setPlaylist, setPlayIndex, setPosition],
 	);
 
 	const onDeleteSong = useCallback(
 		async (songId: string) => {
 			if (playlist === undefined) return;
-			await db.playlists.update(Number(param.id), (obj) => {
-				obj.songIds = obj.songIds.filter((v) => v !== songId);
-			});
+			await db.playlists.removeSong(Number(param.id), songId);
+			// Sync in-memory playback playlist by removing the matching entry
+			const removeIndex = playlist.songIds.indexOf(songId);
+			if (removeIndex >= 0 && currentPlaylist.length > removeIndex) {
+				const newPlaylist = currentPlaylist.filter((_, i) => i !== removeIndex);
+				setPlaylist(newPlaylist);
+			}
 		},
-		[playlist, param.id],
+		[playlist, param.id, currentPlaylist, setPlaylist],
 	);
 
 	const onPlaylistDefault = useCallback(onPlayList.bind(null, 0), [onPlayList]);
@@ -348,10 +355,8 @@ export const Component: FC = () => {
 								</ContextMenu.Trigger>
 								<ContextMenu.Content>
 									<ContextMenu.Item
-										onClick={() => {
-											db.playlists.update(Number(param.id), (obj) => {
-												obj.playlistCover = undefined;
-											});
+										onClick={async () => {
+											await db.playlists.clearCover(Number(param.id));
 										}}
 									>
 										<Trans i18nKey="page.playlist.cover.changeCoverToAuto">
@@ -359,24 +364,32 @@ export const Component: FC = () => {
 										</Trans>
 									</ContextMenu.Item>
 									<ContextMenu.Item
-										onClick={() => {
-											const inputEl = document.createElement("input");
-											inputEl.type = "file";
-											inputEl.accept = "image/*";
-											inputEl.addEventListener(
-												"change",
-												() => {
-													const file = inputEl.files?.[0];
-													if (!file) return;
-													db.playlists.update(Number(param.id), (obj) => {
-														obj.playlistCover = file;
-													});
-												},
-												{
-													once: true,
-												},
-											);
-											inputEl.click();
+										onClick={async () => {
+											const selected = await open({
+												multiple: false,
+												filters: [
+													{
+														name: t(
+															"page.playlist.cover.imageFiles",
+															"图片文件",
+														),
+														extensions: [
+															"jpg",
+															"jpeg",
+															"png",
+															"gif",
+															"webp",
+															"mp4",
+														],
+													},
+												],
+											});
+											if (selected) {
+												await db.playlists.saveCover(
+													Number(param.id),
+													selected,
+												);
+											}
 										}}
 									>
 										<Trans i18nKey="page.playlist.cover.uploadCoverImage">
@@ -403,9 +416,7 @@ export const Component: FC = () => {
 								<EditablePlaylistName
 									playlistName={playlist?.name || ""}
 									onPlaylistNameChange={(newName) =>
-										db.playlists.update(Number(param.id), (obj) => {
-											obj.name = newName;
-										})
+										db.playlists.update(Number(param.id), { name: newName })
 									}
 								/>
 								<Text>
@@ -452,9 +463,7 @@ export const Component: FC = () => {
 								<EditablePlaylistName
 									playlistName={playlist?.name || ""}
 									onPlaylistNameChange={(newName) =>
-										db.playlists.update(Number(param.id), (obj) => {
-											obj.name = newName;
-										})
+										db.playlists.update(Number(param.id), { name: newName })
 									}
 								/>
 								<Text>

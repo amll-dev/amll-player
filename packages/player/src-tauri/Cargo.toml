@@ -38,7 +38,7 @@ tokio-tungstenite = "0.29"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-tauri = { version = "2", features = ["devtools"] }
+tauri = { version = "2", features = ["devtools", "protocol-asset"] }
 tauri-plugin-dialog = { version = "2" }
 tauri-plugin-fs = { version = "2" }
 tauri-plugin-opener = { version = "2" }
@@ -57,6 +57,12 @@ zip = "8.6"
 ttml_processor = "0.3"
 tempfile = "3.27"
 mimalloc = "0.1.50"
+chrono = "0.4"
+sea-orm = { version = "1", features = [
+	"runtime-tokio-native-tls",
+	"sqlx-sqlite",
+	"macros",
+] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-context = "0.1.1"

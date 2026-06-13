@@ -4,7 +4,7 @@ import type { Atom, createStore } from "jotai";
 import type { ComponentType } from "react";
 import type * as appAtoms from "../../player/src/states/appAtoms";
 import type * as extensionsAtoms from "../../player/src/states/extensionsAtoms";
-import type { db } from "./dexie.ts";
+import type { db } from "./utils/db-client.ts";
 
 export type * as RadixTheme from "@radix-ui/themes";
 export type * as Jotai from "jotai";

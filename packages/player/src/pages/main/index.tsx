@@ -10,7 +10,6 @@ import {
 	Text,
 } from "@radix-ui/themes";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useLiveQuery } from "dexie-react-hooks";
 import { useAtomValue } from "jotai";
 import { type FC, useRef } from "react";
 import { Trans } from "react-i18next";
@@ -19,12 +18,18 @@ import { ExtensionInjectPoint } from "../../components/ExtensionInjectPoint/inde
 import { NewPlaylistButton } from "../../components/NewPlaylistButton/index.tsx";
 import { PageContainer } from "../../components/PageContainer/index.tsx";
 import { PlaylistCard } from "../../components/PlaylistCard/index.tsx";
-import { db } from "../../dexie.ts";
 import { router } from "../../router.tsx";
 import { updateInfoAtom } from "../../states/appAtoms.ts";
+import { db } from "../../utils/db-client.ts";
+import { useDbQuery } from "../../utils/use-db-query.ts";
 
 export const Component: FC = () => {
-	const playlists = useLiveQuery(() => db.playlists.toArray());
+	const { data: playlists } = useDbQuery(
+		() => db.playlists.getAll(),
+		[],
+		[],
+		["playlists", "playlist_songs"],
+	);
 	const updateInfo = useAtomValue(updateInfoAtom);
 	const parentRef = useRef<HTMLDivElement>(null);
 
