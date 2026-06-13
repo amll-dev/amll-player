@@ -176,6 +176,7 @@
 			},
 			"cover": {
 				"changeCoverToAuto": "更换成自动封面",
+				"mediaFiles": "メディアファイル",
 				"uploadCoverImage": "上传封面图片"
 			},
 			"music": {

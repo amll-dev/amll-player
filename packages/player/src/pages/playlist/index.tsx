@@ -370,8 +370,8 @@ export const Component: FC = () => {
 												filters: [
 													{
 														name: t(
-															"page.playlist.cover.imageFiles",
-															"图片文件",
+															"page.playlist.cover.mediaFiles",
+															"媒体文件",
 														),
 														extensions: [
 															"jpg",

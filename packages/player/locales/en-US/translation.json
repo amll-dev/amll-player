@@ -176,6 +176,7 @@
 			},
 			"cover": {
 				"changeCoverToAuto": "Use automatic cover",
+				"mediaFiles": "Media Files",
 				"uploadCoverImage": "Upload your own cover art"
 			},
 			"music": {

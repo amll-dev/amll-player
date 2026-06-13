@@ -51,7 +51,7 @@ export const MetadataTabContent: FC = () => {
 			multiple: false,
 			filters: [
 				{
-					name: "图片和视频",
+					name: t("page.playlist.cover.mediaFiles", "媒体文件"),
 					extensions: ["jpg", "jpeg", "png", "gif", "mp4", "webm"],
 				},
 				{ name: "所有文件", extensions: ["*"] },
