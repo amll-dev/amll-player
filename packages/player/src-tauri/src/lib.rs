@@ -31,6 +31,7 @@ mod player;
 mod screen_capture;
 mod server;
 mod ttml_db;
+mod utils;
 
 #[cfg(desktop)]
 mod extension_window;
@@ -280,7 +281,7 @@ async fn save_cover_from_path(
         .map_err(|e| format!("Failed to create covers dir: {e}"))?;
 
     let source = std::path::Path::new(&source_path);
-    let ext = source.extension().and_then(|e| e.to_str()).unwrap_or("jpg");
+    let ext = crate::utils::cover_ext_for_path(source);
     let cover_file = covers_dir.join(format!("{song_id}.{ext}"));
 
     std::fs::copy(source, &cover_file).map_err(|e| format!("Failed to copy cover: {e}"))?;

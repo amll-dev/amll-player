@@ -53,8 +53,8 @@ fn get_covers_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
         .map_err(|e| format!("Failed to resolve covers dir: {e}"))
 }
 
-fn type_to_ext(mime: &str) -> &str {
-    if mime.starts_with("video") {
+fn type_to_ext(cover_type: &str) -> &str {
+    if cover_type.starts_with("video") {
         "mp4"
     } else {
         "jpg"

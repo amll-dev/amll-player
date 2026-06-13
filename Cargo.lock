@@ -100,6 +100,7 @@ dependencies = [
  "crossbeam-channel",
  "ffmpeg_audio",
  "futures",
+ "infer",
  "jni 0.21.1",
  "md5",
  "memmap2",

@@ -143,6 +143,9 @@ importers:
       jotai:
         specifier: 2.20.0
         version: 2.20.0(@babel/core@7.29.0)(@babel/template@7.28.6)(@types/react@19.2.15)(react@19.2.6)
+      lru-cache:
+        specifier: ^11.5.1
+        version: 11.5.1
       md5:
         specifier: ^2.3.0
         version: 2.3.0
@@ -2647,10 +2650,6 @@ packages:
 
   lower-case@2.0.2:
     resolution: {integrity: sha512-7fm3l3NAF9WfN6W3JOmf5drwpVqX78JtoGJ3A6W0a6ZnldM41w2fV5D490psKFTpMds8TJse/eHLFFsNHHjHgg==}
-
-  lru-cache@11.2.2:
-    resolution: {integrity: sha512-F9ODfyqML2coTIsQpSkRHnLSZMtkU8Q+mSfcaIyKwy58u+8k5nvAYeiNhsyMARvzNcXJ9QfWVrcPsC9e9rAxtg==}
-    engines: {node: 20 || >=22}
 
   lru-cache@11.5.1:
     resolution: {integrity: sha512-RPimw/7aMdv2oqRrxKwvZXcPfwBrn/JZ2xYcY9Hus/6LaS3VOAKVWKWgNLCFSiOm1ESXinjsDlidVU7JlnCN2A==}
@@ -5505,8 +5504,6 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  lru-cache@11.2.2: {}
-
   lru-cache@11.5.1: {}
 
   lru-cache@5.1.1:
@@ -5650,7 +5647,7 @@ snapshots:
 
   path-scurry@2.0.0:
     dependencies:
-      lru-cache: 11.2.2
+      lru-cache: 11.5.1
       minipass: 7.1.2
 
   path-scurry@2.0.2:

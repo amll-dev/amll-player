@@ -435,10 +435,8 @@ pub async fn save_playlist_cover(
     std::fs::create_dir_all(&covers_dir)
         .map_err(|e| format!("Failed to create covers dir: {e}"))?;
 
-    let ext = std::path::Path::new(&source_path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("jpg");
+    let source = std::path::Path::new(&source_path);
+    let ext = crate::utils::cover_ext_for_path(source);
     let dest_filename = format!("playlist_{playlist_id}.{ext}");
     let dest_path = covers_dir.join(&dest_filename);
 

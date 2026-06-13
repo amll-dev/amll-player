@@ -23,8 +23,10 @@ export const PlaylistCover: FC<
 		async () => {
 			if (playlist && !playlist.songIds?.length) return [];
 			if (!playlist) return [];
-			const allSongs = await db.songs.getByIds(playlist.songIds.slice(0, 4));
-			return allSongs.filter((s) => s.coverPath);
+			const allSongs = await db.songs.getByIds(playlist.songIds);
+			return allSongs.filter(
+				(s) => s.coverPath && !s.coverPath.endsWith(".mp4"),
+			);
 		},
 		[playlist],
 		[],
@@ -38,7 +40,6 @@ export const PlaylistCover: FC<
 		}
 		if (songs && songs.length > 0) {
 			const imgs = songs
-				.filter((s) => s.coverPath && !s.coverPath.endsWith(".mp4"))
 				.slice(0, 4)
 				// biome-ignore lint/style/noNonNullAssertion: filter() 检查了 coverPath 的存在
 				.map((s) => convertFileSrc(s.coverPath!));
