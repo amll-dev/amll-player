@@ -608,7 +608,7 @@ pub async fn scan_and_create_playlist(
     let playlist_result = playlist_model
         .insert(&*db)
         .await
-        .map_err(|e| format!("Failed to crate playlist: {e}"))?;
+        .map_err(|e| format!("Failed to create playlist: {e}"))?;
     let playlist_id = playlist_result.id;
 
     let folder_model = super::entity::playlist_folder::ActiveModel {
@@ -616,10 +616,11 @@ pub async fn scan_and_create_playlist(
         folder_path: Set(folder_path.clone()),
         ..Default::default()
     };
-    folder_model
+    let folder_result = folder_model
         .insert(&*db)
         .await
         .map_err(|e| format!("Failed to record playlist folder: {e}"))?;
+    let folder_id = folder_result.id;
 
     let covers_dir = utils::get_covers_dir(&app)?;
     let _ = std::fs::create_dir_all(&covers_dir);
@@ -657,6 +658,14 @@ pub async fn scan_and_create_playlist(
 
     utils::link_songs_to_playlist(&*db, playlist_id, &playlist_song_entries).await?;
     if !playlist_song_entries.is_empty() {
+        utils::link_song_sources(
+            &*db,
+            playlist_id,
+            &playlist_song_entries,
+            "folder",
+            Some(folder_id),
+        )
+        .await?;
         db_events::emit_event(
             "playlist_songs",
             "insert",
@@ -823,7 +832,9 @@ pub async fn link_playlist_folder(
         })?;
 
     let (new_song_ids, txn_failures) = result;
-    failed += txn_failures.len() as u32;
+    let txn_failure_count = txn_failures.len() as u32;
+    imported -= txn_failure_count;
+    failed += txn_failure_count;
     failed_paths.extend(txn_failures);
 
     if !new_song_ids.is_empty() {

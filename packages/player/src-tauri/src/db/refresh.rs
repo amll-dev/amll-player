@@ -1,4 +1,4 @@
-use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait as _, QueryFilter, Set};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::Path;
@@ -176,13 +176,6 @@ async fn remove_missing_playlist_songs(
         return Ok(0);
     }
 
-    playlist_songs::Entity::delete_many()
-        .filter(playlist_songs::Column::PlaylistId.eq(playlist_id))
-        .filter(playlist_songs::Column::SongId.is_in(removed_ids))
-        .exec(db)
-        .await
-        .map_err(|e| format!("Failed to remove missing playlist songs: {e}"))?;
-
     playlist_song_sources::Entity::delete_many()
         .filter(playlist_song_sources::Column::PlaylistId.eq(playlist_id))
         .filter(playlist_song_sources::Column::SongId.is_in(removed_ids))
@@ -191,9 +184,29 @@ async fn remove_missing_playlist_songs(
         .await
         .map_err(|e| format!("Failed to remove missing song sources: {e}"))?;
 
-    let _ = cleanup_orphaned_songs(db, removed_ids).await;
+    let mut actually_removed = 0u32;
+    for song_id in removed_ids {
+        let remaining_sources = playlist_song_sources::Entity::find()
+            .filter(playlist_song_sources::Column::PlaylistId.eq(playlist_id))
+            .filter(playlist_song_sources::Column::SongId.eq(song_id))
+            .count(db)
+            .await
+            .map_err(|e| format!("Failed to count remaining sources: {e}"))?;
 
-    Ok(removed_ids.len() as u32)
+        if remaining_sources == 0 {
+            playlist_songs::Entity::delete_many()
+                .filter(playlist_songs::Column::PlaylistId.eq(playlist_id))
+                .filter(playlist_songs::Column::SongId.eq(song_id))
+                .exec(db)
+                .await
+                .map_err(|e| format!("Failed to remove playlist song: {e}"))?;
+
+            let _ = cleanup_orphaned_songs(db, std::slice::from_ref(song_id)).await;
+            actually_removed += 1;
+        }
+    }
+
+    Ok(actually_removed)
 }
 
 #[tauri::command]
