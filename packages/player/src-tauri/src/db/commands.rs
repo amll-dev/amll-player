@@ -953,11 +953,6 @@ pub async fn unlink_playlist_folder(
             sea_orm::TransactionError::Transaction(e) => e,
         })?;
 
-    db_events::emit_event(
-        "playlist_folders",
-        "delete",
-        serde_json::json!({ "playlistId": playlist_id }),
-    );
     if !affected_song_ids.is_empty() {
         db_events::emit_event(
             "playlist_songs",

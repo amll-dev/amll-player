@@ -51,6 +51,15 @@ impl MigrationTrait for Migration {
                             .integer()
                             .null(),
                     )
+                    .index(
+                        Index::create()
+                            .unique()
+                            .col(PlaylistSongSources::PlaylistId)
+                            .col(PlaylistSongSources::SongId)
+                            .col(PlaylistSongSources::SourceType)
+                            .col(PlaylistSongSources::SourceId)
+                            .name("uq_playlist_song_source"),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -58,7 +67,7 @@ impl MigrationTrait for Migration {
         manager
             .get_connection()
             .execute_unprepared(
-                "INSERT INTO playlist_song_sources (playlist_id, song_id, source_type, source_id)
+                "INSERT OR IGNORE INTO playlist_song_sources (playlist_id, song_id, source_type, source_id)
                  SELECT playlist_id, song_id, 'manual', NULL FROM playlist_songs",
             )
             .await?;
