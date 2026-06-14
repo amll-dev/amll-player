@@ -193,12 +193,6 @@ async fn resolve_content_uri(
     Ok(target_path.to_string_lossy().into_owned())
 }
 
-pub(crate) fn get_covers_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
-    app.path()
-        .resolve("covers", BaseDirectory::AppData)
-        .map_err(|e| format!("Failed to resolve covers dir: {e}"))
-}
-
 #[tauri::command]
 async fn read_local_music_metadata(
     file_path: tauri_plugin_fs::FilePath,
@@ -236,7 +230,7 @@ async fn read_local_music_metadata(
     );
 
     let cover_path = if !cover_bytes.is_empty() {
-        let covers_dir = get_covers_dir(&app)?;
+        let covers_dir = crate::db::utils::get_covers_dir(&app)?;
         std::fs::create_dir_all(&covers_dir)
             .map_err(|e| format!("Failed to create covers dir: {e}"))?;
         let cover_file = covers_dir.join(format!("{song_id}.jpg"));
@@ -276,7 +270,7 @@ async fn save_cover_from_path(
     source_path: String,
     app: AppHandle,
 ) -> Result<String, String> {
-    let covers_dir = get_covers_dir(&app)?;
+    let covers_dir = crate::db::utils::get_covers_dir(&app)?;
     std::fs::create_dir_all(&covers_dir)
         .map_err(|e| format!("Failed to create covers dir: {e}"))?;
 
@@ -575,6 +569,11 @@ pub fn run() {
             db::commands::get_playlist_songs,
             db::commands::save_playlist_cover,
             db::commands::clear_playlist_cover,
+            db::commands::scan_and_create_playlist,
+            db::commands::get_playlist_folders,
+            db::commands::link_playlist_folder,
+            db::commands::unlink_playlist_folder,
+            db::commands::refresh_playlist,
             db::migrate::migrate_songs_batch,
             db::migrate::migrate_playlists_batch,
             db::cleanup::cleanup_orphaned_covers,

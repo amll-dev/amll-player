@@ -20,6 +20,7 @@ pub struct Model {
     pub translated_lrc: Option<String>,
     pub roman_lrc: Option<String>,
     pub cover_path: Option<String>,
+    pub modified_at: Option<i64>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

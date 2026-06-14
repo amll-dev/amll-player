@@ -1,8 +1,12 @@
 import {
 	ArrowLeftIcon,
+	GearIcon,
+	OpenInNewWindowIcon,
 	Pencil1Icon,
 	PlayIcon,
 	PlusIcon,
+	ReloadIcon,
+	TrashIcon,
 } from "@radix-ui/react-icons";
 import {
 	Box,
@@ -10,19 +14,31 @@ import {
 	ContextMenu,
 	Dialog,
 	Flex,
+	Grid,
 	Heading,
 	IconButton,
 	ScrollArea,
+	Separator,
 	Text,
 	TextField,
+	Tooltip,
 } from "@radix-ui/themes";
 import { path } from "@tauri-apps/api";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { platform } from "@tauri-apps/plugin-os";
 import { motion, useMotionTemplate, useScroll } from "framer-motion";
 import { useAtomValue, useStore } from "jotai";
 import md5 from "md5";
-import { type FC, useCallback, useMemo, useRef, useState } from "react";
+import {
+	type FC,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -100,6 +116,16 @@ const EditablePlaylistName: FC<{
 	);
 };
 
+const getFolderName = (folderPath: string) => {
+	const normalized = folderPath.replace(/\\+$/g, "").replace(/\/+$/g, "");
+	return normalized.split(/[\\/]/).pop() || folderPath;
+};
+
+const formatDateTime = (value?: number) => {
+	if (!value) return "-";
+	return new Date(value).toLocaleString();
+};
+
 export const Component: FC = () => {
 	const param = useParams();
 	const { data: playlist } = useDbQuery(
@@ -118,9 +144,191 @@ export const Component: FC = () => {
 	const [failedImports, setFailedImports] = useState<
 		{ path: string; error: string }[]
 	>([]);
+	const [playlistSettingsOpen, setPlaylistSettingsOpen] = useState(false);
+	const [settingsPlaylistName, setSettingsPlaylistName] = useState("");
+	const [folderToRemove, setFolderToRemove] = useState<string | null>(null);
 
 	const store = useStore();
 	const queueManager = useAtomValue(queueManagerAtom);
+
+	const { data: folders } = useDbQuery(
+		() => db.playlists.getFolders(Number(param.id)),
+		[param.id],
+		undefined,
+		["playlist_folders", "playlist_song_sources"],
+	);
+	const isFolderPlaylist = (folders?.length ?? 0) > 0;
+
+	useEffect(() => {
+		setSettingsPlaylistName(playlist?.name || "");
+	}, [playlist?.name]);
+
+	const saveSettingsPlaylistName = useCallback(async () => {
+		if (!playlist) return;
+		const name = settingsPlaylistName.trim();
+		if (!name || name === playlist.name) {
+			setSettingsPlaylistName(playlist.name);
+			return;
+		}
+		await db.playlists.update(Number(param.id), { name });
+	}, [param.id, playlist, settingsPlaylistName]);
+
+	const onUploadPlaylistCover = useCallback(async () => {
+		const selected = await open({
+			multiple: false,
+			filters: [
+				{
+					name: t("page.playlist.cover.mediaFiles", "媒体文件"),
+					extensions: ["jpg", "jpeg", "png", "gif", "webp", "mp4"],
+				},
+			],
+		});
+		if (selected) {
+			await db.playlists.saveCover(Number(param.id), selected);
+		}
+	}, [param.id, t]);
+
+	const onClearPlaylistCover = useCallback(async () => {
+		await db.playlists.clearCover(Number(param.id));
+	}, [param.id]);
+
+	const onOpenFolder = useCallback(
+		async (folderPath: string) => {
+			try {
+				await revealItemInDir(folderPath);
+			} catch (err) {
+				toast.error(
+					t(
+						"page.playlist.settings.openFolderFailed",
+						"打开文件夹失败: {error}",
+						{
+							error: String(err),
+						},
+					),
+				);
+			}
+		},
+		[t],
+	);
+
+	const onAddFolder = useCallback(async () => {
+		const selected = await open({
+			directory: true,
+			multiple: false,
+			title: t("page.playlist.settings.selectFolder", "选择要关联的文件夹"),
+		});
+		if (!selected) return;
+
+		const toastId = toast.loading(
+			t("page.playlist.settings.scanningFolder", "正在扫描文件夹…"),
+		);
+
+		let scannedCount = 0;
+		const unlisten = await listen<number>("scan-folder-progress", (event) => {
+			scannedCount = event.payload;
+			toast.update(toastId, {
+				render: t(
+					"page.playlist.settings.scanningProgress",
+					"正在扫描… 已找到 {count} 首歌曲",
+					{ count: scannedCount },
+				),
+			});
+		});
+
+		try {
+			const result = await db.playlists.linkFolder(Number(param.id), selected);
+			toast.update(toastId, {
+				render: t(
+					"page.playlist.settings.linkFolderSuccess",
+					"关联成功：导入 {imported} 首歌曲，失败 {failed} 首",
+					{ imported: result.imported, failed: result.failed },
+				),
+				type: result.failed > 0 ? "warning" : "success",
+				isLoading: false,
+				autoClose: 5000,
+			});
+		} catch (err) {
+			toast.update(toastId, {
+				render: t(
+					"page.playlist.settings.linkFolderFailed",
+					"关联失败: {error}",
+					{
+						error: String(err),
+					},
+				),
+				type: "error",
+				isLoading: false,
+				autoClose: 5000,
+			});
+		} finally {
+			unlisten();
+		}
+	}, [param.id, t]);
+
+	const onConfirmRemoveFolder = useCallback(async () => {
+		if (!folderToRemove) return;
+		try {
+			await db.playlists.unlinkFolder(Number(param.id), folderToRemove);
+			toast.success(
+				t("page.playlist.settings.unlinkFolderSuccess", "已移除关联文件夹"),
+			);
+		} catch (err) {
+			toast.error(
+				t("page.playlist.settings.unlinkFolderFailed", "移除失败: {error}", {
+					error: String(err),
+				}),
+			);
+		} finally {
+			setFolderToRemove(null);
+		}
+	}, [param.id, folderToRemove, t]);
+
+	const onRefreshPlaylist = useCallback(async () => {
+		const toastId = toast.loading(
+			t("page.playlist.refresh.loading", "正在刷新歌单…"),
+		);
+
+		let scannedCount = 0;
+		const unlisten = await listen<number>("scan-folder-progress", (event) => {
+			scannedCount = event.payload;
+			toast.update(toastId, {
+				render: t(
+					"page.playlist.refresh.scanning",
+					"正在扫描… {count} 个文件",
+					{ count: scannedCount },
+				),
+			});
+		});
+
+		try {
+			const result = await db.playlists.refresh(Number(param.id));
+			toast.update(toastId, {
+				render: t(
+					"page.playlist.refresh.success",
+					"刷新完成：新增 {added}，更新 {updated}，移除 {removed}",
+					{
+						added: result.added,
+						updated: result.updated,
+						removed: result.removed,
+					},
+				),
+				type: result.failed > 0 ? "warning" : "success",
+				isLoading: false,
+				autoClose: 5000,
+			});
+		} catch (err) {
+			toast.update(toastId, {
+				render: t("page.playlist.refresh.failed", "刷新失败: {error}", {
+					error: String(err),
+				}),
+				type: "error",
+				isLoading: false,
+				autoClose: 5000,
+			});
+		} finally {
+			unlisten();
+		}
+	}, [param.id, t]);
 
 	const onAddLocalMusics = useCallback(async () => {
 		let filters = [
@@ -381,6 +589,7 @@ export const Component: FC = () => {
 						</motion.div>
 						<Flex
 							direction="column"
+							flexGrow="1"
 							display={{
 								initial: "none",
 								sm: "flex",
@@ -408,27 +617,46 @@ export const Component: FC = () => {
 										},
 									)}
 								</Text>
-								<Flex gap="2">
-									<Button onClick={() => onPlaylistDefault()}>
-										<PlayIcon />
-										<Trans i18nKey="page.playlist.playAll">播放全部</Trans>
-									</Button>
-									<Button variant="soft" onClick={onPlaylistShuffle}>
-										<Trans i18nKey="page.playlist.shufflePlayAll">
-											随机播放
-										</Trans>
-									</Button>
-									<Button variant="soft" onClick={onAddLocalMusics}>
-										<PlusIcon />
-										<Trans i18nKey="page.playlist.addLocalMusic.label">
-											添加本地歌曲
-										</Trans>
-									</Button>
+								<Flex gap="2" align="center" justify="between" width="100%">
+									<Flex gap="2">
+										<Button onClick={() => onPlaylistDefault()}>
+											<PlayIcon />
+											<Trans i18nKey="page.playlist.playAll">播放全部</Trans>
+										</Button>
+										<Button variant="soft" onClick={onPlaylistShuffle}>
+											<Trans i18nKey="page.playlist.shufflePlayAll">
+												随机播放
+											</Trans>
+										</Button>
+										<Button variant="soft" onClick={onAddLocalMusics}>
+											<PlusIcon />
+											<Trans i18nKey="page.playlist.addLocalMusic.label">
+												添加本地歌曲
+											</Trans>
+										</Button>{" "}
+										{isFolderPlaylist && (
+											<Button variant="soft" onClick={onRefreshPlaylist}>
+												<ReloadIcon />
+												{t("page.playlist.refresh.label", "刷新")}
+											</Button>
+										)}
+									</Flex>
+									<Tooltip content={t("page.playlist.settings.label", "设置")}>
+										<IconButton
+											variant="soft"
+											mr="5"
+											onClick={() => setPlaylistSettingsOpen(true)}
+											aria-label={t("page.playlist.settings.label", "设置")}
+										>
+											<GearIcon />
+										</IconButton>
+									</Tooltip>
 								</Flex>
 							</motion.div>
 						</Flex>
 						<Flex
 							direction="column"
+							flexGrow="1"
 							display={{
 								xs: "flex",
 								sm: "none",
@@ -455,13 +683,30 @@ export const Component: FC = () => {
 										},
 									)}
 								</Text>
-								<Flex gap="2">
-									<IconButton onClick={() => onPlaylistDefault()}>
-										<PlayIcon />
-									</IconButton>
-									<IconButton variant="soft" onClick={onAddLocalMusics}>
-										<PlusIcon />
-									</IconButton>
+								<Flex gap="2" align="center" justify="between" width="100%">
+									<Flex gap="2">
+										<IconButton onClick={() => onPlaylistDefault()}>
+											<PlayIcon />
+										</IconButton>
+										<IconButton variant="soft" onClick={onAddLocalMusics}>
+											<PlusIcon />
+										</IconButton>{" "}
+										{isFolderPlaylist && (
+											<IconButton variant="soft" onClick={onRefreshPlaylist}>
+												<ReloadIcon />
+											</IconButton>
+										)}
+									</Flex>
+									<Tooltip content={t("page.playlist.settings.label", "设置")}>
+										<IconButton
+											variant="soft"
+											mr="5"
+											onClick={() => setPlaylistSettingsOpen(true)}
+											aria-label={t("page.playlist.settings.label", "设置")}
+										>
+											<GearIcon />
+										</IconButton>
+									</Tooltip>
 								</Flex>
 							</motion.div>
 						</Flex>
@@ -559,6 +804,201 @@ export const Component: FC = () => {
 								<Trans i18nKey="common.dialog.close">关闭</Trans>
 							</Button>
 						</Dialog.Close>
+					</Flex>
+				</Dialog.Content>
+			</Dialog.Root>
+
+			<Dialog.Root
+				open={playlistSettingsOpen}
+				onOpenChange={setPlaylistSettingsOpen}
+			>
+				<Dialog.Content style={{ maxWidth: 560 }}>
+					<Dialog.Title>
+						{t("page.playlist.settings.title", "歌单设置")}
+					</Dialog.Title>
+
+					<Flex direction="column" gap="4">
+						<Flex direction="column" gap="2">
+							<Text weight="bold">
+								{t("page.playlist.settings.name", "歌单名称")}
+							</Text>
+							<TextField.Root
+								value={settingsPlaylistName}
+								onChange={(e) => setSettingsPlaylistName(e.currentTarget.value)}
+								onBlur={saveSettingsPlaylistName}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										e.currentTarget.blur();
+									}
+								}}
+							/>
+						</Flex>
+
+						<Separator size="4" />
+
+						<Flex direction="column" gap="3">
+							<Text weight="bold">
+								{t("page.playlist.settings.cover", "歌单封面")}
+							</Text>
+							<Flex gap="3" align="center" wrap="wrap">
+								<PlaylistCover
+									playlistId={Number(param.id)}
+									style={{ width: "5.5em" }}
+								/>
+								<Flex gap="2" wrap="wrap">
+									<Button variant="soft" onClick={onUploadPlaylistCover}>
+										{t("page.playlist.cover.uploadCoverImage", "上传封面图片")}
+									</Button>
+									<Button
+										variant="soft"
+										color="gray"
+										onClick={onClearPlaylistCover}
+									>
+										{t(
+											"page.playlist.cover.changeCoverToAuto",
+											"更换成自动封面",
+										)}
+									</Button>
+								</Flex>
+							</Flex>
+						</Flex>
+
+						<Separator size="4" />
+
+						<Flex direction="column" gap="3">
+							<Text weight="bold">
+								{t("page.playlist.settings.linkedFolders", "关联文件夹")}
+							</Text>
+							{folders && folders.length > 0 ? (
+								<Flex direction="column" gap="2">
+									{folders.map((folder) => (
+										<Flex
+											key={folder}
+											align="center"
+											justify="between"
+											gap="3"
+											p="3"
+											style={{
+												backgroundColor: "var(--gray-a2)",
+												borderRadius: "var(--radius-3)",
+											}}
+										>
+											<Box minWidth="0" flexGrow="1">
+												<Text as="div" weight="medium">
+													{getFolderName(folder)}
+												</Text>
+												<Text
+													as="div"
+													size="1"
+													color="gray"
+													style={{ wordBreak: "break-all" }}
+												>
+													{folder}
+												</Text>
+											</Box>
+											<Flex gap="1">
+												<IconButton
+													size="1"
+													variant="ghost"
+													onClick={() => onOpenFolder(folder)}
+													aria-label={t(
+														"page.playlist.settings.openFolder",
+														"打开",
+													)}
+												>
+													<OpenInNewWindowIcon />
+												</IconButton>
+												<IconButton
+													size="1"
+													variant="ghost"
+													color="red"
+													onClick={() => setFolderToRemove(folder)}
+													aria-label={t(
+														"page.playlist.settings.removeFolder",
+														"移除",
+													)}
+												>
+													<TrashIcon />
+												</IconButton>
+											</Flex>
+										</Flex>
+									))}
+								</Flex>
+							) : (
+								<Text color="gray" size="2">
+									{t(
+										"page.playlist.settings.noLinkedFolders",
+										"此歌单未关联文件夹",
+									)}
+								</Text>
+							)}
+							<Button variant="soft" onClick={onAddFolder}>
+								<PlusIcon />
+								{t("page.playlist.settings.addFolder", "添加关联文件夹")}
+							</Button>
+						</Flex>
+
+						<Separator size="4" />
+
+						<Flex direction="column" gap="3">
+							<Text weight="bold">
+								{t("page.playlist.settings.playlistInfo", "歌单信息")}
+							</Text>
+							<Grid columns="2" gap="2">
+								<Text color="gray" size="2">
+									{t("page.playlist.settings.songCount", "歌曲数量")}
+								</Text>
+								<Text size="2">{playlist?.songIds.length || 0}</Text>
+								<Text color="gray" size="2">
+									{t("page.playlist.settings.createdAt", "创建时间")}
+								</Text>
+								<Text size="2">{formatDateTime(playlist?.createTime)}</Text>
+								<Text color="gray" size="2">
+									{t("page.playlist.settings.updatedAt", "更新时间")}
+								</Text>
+								<Text size="2">{formatDateTime(playlist?.updateTime)}</Text>
+							</Grid>
+						</Flex>
+					</Flex>
+
+					<Flex gap="3" mt="4" justify="end">
+						<Dialog.Close>
+							<Button variant="soft" color="gray">
+								<Trans i18nKey="common.dialog.close">关闭</Trans>
+							</Button>
+						</Dialog.Close>
+					</Flex>
+				</Dialog.Content>
+			</Dialog.Root>
+
+			<Dialog.Root
+				open={folderToRemove !== null}
+				onOpenChange={(open) => {
+					if (!open) setFolderToRemove(null);
+				}}
+			>
+				<Dialog.Content style={{ maxWidth: 420 }}>
+					<Dialog.Title>
+						{t(
+							"page.playlist.settings.confirmRemoveFolderTitle",
+							"移除关联文件夹",
+						)}
+					</Dialog.Title>
+					<Dialog.Description size="2" mb="4">
+						{t(
+							"page.playlist.settings.confirmRemoveFolderDescription",
+							"确定要移除此文件夹吗？该文件夹扫描添加的歌曲将从歌单中移除。手动添加的歌曲不受影响。",
+						)}
+					</Dialog.Description>
+					<Flex gap="3" justify="end">
+						<Dialog.Close>
+							<Button variant="soft" color="gray">
+								<Trans i18nKey="common.dialog.cancel">取消</Trans>
+							</Button>
+						</Dialog.Close>
+						<Button color="red" onClick={onConfirmRemoveFolder}>
+							<Trans i18nKey="common.dialog.confirm">确认</Trans>
+						</Button>
 					</Flex>
 				</Dialog.Content>
 			</Dialog.Root>

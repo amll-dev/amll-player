@@ -119,9 +119,18 @@
 	"newPlaylist": {
 		"buttonLabel": "New Playlist",
 		"dialog": {
-			"name": "歌单名称",
+			"name": "Playlist Name",
 			"namePlaceholder": "Playlist Title",
+			"scanFailed": "Scan failed: {error}",
+			"scanning": "Scanning… 0 songs found",
+			"scanningProgress": "Scanning… {count} songs found",
+			"scanSuccess": "{imported} songs imported, {failed} failed",
+			"selectFolder": "Select a folder to scan",
 			"title": "New Playlist"
+		},
+		"mode": {
+			"empty": "Empty Playlist",
+			"folder": "Add from Folder"
 		}
 	},
 	"page": {
@@ -188,6 +197,38 @@
 				"unknownSongName": "Unknown Music ID {id}"
 			},
 			"playAll": "Play All",
+			"refresh": {
+				"failed": "Refresh failed: {error}",
+				"label": "Refresh",
+				"loading": "Refreshing playlist…",
+				"scanning": "Scanning… {count} files",
+				"success": "Refresh complete: {added} added, {updated} updated, {removed} removed"
+			},
+			"settings": {
+				"addFolder": "Add Linked Folder",
+				"confirmRemoveFolderDescription": "Are you sure you want to remove this folder? Songs added by folder scanning will be removed from the playlist. Manually added songs are not affected.",
+				"confirmRemoveFolderTitle": "Remove Linked Folder",
+				"cover": "Playlist Cover",
+				"createdAt": "Created At",
+				"label": "Settings",
+				"linkedFolders": "Linked Folders",
+				"linkFolderFailed": "Link failed: {error}",
+				"linkFolderSuccess": "Linked successfully: {imported} songs imported, {failed} failed",
+				"name": "Playlist Name",
+				"noLinkedFolders": "No folders linked to this playlist",
+				"openFolder": "Open",
+				"openFolderFailed": "Failed to open folder: {error}",
+				"playlistInfo": "Playlist Info",
+				"removeFolder": "Remove",
+				"scanningFolder": "Scanning folder…",
+				"scanningProgress": "Scanning… {count} songs found",
+				"selectFolder": "Select a folder to link",
+				"songCount": "Song Count",
+				"title": "Playlist Settings",
+				"unlinkFolderFailed": "Remove failed: {error}",
+				"unlinkFolderSuccess": "Linked folder removed",
+				"updatedAt": "Updated At"
+			},
 			"shufflePlayAll": "Shuffle",
 			"totalMusicLabel": "{count, plural, other {#}} song(s)"
 		},

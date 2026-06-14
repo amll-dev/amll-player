@@ -22,6 +22,7 @@ export interface Song {
 	translatedLrc?: string | null;
 	romanLrc?: string | null;
 	coverPath?: string | null;
+	modifiedAt?: number | null;
 }
 
 interface UpdatePlaylistPayload {
@@ -44,6 +45,21 @@ export interface CoverGcResult {
 	totalScanned: number;
 	deleted: number;
 	errors: string[];
+}
+
+export interface ScanFolderResult {
+	playlistId: number;
+	totalScanned: number;
+	imported: number;
+	failed: number;
+	failedPaths: string[];
+}
+
+export interface RefreshResult {
+	added: number;
+	updated: number;
+	removed: number;
+	failed: number;
 }
 
 class PlaylistsClient {
@@ -85,6 +101,35 @@ class PlaylistsClient {
 
 	async clearCover(playlistId: number): Promise<void> {
 		return invoke("clear_playlist_cover", { playlistId });
+	}
+
+	async scanFolder(
+		folderPath: string,
+		playlistName?: string,
+	): Promise<ScanFolderResult> {
+		return invoke("scan_and_create_playlist", {
+			folderPath,
+			playlistName: playlistName ?? null,
+		});
+	}
+
+	async getFolders(playlistId: number): Promise<string[]> {
+		return invoke("get_playlist_folders", { playlistId });
+	}
+
+	async linkFolder(
+		playlistId: number,
+		folderPath: string,
+	): Promise<ScanFolderResult> {
+		return invoke("link_playlist_folder", { playlistId, folderPath });
+	}
+
+	async unlinkFolder(playlistId: number, folderPath: string): Promise<void> {
+		return invoke("unlink_playlist_folder", { playlistId, folderPath });
+	}
+
+	async refresh(playlistId: number): Promise<RefreshResult> {
+		return invoke("refresh_playlist", { playlistId });
 	}
 }
 

@@ -3,8 +3,12 @@ pub mod commands;
 pub mod entity;
 pub mod migrate;
 pub mod migration;
+pub mod refresh;
+pub mod scanner;
+pub mod utils;
 
 use sea_orm::{Database, DatabaseConnection};
+use sea_orm_migration::prelude::*;
 use tauri::AppHandle;
 use tauri::Manager;
 use tauri::path::BaseDirectory;
@@ -28,7 +32,7 @@ pub async fn init_database(app: &AppHandle) -> Result<DatabaseConnection, String
         .await
         .map_err(|e| format!("Failed to connect to database: {e}"))?;
 
-    migration::run_migrations(&db)
+    migration::Migrator::up(&db, None)
         .await
         .map_err(|e| format!("Failed to run migrations: {e}"))?;
 

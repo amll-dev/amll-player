@@ -128,6 +128,7 @@ pub async fn migrate_songs_batch(
             translated_lrc: Set(item.translated_lrc),
             roman_lrc: Set(item.roman_lrc),
             cover_path: Set(cover_path),
+            modified_at: Set(None),
         };
 
         match song::Entity::insert(active)

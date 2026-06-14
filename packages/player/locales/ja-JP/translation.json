@@ -117,11 +117,20 @@
 	},
 	"name": "",
 	"newPlaylist": {
-		"buttonLabel": "新プレイリストを作成する",
+		"buttonLabel": "新しいプレイリスト",
 		"dialog": {
-			"name": "歌单名称",
-			"namePlaceholder": "プレイリスト名",
-			"title": "新プレイリストを作成する"
+			"name": "プレイリスト名",
+			"namePlaceholder": "プレイリストタイトル",
+			"scanFailed": "スキャン失敗: {error}",
+			"scanning": "スキャン中… 0曲見つかりました",
+			"scanningProgress": "スキャン中… {count}曲見つかりました",
+			"scanSuccess": "{imported}曲をインポート、{failed}曲失敗",
+			"selectFolder": "スキャンするフォルダを選択",
+			"title": "新しいプレイリスト"
+		},
+		"mode": {
+			"empty": "空のプレイリスト",
+			"folder": "フォルダから追加"
 		}
 	},
 	"page": {
@@ -188,6 +197,38 @@
 				"unknownSongName": "未知歌曲 ID {id}"
 			},
 			"playAll": "播放全部",
+			"refresh": {
+				"failed": "更新失敗: {error}",
+				"label": "更新",
+				"loading": "プレイリストを更新中…",
+				"scanning": "スキャン中… {count}ファイル",
+				"success": "更新完了: {added}曲追加、{updated}曲更新、{removed}曲削除"
+			},
+			"settings": {
+				"addFolder": "リンクフォルダを追加",
+				"confirmRemoveFolderDescription": "このフォルダを削除してもよろしいですか？フォルダスキャンで追加された曲はプレイリストから削除されます。手動で追加された曲は影響を受けません。",
+				"confirmRemoveFolderTitle": "リンクフォルダの削除",
+				"cover": "プレイリストカバー",
+				"createdAt": "作成日時",
+				"label": "設定",
+				"linkedFolders": "リンクフォルダ",
+				"linkFolderFailed": "リンク失敗: {error}",
+				"linkFolderSuccess": "リンク成功: {imported}曲インポート、{failed}曲失敗",
+				"name": "プレイリスト名",
+				"noLinkedFolders": "このプレイリストにリンクされたフォルダはありません",
+				"openFolder": "開く",
+				"openFolderFailed": "フォルダを開けませんでした: {error}",
+				"playlistInfo": "プレイリスト情報",
+				"removeFolder": "削除",
+				"scanningFolder": "フォルダをスキャン中…",
+				"scanningProgress": "スキャン中… {count}曲見つかりました",
+				"selectFolder": "リンクするフォルダを選択",
+				"songCount": "曲数",
+				"title": "プレイリスト設定",
+				"unlinkFolderFailed": "削除失敗: {error}",
+				"unlinkFolderSuccess": "リンクフォルダを削除しました",
+				"updatedAt": "更新日時"
+			},
 			"shufflePlayAll": "随机播放",
 			"totalMusicLabel": "{count, plural, other {#}} 首歌曲"
 		},

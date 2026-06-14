@@ -12,7 +12,7 @@
 	padding-left: var(--space-4);
 	padding-right: var(--space-4);
 
-	@media screen and (min-width: 768px) {
+	@media screen and (min-width: 810px) {
 		padding-left: var(--space-9);
 		padding-right: var(--space-9);
 	}

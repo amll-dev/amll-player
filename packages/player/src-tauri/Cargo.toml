@@ -59,12 +59,15 @@ tempfile = "3.27"
 mimalloc = "0.1.50"
 chrono = "0.4"
 base64 = "0.22"
+jwalk = "0.8"
+rayon = "1.12"
 infer = "0.19"
 sea-orm = { version = "1", features = [
 	"runtime-tokio-native-tls",
 	"sqlx-sqlite",
 	"macros",
 ] }
+sea-orm-migration = { version = "1", features = ["sqlx-sqlite"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-context = "0.1.1"

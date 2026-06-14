@@ -119,9 +119,18 @@
 	"newPlaylist": {
 		"buttonLabel": "Tạo danh sách phát mới.",
 		"dialog": {
-			"name": "歌单名称",
-			"namePlaceholder": "Tên playlist",
-			"title": "Tạo playlist mới"
+			"name": "Tên danh sách phát",
+			"namePlaceholder": "Tiêu đề danh sách phát",
+			"scanFailed": "Quét thất bại: {error}",
+			"scanning": "Đang quét… tìm thấy 0 bài hát",
+			"scanningProgress": "Đang quét… tìm thấy {count} bài hát",
+			"scanSuccess": "Đã nhập {imported} bài hát, {failed} thất bại",
+			"selectFolder": "Chọn thư mục để quét",
+			"title": "Danh sách phát mới"
+		},
+		"mode": {
+			"empty": "Danh sách phát trống",
+			"folder": "Thêm từ thư mục"
 		}
 	},
 	"page": {
@@ -188,6 +197,38 @@
 				"unknownSongName": "ID bài hát không xác định {id}"
 			},
 			"playAll": "Phát tất cả",
+			"refresh": {
+				"failed": "Làm mới thất bại: {error}",
+				"label": "Làm mới",
+				"loading": "Đang làm mới danh sách phát…",
+				"scanning": "Đang quét… {count} tệp",
+				"success": "Làm mới hoàn tất: {added} thêm mới, {updated} cập nhật, {removed} xóa"
+			},
+			"settings": {
+				"addFolder": "Thêm thư mục liên kết",
+				"confirmRemoveFolderDescription": "Bạn có chắc muốn xóa thư mục này không? Các bài hát được thêm bằng quét thư mục sẽ bị xóa khỏi danh sách phát. Các bài hát thêm thủ công sẽ không bị ảnh hưởng.",
+				"confirmRemoveFolderTitle": "Xóa thư mục liên kết",
+				"cover": "Ảnh bìa danh sách phát",
+				"createdAt": "Ngày tạo",
+				"label": "Cài đặt",
+				"linkedFolders": "Thư mục liên kết",
+				"linkFolderFailed": "Liên kết thất bại: {error}",
+				"linkFolderSuccess": "Liên kết thành công: nhập {imported} bài hát, {failed} thất bại",
+				"name": "Tên danh sách phát",
+				"noLinkedFolders": "Chưa có thư mục liên kết nào",
+				"openFolder": "Mở",
+				"openFolderFailed": "Mở thư mục thất bại: {error}",
+				"playlistInfo": "Thông tin danh sách phát",
+				"removeFolder": "Xóa",
+				"scanningFolder": "Đang quét thư mục…",
+				"scanningProgress": "Đang quét… tìm thấy {count} bài hát",
+				"selectFolder": "Chọn thư mục để liên kết",
+				"songCount": "Số bài hát",
+				"title": "Cài đặt danh sách phát",
+				"unlinkFolderFailed": "Xóa thất bại: {error}",
+				"unlinkFolderSuccess": "Đã xóa thư mục liên kết",
+				"updatedAt": "Ngày cập nhật"
+			},
 			"shufflePlayAll": "Phát ngẫu nhiên",
 			"totalMusicLabel": "{count, plural, other {#}} bài hát"
 		},

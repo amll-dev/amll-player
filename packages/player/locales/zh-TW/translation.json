@@ -117,11 +117,20 @@
 	},
 	"name": "",
 	"newPlaylist": {
-		"buttonLabel": "新建播放清單",
+		"buttonLabel": "新增歌單",
 		"dialog": {
-			"name": "歌单名称",
-			"namePlaceholder": "歌單名稱",
-			"title": "新建歌單"
+			"name": "歌單名稱",
+			"namePlaceholder": "歌單標題",
+			"scanFailed": "掃描失敗: {error}",
+			"scanning": "正在掃描… 已找到 0 首歌曲",
+			"scanningProgress": "正在掃描… 已找到 {count} 首歌曲",
+			"scanSuccess": "已匯入 {imported} 首歌曲，失敗 {failed} 首",
+			"selectFolder": "選擇要掃描的資料夾",
+			"title": "新增歌單"
+		},
+		"mode": {
+			"empty": "空歌單",
+			"folder": "從資料夾新增"
 		}
 	},
 	"page": {
@@ -188,6 +197,38 @@
 				"unknownSongName": "未知歌曲 ID {id}"
 			},
 			"playAll": "播放全部",
+			"refresh": {
+				"failed": "重新整理失敗: {error}",
+				"label": "重新整理",
+				"loading": "正在重新整理歌單…",
+				"scanning": "正在掃描… {count} 個檔案",
+				"success": "重新整理完成：新增 {added}，更新 {updated}，移除 {removed}"
+			},
+			"settings": {
+				"addFolder": "新增關聯資料夾",
+				"confirmRemoveFolderDescription": "確定要移除此資料夾嗎？該資料夾掃描新增的歌曲將從歌單中移除。手動新增的歌曲不受影響。",
+				"confirmRemoveFolderTitle": "移除關聯資料夾",
+				"cover": "歌單封面",
+				"createdAt": "建立時間",
+				"label": "設定",
+				"linkedFolders": "關聯資料夾",
+				"linkFolderFailed": "關聯失敗: {error}",
+				"linkFolderSuccess": "關聯成功：匯入 {imported} 首歌曲，失敗 {failed} 首",
+				"name": "歌單名稱",
+				"noLinkedFolders": "此歌單未關聯資料夾",
+				"openFolder": "開啟",
+				"openFolderFailed": "開啟資料夾失敗: {error}",
+				"playlistInfo": "歌單資訊",
+				"removeFolder": "移除",
+				"scanningFolder": "正在掃描資料夾…",
+				"scanningProgress": "正在掃描… 已找到 {count} 首歌曲",
+				"selectFolder": "選擇要關聯的資料夾",
+				"songCount": "歌曲數量",
+				"title": "歌單設定",
+				"unlinkFolderFailed": "移除失敗: {error}",
+				"unlinkFolderSuccess": "已移除關聯資料夾",
+				"updatedAt": "更新時間"
+			},
 			"shufflePlayAll": "隨機播放",
 			"totalMusicLabel": "{count, plural, other {#}} 首歌曲"
 		},

@@ -1,54 +1,16 @@
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QueryOrder, Set, TransactionTrait,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use tauri::State;
+use tauri::{Emitter, State};
 use tracing::warn;
 
-use crate::db::DbConnection;
-use crate::db::entity::{playlist, playlist_songs, song};
+use crate::db::entity::{playlist, playlist_folder, playlist_song_sources, playlist_songs, song};
+use crate::db::{DbConnection, utils};
 use crate::db_events;
 
-async fn cleanup_orphaned_songs(
-    db: &DbConnection,
-    song_ids: &[String],
-) -> Result<Vec<String>, String> {
-    let mut deleted = Vec::new();
-
-    for song_id in song_ids {
-        let ref_count = playlist_songs::Entity::find()
-            .filter(playlist_songs::Column::SongId.eq(song_id))
-            .count(db)
-            .await
-            .map_err(|e| format!("Failed to count song references: {e}"))?;
-
-        if ref_count > 0 {
-            continue;
-        }
-
-        if let Some(s) = song::Entity::find_by_id(song_id)
-            .one(db)
-            .await
-            .map_err(|e| format!("Failed to find song: {e}"))?
-        {
-            if let Some(ref cover_path) = s.cover_path
-                && !cover_path.is_empty()
-            {
-                let _ = std::fs::remove_file(cover_path);
-            }
-
-            let active: song::ActiveModel = s.into();
-            active
-                .delete(db)
-                .await
-                .map_err(|e| format!("Failed to delete orphaned song: {e}"))?;
-            deleted.push(song_id.clone());
-        }
-    }
-
-    Ok(deleted)
-}
+pub use crate::db::refresh::*;
 
 // ============ Playlist Commands ============
 
@@ -220,7 +182,7 @@ pub async fn delete_playlist(db: State<'_, DbConnection>, id: i32) -> Result<(),
     }
 
     if !song_ids.is_empty() {
-        match cleanup_orphaned_songs(&db, &song_ids).await {
+        match utils::cleanup_orphaned_songs(&*db, &song_ids).await {
             Ok(deleted) if !deleted.is_empty() => {
                 tracing::info!(
                     "[delete_playlist] Cleaned up {} orphaned songs: {:?}",
@@ -245,57 +207,73 @@ pub async fn add_songs_to_playlist(
     song_ids: Vec<String>,
 ) -> Result<(), String> {
     let now = chrono::Utc::now().timestamp_millis();
+    let all_song_ids = song_ids.clone();
 
-    let mut seen: HashSet<String> = playlist_songs::Entity::find()
-        .filter(playlist_songs::Column::PlaylistId.eq(playlist_id))
-        .all(&*db)
-        .await
-        .map_err(|e| format!("Failed to query existing songs: {e}"))?
-        .into_iter()
-        .map(|ps| ps.song_id)
-        .collect();
+    db.transaction::<_, _, String>(|txn| {
+        let song_ids = song_ids.clone();
+        let all_song_ids = all_song_ids.clone();
+        Box::pin(async move {
+            let mut seen: HashSet<String> = playlist_songs::Entity::find()
+                .filter(playlist_songs::Column::PlaylistId.eq(playlist_id))
+                .all(txn)
+                .await
+                .map_err(|e| format!("Failed to query existing songs: {e}"))?
+                .into_iter()
+                .map(|ps| ps.song_id)
+                .collect();
 
-    let mut i = 0i64;
-    let new_entries: Vec<playlist_songs::ActiveModel> = song_ids
-        .into_iter()
-        .filter(|id| seen.insert(id.clone()))
-        .map(|song_id| {
-            let at = now + i;
-            i += 1;
-            playlist_songs::ActiveModel {
-                playlist_id: Set(playlist_id),
-                song_id: Set(song_id),
-                added_at: Set(at),
-                ..Default::default()
+            let mut i = 0i64;
+            let new_entries: Vec<playlist_songs::ActiveModel> = song_ids
+                .into_iter()
+                .filter(|id| seen.insert(id.clone()))
+                .map(|song_id| {
+                    let at = now + i;
+                    i += 1;
+                    playlist_songs::ActiveModel {
+                        playlist_id: Set(playlist_id),
+                        song_id: Set(song_id),
+                        added_at: Set(at),
+                        ..Default::default()
+                    }
+                })
+                .collect();
+
+            if !new_entries.is_empty() {
+                playlist_songs::Entity::insert_many(new_entries)
+                    .exec(txn)
+                    .await
+                    .map_err(|e| format!("Failed to add songs to playlist: {e}"))?;
             }
+
+            utils::link_song_sources(txn, playlist_id, &all_song_ids, "manual", None).await?;
+
+            if let Some(p) = playlist::Entity::find_by_id(playlist_id)
+                .one(txn)
+                .await
+                .map_err(|e| format!("Failed to find playlist: {e}"))?
+            {
+                let mut active: playlist::ActiveModel = p.into();
+                active.update_time = Set(now);
+                active
+                    .update(txn)
+                    .await
+                    .map_err(|e| format!("Failed to update playlist: {e}"))?;
+            }
+
+            Ok(())
         })
-        .collect();
+    })
+    .await
+    .map_err(|e| match e {
+        sea_orm::TransactionError::Connection(e) => format!("Transaction connection error: {e}"),
+        sea_orm::TransactionError::Transaction(e) => e,
+    })?;
 
-    if !new_entries.is_empty() {
-        playlist_songs::Entity::insert_many(new_entries)
-            .exec(&*db)
-            .await
-            .map_err(|e| format!("Failed to add songs to playlist: {e}"))?;
-
-        db_events::emit_event(
-            "playlist_songs",
-            "insert",
-            serde_json::json!({ "playlistId": playlist_id }),
-        );
-    }
-
-    if let Some(p) = playlist::Entity::find_by_id(playlist_id)
-        .one(&*db)
-        .await
-        .map_err(|e| format!("Failed to find playlist: {e}"))?
-    {
-        let mut active: playlist::ActiveModel = p.into();
-        active.update_time = Set(now);
-        active
-            .update(&*db)
-            .await
-            .map_err(|e| format!("Failed to update playlist: {e}"))?;
-    }
+    db_events::emit_event(
+        "playlist_songs",
+        "insert",
+        serde_json::json!({ "playlistId": playlist_id }),
+    );
 
     Ok(())
 }
@@ -306,40 +284,62 @@ pub async fn remove_song_from_playlist(
     playlist_id: i32,
     song_id: String,
 ) -> Result<(), String> {
-    playlist_songs::Entity::delete_many()
-        .filter(playlist_songs::Column::PlaylistId.eq(playlist_id))
-        .filter(playlist_songs::Column::SongId.eq(&song_id))
-        .exec(&*db)
-        .await
-        .map_err(|e| format!("Failed to remove song from playlist: {e}"))?;
+    db.transaction::<_, _, String>(|txn| {
+        let song_id = song_id.clone();
+        Box::pin(async move {
+            playlist_songs::Entity::delete_many()
+                .filter(playlist_songs::Column::PlaylistId.eq(playlist_id))
+                .filter(playlist_songs::Column::SongId.eq(&song_id))
+                .exec(txn)
+                .await
+                .map_err(|e| format!("Failed to remove song from playlist: {e}"))?;
+
+            playlist_song_sources::Entity::delete_many()
+                .filter(playlist_song_sources::Column::PlaylistId.eq(playlist_id))
+                .filter(playlist_song_sources::Column::SongId.eq(&song_id))
+                .exec(txn)
+                .await
+                .map_err(|e| format!("Failed to remove song sources: {e}"))?;
+
+            match utils::cleanup_orphaned_songs(txn, &[song_id]).await {
+                Ok(deleted) if !deleted.is_empty() => {
+                    tracing::info!(
+                        "[remove_song_from_playlist] Cleaned up orphaned song: {deleted:?}"
+                    );
+                }
+                Err(e) => {
+                    warn!("[remove_song_from_playlist] Failed to cleanup orphaned song: {e}")
+                }
+                _ => {}
+            }
+
+            if let Some(p) = playlist::Entity::find_by_id(playlist_id)
+                .one(txn)
+                .await
+                .map_err(|e| format!("Failed to find playlist: {e}"))?
+            {
+                let mut active: playlist::ActiveModel = p.into();
+                active.update_time = Set(chrono::Utc::now().timestamp_millis());
+                active
+                    .update(txn)
+                    .await
+                    .map_err(|e| format!("Failed to update playlist: {e}"))?;
+            }
+
+            Ok(())
+        })
+    })
+    .await
+    .map_err(|e| match e {
+        sea_orm::TransactionError::Connection(e) => format!("Transaction connection error: {e}"),
+        sea_orm::TransactionError::Transaction(e) => e,
+    })?;
 
     db_events::emit_event(
         "playlist_songs",
         "delete",
         serde_json::json!({ "playlistId": playlist_id }),
     );
-
-    match cleanup_orphaned_songs(&db, &[song_id]).await {
-        Ok(deleted) if !deleted.is_empty() => {
-            tracing::info!("[remove_song_from_playlist] Cleaned up orphaned song: {deleted:?}",);
-        }
-        Err(e) => warn!("[remove_song_from_playlist] Failed to cleanup orphaned song: {e}"),
-        _ => {}
-    }
-
-    let now = chrono::Utc::now().timestamp_millis();
-    if let Some(p) = playlist::Entity::find_by_id(playlist_id)
-        .one(&*db)
-        .await
-        .map_err(|e| format!("Failed to find playlist: {e}"))?
-    {
-        let mut active: playlist::ActiveModel = p.into();
-        active.update_time = Set(now);
-        active
-            .update(&*db)
-            .await
-            .map_err(|e| format!("Failed to update playlist: {e}"))?;
-    }
 
     Ok(())
 }
@@ -353,41 +353,9 @@ pub async fn upsert_songs(
 ) -> Result<(), String> {
     for s in songs {
         let song_id = s.id.clone();
-        let active = song::ActiveModel {
-            id: Set(s.id),
-            file_path: Set(s.file_path),
-            song_name: Set(s.song_name),
-            song_artists: Set(s.song_artists),
-            song_album: Set(s.song_album),
-            duration: Set(s.duration),
-            lyric_format: Set(s.lyric_format),
-            lyric: Set(s.lyric),
-            translated_lrc: Set(s.translated_lrc),
-            roman_lrc: Set(s.roman_lrc),
-            cover_path: Set(s.cover_path),
-        };
-
-        song::Entity::insert(active)
-            .on_conflict(
-                sea_orm::sea_query::OnConflict::column(song::Column::Id)
-                    .update_columns([
-                        song::Column::FilePath,
-                        song::Column::SongName,
-                        song::Column::SongArtists,
-                        song::Column::SongAlbum,
-                        song::Column::Duration,
-                        song::Column::LyricFormat,
-                        song::Column::Lyric,
-                        song::Column::TranslatedLrc,
-                        song::Column::RomanLrc,
-                        song::Column::CoverPath,
-                    ])
-                    .to_owned(),
-            )
-            .exec(&*db)
+        utils::upsert_song(&*db, &s)
             .await
             .map_err(|e| format!("Failed to upsert song: {e}"))?;
-
         db_events::emit_event("songs", "upsert", serde_json::json!(song_id));
     }
 
@@ -577,6 +545,415 @@ pub async fn clear_playlist_cover(
         .update(&*db)
         .await
         .map_err(|e| format!("Failed to clear playlist cover: {e}"))?;
+
+    Ok(())
+}
+
+// ============ Scan Folder Commands ============
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScanFolderResult {
+    pub playlist_id: i32,
+    pub total_scanned: u32,
+    pub imported: u32,
+    pub failed: u32,
+    pub failed_paths: Vec<String>,
+}
+
+#[tauri::command]
+pub async fn scan_and_create_playlist(
+    db: State<'_, DbConnection>,
+    app: tauri::AppHandle,
+    folder_path: String,
+    playlist_name: Option<String>,
+) -> Result<ScanFolderResult, String> {
+    use std::sync::{Arc, atomic::AtomicBool};
+
+    let folder = std::path::PathBuf::from(&folder_path);
+    if !folder.is_dir() {
+        return Err(format!("The path is not a valid folder: {folder_path}"));
+    }
+
+    let name = playlist_name
+        .filter(|n| !n.trim().is_empty())
+        .unwrap_or_else(|| {
+            folder
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "unknown playlist".to_string())
+        });
+
+    let cancel_token = Arc::new(AtomicBool::new(false));
+    let scan_folder = folder.clone();
+    let app_handle = app.clone();
+    let scan_results = tokio::task::spawn_blocking(move || {
+        super::scanner::scan_folder(&scan_folder, &cancel_token, &move |count| {
+            let _ = app_handle.emit("scan-folder-progress", count);
+        })
+    })
+    .await
+    .map_err(|e| format!("Scan task failed: {e}"))?;
+
+    let total_scanned = scan_results.len() as u32;
+
+    let now = chrono::Utc::now().timestamp_millis();
+    let playlist_model = playlist::ActiveModel {
+        name: Set(name),
+        create_time: Set(now),
+        update_time: Set(now),
+        play_time: Set(0),
+        ..Default::default()
+    };
+    let playlist_result = playlist_model
+        .insert(&*db)
+        .await
+        .map_err(|e| format!("Failed to crate playlist: {e}"))?;
+    let playlist_id = playlist_result.id;
+
+    let folder_model = super::entity::playlist_folder::ActiveModel {
+        playlist_id: Set(playlist_id),
+        folder_path: Set(folder_path.clone()),
+        ..Default::default()
+    };
+    folder_model
+        .insert(&*db)
+        .await
+        .map_err(|e| format!("Failed to record playlist folder: {e}"))?;
+
+    let covers_dir = utils::get_covers_dir(&app)?;
+    let _ = std::fs::create_dir_all(&covers_dir);
+
+    let mut imported = 0u32;
+    let mut failed = 0u32;
+    let mut failed_paths = Vec::new();
+    let mut playlist_song_entries = Vec::new();
+
+    for result in scan_results {
+        let scanned = match result {
+            Ok(s) => s,
+            Err(path_err) => {
+                failed += 1;
+                failed_paths.push(path_err);
+                continue;
+            }
+        };
+
+        let song_id = scanned.model.id.clone();
+        let mut model = scanned.model;
+        model.cover_path = utils::save_cover(&covers_dir, &song_id, scanned.cover_bytes.as_deref());
+
+        match utils::upsert_song(&*db, &model).await {
+            Ok(()) => {
+                imported += 1;
+                playlist_song_entries.push(song_id);
+            }
+            Err(e) => {
+                failed += 1;
+                failed_paths.push(format!("Database write failed: {e}"));
+            }
+        }
+    }
+
+    utils::link_songs_to_playlist(&*db, playlist_id, &playlist_song_entries).await?;
+    if !playlist_song_entries.is_empty() {
+        db_events::emit_event(
+            "playlist_songs",
+            "insert",
+            serde_json::json!({ "playlistId": playlist_id }),
+        );
+    }
+
+    Ok(ScanFolderResult {
+        playlist_id,
+        total_scanned,
+        imported,
+        failed,
+        failed_paths,
+    })
+}
+
+// ============ Playlist Folders ============
+
+#[tauri::command]
+pub async fn get_playlist_folders(
+    db: State<'_, DbConnection>,
+    playlist_id: i32,
+) -> Result<Vec<String>, String> {
+    let folders = playlist_folder::Entity::find()
+        .filter(playlist_folder::Column::PlaylistId.eq(playlist_id))
+        .all(&*db)
+        .await
+        .map_err(|e| format!("Failed to get playlist folders: {e}"))?
+        .into_iter()
+        .map(|f| f.folder_path)
+        .collect();
+    Ok(folders)
+}
+
+#[tauri::command]
+pub async fn link_playlist_folder(
+    db: State<'_, DbConnection>,
+    app: tauri::AppHandle,
+    playlist_id: i32,
+    folder_path: String,
+) -> Result<ScanFolderResult, String> {
+    use std::sync::{Arc, atomic::AtomicBool};
+
+    let folder = std::path::PathBuf::from(&folder_path);
+    if !folder.is_dir() {
+        return Err(format!("The path is not a valid folder: {folder_path}"));
+    }
+
+    let existing = playlist_folder::Entity::find()
+        .filter(playlist_folder::Column::PlaylistId.eq(playlist_id))
+        .filter(playlist_folder::Column::FolderPath.eq(&folder_path))
+        .one(&*db)
+        .await
+        .map_err(|e| format!("Failed to check existing folder: {e}"))?;
+
+    if existing.is_some() {
+        return Err("This folder is already linked to the playlist".to_string());
+    }
+
+    let cancel_token = Arc::new(AtomicBool::new(false));
+    let scan_folder = folder.clone();
+    let app_handle = app.clone();
+    let scan_results = tokio::task::spawn_blocking(move || {
+        super::scanner::scan_folder(&scan_folder, &cancel_token, &move |count| {
+            let _ = app_handle.emit("scan-folder-progress", count);
+        })
+    })
+    .await
+    .map_err(|e| format!("Scan task failed: {e}"))?;
+
+    let total_scanned = scan_results.len() as u32;
+    let covers_dir = utils::get_covers_dir(&app)?;
+    let _ = std::fs::create_dir_all(&covers_dir);
+
+    let mut imported = 0u32;
+    let mut failed = 0u32;
+    let mut failed_paths = Vec::new();
+
+    let mut prepared_songs: Vec<(String, song::Model)> = Vec::new();
+    for result in scan_results {
+        let scanned = match result {
+            Ok(s) => s,
+            Err(path_err) => {
+                failed += 1;
+                failed_paths.push(path_err);
+                continue;
+            }
+        };
+
+        let song_id = scanned.model.id.clone();
+        let mut model = scanned.model;
+        model.cover_path = utils::save_cover(&covers_dir, &song_id, scanned.cover_bytes.as_deref());
+        imported += 1;
+        prepared_songs.push((song_id, model));
+    }
+
+    let result = db
+        .transaction::<_, _, String>(|txn| {
+            let prepared_songs = prepared_songs.clone();
+            let folder_path = folder_path.clone();
+            Box::pin(async move {
+                let folder_model = playlist_folder::ActiveModel {
+                    playlist_id: Set(playlist_id),
+                    folder_path: Set(folder_path),
+                    ..Default::default()
+                };
+                let folder_result = folder_model
+                    .insert(txn)
+                    .await
+                    .map_err(|e| format!("Failed to record playlist folder: {e}"))?;
+                let folder_id = folder_result.id;
+
+                let existing_song_ids: HashSet<String> = playlist_songs::Entity::find()
+                    .filter(playlist_songs::Column::PlaylistId.eq(playlist_id))
+                    .all(txn)
+                    .await
+                    .map_err(|e| format!("Failed to query existing songs: {e}"))?
+                    .into_iter()
+                    .map(|ps| ps.song_id)
+                    .collect();
+
+                let mut new_song_ids = Vec::new();
+                let mut all_scanned_ids = Vec::new();
+                let mut txn_failures = Vec::new();
+
+                for (song_id, model) in &prepared_songs {
+                    match utils::upsert_song(txn, model).await {
+                        Ok(()) => {
+                            all_scanned_ids.push(song_id.clone());
+                            if !existing_song_ids.contains(song_id) {
+                                new_song_ids.push(song_id.clone());
+                            }
+                        }
+                        Err(e) => {
+                            txn_failures.push(format!("Database write failed: {e}"));
+                        }
+                    }
+                }
+
+                if !new_song_ids.is_empty() {
+                    utils::link_songs_to_playlist(txn, playlist_id, &new_song_ids).await?;
+                }
+
+                utils::link_song_sources(
+                    txn,
+                    playlist_id,
+                    &all_scanned_ids,
+                    "folder",
+                    Some(folder_id),
+                )
+                .await?;
+
+                utils::touch_playlist(txn, playlist_id).await?;
+
+                Ok((new_song_ids, txn_failures))
+            })
+        })
+        .await
+        .map_err(|e| match e {
+            sea_orm::TransactionError::Connection(e) => {
+                format!("Transaction connection error: {e}")
+            }
+            sea_orm::TransactionError::Transaction(e) => e,
+        })?;
+
+    let (new_song_ids, txn_failures) = result;
+    failed += txn_failures.len() as u32;
+    failed_paths.extend(txn_failures);
+
+    if !new_song_ids.is_empty() {
+        db_events::emit_event(
+            "playlist_songs",
+            "insert",
+            serde_json::json!({ "playlistId": playlist_id }),
+        );
+    }
+
+    Ok(ScanFolderResult {
+        playlist_id,
+        total_scanned,
+        imported,
+        failed,
+        failed_paths,
+    })
+}
+
+#[tauri::command]
+pub async fn unlink_playlist_folder(
+    db: State<'_, DbConnection>,
+    playlist_id: i32,
+    folder_path: String,
+) -> Result<(), String> {
+    let affected_song_ids = db
+        .transaction::<_, _, String>(|txn| {
+            Box::pin(async move {
+                let folder_record = playlist_folder::Entity::find()
+                    .filter(playlist_folder::Column::PlaylistId.eq(playlist_id))
+                    .filter(playlist_folder::Column::FolderPath.eq(&folder_path))
+                    .one(txn)
+                    .await
+                    .map_err(|e| format!("Failed to find folder: {e}"))?
+                    .ok_or_else(|| "Folder not found in this playlist".to_string())?;
+
+                let folder_id = folder_record.id;
+
+                let sources_to_remove: Vec<playlist_song_sources::Model> =
+                    playlist_song_sources::Entity::find()
+                        .filter(playlist_song_sources::Column::PlaylistId.eq(playlist_id))
+                        .filter(playlist_song_sources::Column::SourceType.eq("folder"))
+                        .filter(playlist_song_sources::Column::SourceId.eq(folder_id))
+                        .all(txn)
+                        .await
+                        .map_err(|e| format!("Failed to query sources: {e}"))?;
+
+                let affected_song_ids: Vec<String> = sources_to_remove
+                    .iter()
+                    .map(|s| s.song_id.clone())
+                    .collect();
+
+                playlist_song_sources::Entity::delete_many()
+                    .filter(playlist_song_sources::Column::PlaylistId.eq(playlist_id))
+                    .filter(playlist_song_sources::Column::SourceType.eq("folder"))
+                    .filter(playlist_song_sources::Column::SourceId.eq(folder_id))
+                    .exec(txn)
+                    .await
+                    .map_err(|e| format!("Failed to delete folder sources: {e}"))?;
+
+                if !affected_song_ids.is_empty() {
+                    let still_has_source: HashSet<String> = playlist_song_sources::Entity::find()
+                        .filter(playlist_song_sources::Column::PlaylistId.eq(playlist_id))
+                        .filter(playlist_song_sources::Column::SongId.is_in(&affected_song_ids))
+                        .all(txn)
+                        .await
+                        .map_err(|e| format!("Failed to check remaining sources: {e}"))?
+                        .into_iter()
+                        .map(|s| s.song_id)
+                        .collect();
+
+                    for song_id in &affected_song_ids {
+                        if still_has_source.contains(song_id) {
+                            continue;
+                        }
+
+                        playlist_songs::Entity::delete_many()
+                            .filter(playlist_songs::Column::PlaylistId.eq(playlist_id))
+                            .filter(playlist_songs::Column::SongId.eq(song_id))
+                            .exec(txn)
+                            .await
+                            .map_err(|e| format!("Failed to remove song from playlist: {e}"))?;
+
+                        match utils::cleanup_orphaned_songs(txn, std::slice::from_ref(song_id))
+                            .await
+                        {
+                            Ok(deleted) if !deleted.is_empty() => {
+                                tracing::info!(
+                                    "[unlink_folder] Cleaned up orphaned song: {deleted:?}"
+                                );
+                            }
+                            Err(e) => {
+                                warn!("[unlink_folder] Failed to cleanup orphaned song: {e}")
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
+                let active: playlist_folder::ActiveModel = folder_record.into();
+                active
+                    .delete(txn)
+                    .await
+                    .map_err(|e| format!("Failed to delete folder: {e}"))?;
+
+                utils::touch_playlist(txn, playlist_id).await?;
+
+                Ok(affected_song_ids)
+            })
+        })
+        .await
+        .map_err(|e| match e {
+            sea_orm::TransactionError::Connection(e) => {
+                format!("Transaction connection error: {e}")
+            }
+            sea_orm::TransactionError::Transaction(e) => e,
+        })?;
+
+    db_events::emit_event(
+        "playlist_folders",
+        "delete",
+        serde_json::json!({ "playlistId": playlist_id }),
+    );
+    if !affected_song_ids.is_empty() {
+        db_events::emit_event(
+            "playlist_songs",
+            "delete",
+            serde_json::json!({ "playlistId": playlist_id }),
+        );
+    }
 
     Ok(())
 }

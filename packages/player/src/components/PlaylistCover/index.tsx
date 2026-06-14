@@ -16,7 +16,7 @@ export const PlaylistCover: FC<
 		() => db.playlists.get(playlistId),
 		[playlistId],
 		undefined,
-		["playlists"],
+		["playlists", "playlist_songs"],
 	);
 
 	const { data: songs } = useDbQuery(

@@ -6,8 +6,8 @@ use serde::Serialize;
 use tauri::{AppHandle, State};
 use tracing::{info, warn};
 
-use crate::db::DbConnection;
 use crate::db::entity::{playlist, song};
+use crate::db::{DbConnection, utils};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -53,7 +53,7 @@ pub async fn run_cover_gc(
     db: &sea_orm::DatabaseConnection,
     app: &AppHandle,
 ) -> Result<CoverGcResult, String> {
-    let covers_dir = crate::get_covers_dir(app)?;
+    let covers_dir = utils::get_covers_dir(app)?;
 
     if !covers_dir.exists() {
         return Ok(CoverGcResult {
