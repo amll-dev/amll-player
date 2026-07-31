@@ -103,6 +103,8 @@
 
 			#system-titlebar-buttons {
 				display: flex;
+				position: relative;
+				z-index: 10002;
 				gap: 2px;
 				transition:
 					opacity 0.3s ease-in-out,
@@ -192,6 +194,106 @@
 				display: none;
 			}
 
+			#openbox-resize-handles {
+				display: none;
+			}
+
+			html[data-amll-openbox-wrapper="true"][data-amll-openbox-maximized="false"]
+				#openbox-resize-handles {
+				display: block;
+			}
+
+			html[data-amll-openbox-wrapper="true"][data-amll-openbox-maximized="true"]
+				#openbox-resize-handles {
+				display: none;
+			}
+
+			.openbox-resize-handle {
+				position: fixed;
+				z-index: 10001;
+			}
+
+			.openbox-resize-handle[data-direction="top"],
+			.openbox-resize-handle[data-direction="bottom"] {
+				left: 6px;
+				width: calc(100% - 12px);
+				height: 5px;
+			}
+
+			.openbox-resize-handle[data-direction="top"] {
+				right: 148px;
+				width: auto;
+			}
+
+			.openbox-resize-handle[data-direction="left"],
+			.openbox-resize-handle[data-direction="right"] {
+				top: 6px;
+				width: 5px;
+				height: calc(100% - 12px);
+			}
+
+			.openbox-resize-handle[data-direction="top"] {
+				top: 0;
+				cursor: ns-resize;
+			}
+
+			.openbox-resize-handle[data-direction="right"] {
+				top: 32px;
+				right: 0;
+				height: calc(100% - 38px);
+				cursor: ew-resize;
+			}
+
+			.openbox-resize-handle[data-direction="bottom"] {
+				bottom: 0;
+				cursor: ns-resize;
+			}
+
+			.openbox-resize-handle[data-direction="left"] {
+				left: 0;
+				cursor: ew-resize;
+			}
+
+			.openbox-resize-handle[data-direction="top-left"],
+			.openbox-resize-handle[data-direction="top-right"],
+			.openbox-resize-handle[data-direction="bottom-left"],
+			.openbox-resize-handle[data-direction="bottom-right"] {
+				width: 8px;
+				height: 8px;
+			}
+
+			.openbox-resize-handle[data-direction^="top"] {
+				top: 0;
+			}
+
+			.openbox-resize-handle[data-direction="top-right"] {
+				right: 140px;
+			}
+
+			.openbox-resize-handle[data-direction^="bottom"] {
+				bottom: 0;
+			}
+
+			.openbox-resize-handle[data-direction$="left"] {
+				left: 0;
+			}
+
+			.openbox-resize-handle[data-direction$="right"]:not(
+				[data-direction="top-right"]
+			) {
+				right: 0;
+			}
+
+			.openbox-resize-handle[data-direction="top-left"],
+			.openbox-resize-handle[data-direction="bottom-right"] {
+				cursor: nwse-resize;
+			}
+
+			.openbox-resize-handle[data-direction="top-right"],
+			.openbox-resize-handle[data-direction="bottom-left"] {
+				cursor: nesw-resize;
+			}
+
 			@media (prefers-color-scheme: dark) {
 				#system-titlebar.windows
 					.system-button:not(#system-titlebar-close):hover {
@@ -237,6 +339,26 @@
 				resizeBtn.addEventListener("click", () => {
 					window.dispatchEvent(new Event("on-system-titlebar-click-resize"));
 				});
+				if (document.documentElement.dataset.amllOpenboxWrapper === "true") {
+					titlebar.removeAttribute("data-tauri-drag-region");
+					titlebar.addEventListener("mousedown", (event) => {
+						if (event.button === 0 && !event.target.closest(".system-button")) {
+							event.preventDefault();
+							window.__TAURI__.core.invoke("start_openbox_drag");
+						}
+					});
+					document
+						.querySelectorAll(".openbox-resize-handle")
+						.forEach((handle) => {
+							handle.addEventListener("mousedown", (event) => {
+								if (event.button !== 0) return;
+								event.preventDefault();
+								window.__TAURI__.core.invoke("start_openbox_resize", {
+									direction: handle.dataset.direction,
+								});
+							});
+						});
+				}
 				window.SystemTitlebarAppearance = {
 					Windows: "windows",
 					MacOS: "macos",
@@ -349,6 +471,16 @@
 				);
 			}
 			</script>
+		</div>
+		<div id="openbox-resize-handles" aria-hidden="true">
+			<div class="openbox-resize-handle" data-direction="top-left"></div>
+			<div class="openbox-resize-handle" data-direction="top"></div>
+			<div class="openbox-resize-handle" data-direction="top-right"></div>
+			<div class="openbox-resize-handle" data-direction="right"></div>
+			<div class="openbox-resize-handle" data-direction="bottom-right"></div>
+			<div class="openbox-resize-handle" data-direction="bottom"></div>
+			<div class="openbox-resize-handle" data-direction="bottom-left"></div>
+			<div class="openbox-resize-handle" data-direction="left"></div>
 		</div>
 		<div id="root"></div>
 		<script type="module" defer src="/src/main.tsx"></script>

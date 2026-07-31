@@ -42,6 +42,13 @@ export const AMLLContextMenuContent: FC = () => {
 			<ContextMenu.Separator />
 			<ContextMenu.Item
 				onClick={async () => {
+					const wrapperFullscreen = await invoke<boolean | null>(
+						"toggle_openbox_fullscreen",
+					);
+					if (wrapperFullscreen !== null) {
+						setSystemTitlebarFullscreen(wrapperFullscreen);
+						return;
+					}
 					const win = getCurrentWindow();
 					const isFullscreen = await win.isFullscreen();
 					setSystemTitlebarFullscreen(!isFullscreen);

@@ -9,6 +9,12 @@ pub async fn create_common_win<'a>(
     label: &str,
 ) -> WebviewWindowBuilder<'a, tauri::Wry, AppHandle> {
     let win = WebviewWindowBuilder::new(app, label, url);
+    #[cfg(target_os = "linux")]
+    let win = if label == "main" && crate::linux_webview::is_openbox_wrapper() {
+        win.initialization_script("document.documentElement.dataset.amllOpenboxWrapper = 'true';")
+    } else {
+        win
+    };
     #[cfg(target_os = "windows")]
     let win = win.transparent(true);
     #[cfg(not(desktop))]
@@ -93,7 +99,11 @@ pub async fn recreate_window(app: &AppHandle, label: &str, path: Option<&str>) {
     #[cfg(desktop)]
     {
         let _ = win.set_focus();
-        if let Ok(orig_size) = win.inner_size() {
+        #[cfg(target_os = "linux")]
+        let apply_redraw_workaround = !crate::linux_webview::is_openbox_wrapper();
+        #[cfg(not(target_os = "linux"))]
+        let apply_redraw_workaround = true;
+        if apply_redraw_workaround && let Ok(orig_size) = win.inner_size() {
             let _ = win.set_size(Size::Physical(PhysicalSize::new(0, 0)));
             let _ = win.set_size(orig_size);
         }
@@ -107,6 +117,79 @@ pub async fn recreate_window(app: &AppHandle, label: &str, path: Option<&str>) {
 #[tauri::command]
 pub async fn open_screenshot_window(app: AppHandle) {
     recreate_window(&app, "screenshot", Some("screenshot.html")).await;
+}
+
+#[tauri::command]
+pub fn toggle_openbox_fullscreen() -> Result<Option<bool>, String> {
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux_webview::toggle_openbox_fullscreen()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+pub fn is_openbox_maximized() -> Result<Option<bool>, String> {
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux_webview::is_openbox_maximized()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+pub fn toggle_openbox_maximize() -> Result<Option<bool>, String> {
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux_webview::toggle_openbox_maximize()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+pub fn minimize_openbox_wrapper() -> Result<bool, String> {
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux_webview::minimize_openbox_wrapper()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+pub fn start_openbox_drag() -> Result<bool, String> {
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux_webview::start_openbox_drag()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+pub fn start_openbox_resize(direction: String) -> Result<bool, String> {
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux_webview::start_openbox_resize(&direction)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = direction;
+        Ok(false)
+    }
 }
 
 #[cfg(target_os = "windows")]

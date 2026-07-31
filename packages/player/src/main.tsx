@@ -1,5 +1,6 @@
 import "./styles.css";
 import "react-toastify/dist/ReactToastify.css";
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Provider } from "jotai";
 import { createRoot } from "react-dom/client";
@@ -33,6 +34,20 @@ addEventListener("on-system-titlebar-click-close", async () => {
 });
 
 addEventListener("on-system-titlebar-click-resize", async () => {
+	const wrapperMaximized = await invoke<boolean | null>(
+		"toggle_openbox_maximize",
+	);
+	if (wrapperMaximized !== null) {
+		document.documentElement.dataset.amllOpenboxMaximized =
+			wrapperMaximized.toString();
+		setSystemTitlebarResizeAppearance(
+			wrapperMaximized
+				? SystemTitlebarResizeAppearance.Restore
+				: SystemTitlebarResizeAppearance.Maximize,
+		);
+		return;
+	}
+
 	const win = getCurrentWindow();
 	if (await win.isMaximizable()) {
 		if (await win.isMaximized()) {
@@ -49,7 +64,13 @@ addEventListener("on-system-titlebar-click-resize", async () => {
 
 const win = getCurrentWindow();
 async function checkWindow() {
-	if (await win.isMaximized()) {
+	const wrapperMaximized = await invoke<boolean | null>("is_openbox_maximized");
+	if (wrapperMaximized !== null) {
+		document.documentElement.dataset.amllOpenboxMaximized =
+			wrapperMaximized.toString();
+	}
+	const maximized = wrapperMaximized ?? (await win.isMaximized());
+	if (maximized) {
 		setSystemTitlebarResizeAppearance(SystemTitlebarResizeAppearance.Restore);
 	} else {
 		setSystemTitlebarResizeAppearance(SystemTitlebarResizeAppearance.Maximize);
@@ -59,6 +80,7 @@ checkWindow();
 win.onResized(checkWindow);
 
 addEventListener("on-system-titlebar-click-minimize", async () => {
+	if (await invoke<boolean>("minimize_openbox_wrapper")) return;
 	const win = getCurrentWindow();
 	await win.minimize();
 });

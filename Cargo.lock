@@ -103,6 +103,7 @@ dependencies = [
  "infer",
  "jni 0.21.1",
  "jwalk",
+ "libc",
  "md5",
  "memmap2",
  "mimalloc",
@@ -143,6 +144,7 @@ dependencies = [
  "webview2-com",
  "windows 0.62.2",
  "ws-protocol",
+ "x11rb",
  "zip 8.6.0",
 ]
 

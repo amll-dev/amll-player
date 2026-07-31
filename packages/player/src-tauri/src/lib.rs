@@ -17,6 +17,8 @@ use crate::server::AMLLWebSocketServerWrapper;
 
 mod db;
 mod db_events;
+#[cfg(target_os = "linux")]
+mod linux_webview;
 mod logging;
 mod music_info;
 mod player;
@@ -48,7 +50,11 @@ fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let log_guard = logging::init_logging(&log_dir);
     app.manage(log_guard);
     info!("AMLL Player is starting!");
-
+    #[cfg(target_os = "linux")]
+    info!(
+        "Configured Linux webview backend: {}",
+        linux_webview::selected_backend().as_str()
+    );
     #[cfg(target_os = "ios")]
     {
         use objc2::msg_send;
@@ -189,6 +195,11 @@ fn handle_window_event(_window: &tauri::Window, _event: &tauri::WindowEvent) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    if let Some(exit_code) = linux_webview::prepare() {
+        std::process::exit(exit_code);
+    }
+
     // Install ring as the default crypto provider for rustls, because multiple providers
     // (aws-lc-rs and ring) might be enabled in our dependency tree and rustls demands one to be explicitly chosen.
     #[cfg(target_os = "android")]
@@ -245,6 +256,12 @@ pub fn run() {
             server::ws_broadcast_payload,
             server::ws_close_connection,
             window::open_screenshot_window,
+            window::toggle_openbox_fullscreen,
+            window::is_openbox_maximized,
+            window::toggle_openbox_maximize,
+            window::minimize_openbox_wrapper,
+            window::start_openbox_drag,
+            window::start_openbox_resize,
             screen_capture::take_screenshot,
             player::local_player_send_msg,
             player::set_media_controls_enabled,

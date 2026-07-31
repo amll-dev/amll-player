@@ -39,6 +39,31 @@ pnpm tauri build          # Production build
 pnpm tauri dev            # Development mode
 ```
 
+### Linux display backend
+
+On NVIDIA Wayland sessions, AMLL Player automatically starts its webview in a nested `Xephyr + Openbox` session. Xephyr is exposed to the desktop as a normal application window while Openbox manages the inner X11 webview. This avoids the WebKitGTK explicit-sync crash and restores host-side resize, maximize, fullscreen, focus, and close behavior.
+
+Install the wrapper dependencies on Arch Linux with:
+
+```bash
+sudo pacman -S openbox xorg-server-xephyr
+```
+
+If either dependency cannot be found or the wrapper fails during startup, AMLL Player automatically falls back to the existing XWayland display. The wrapper uses stable software rendering inside Xephyr; the direct `x11` fallback retains GPU acceleration.
+
+The wrapper matches Xephyr's display mode to the host refresh rate, but WebKitGTK may still limit animation to about 60 FPS in a nested X11 session; this does not guarantee application rendering-rate passthrough.
+
+Set `AMLL_LINUX_WEBVIEW_BACKEND` to override the automatic selection:
+
+- `auto` (default): Openbox wrapper on NVIDIA Wayland, then direct XWayland, then software Wayland
+- `system`: keep the backend selected by the desktop environment and `GDK_BACKEND`
+- `openbox`: request the Xephyr + Openbox wrapper with the same automatic fallbacks
+- `x11`: prefer X11, with a software Wayland fallback when no X display is available
+- `wayland`: force native Wayland rendering
+- `wayland-software`: force Wayland and disable the WebKitGTK DMA-BUF renderer
+
+Set `AMLL_LINUX_WEBVIEW_BACKEND=x11` to immediately bypass the wrapper, or use `system` to restore the original desktop-selected behavior. In `auto` mode, an NVIDIA Wayland session may override `GDK_BACKEND=wayland` to avoid the known crash; other explicitly configured GDK backends are preserved.
+
 ### Acknowledgements
 
 -   [woshizja/sound-processor](https://github.com/woshizja/sound-processor)

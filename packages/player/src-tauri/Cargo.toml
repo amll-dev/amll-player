@@ -111,6 +111,10 @@ windows = { version = "0.62", features = [
 	"Win32_System_Threading",
 ] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+x11rb = { version = "0.13", features = ["randr"] }
+
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = { version = "2" }
 tauri-plugin-updater = { version = "2" }

@@ -39,6 +39,31 @@ pnpm tauri build   # 发行构建
 pnpm tauri dev     # 开发模式
 ```
 
+### Linux 显示后端
+
+在 NVIDIA Wayland 会话中，AMLL Player 会自动在嵌套的 `Xephyr + Openbox` 会话中启动 WebView。Xephyr 会作为普通应用窗口交给桌面环境管理，Openbox 则负责内层 X11 WebView，从而绕过 WebKitGTK 显式同步崩溃，并恢复宿主侧的缩放、最大化、全屏、聚焦和关闭行为。
+
+在 Arch Linux 上安装包装层依赖：
+
+```bash
+sudo pacman -S openbox xorg-server-xephyr
+```
+
+如果缺少任一依赖或包装层启动失败，AMLL Player 会自动回退到现有的 XWayland 显示。包装层在 Xephyr 内使用稳定的软件渲染；直接 `x11` 回退仍保留 GPU 加速。
+
+包装层会让 Xephyr 的显示模式跟随宿主刷新率，但 WebKitGTK 在嵌套 X11 会话中仍可能把动画限制在约 60 FPS；这不是应用渲染帧率穿透保证。
+
+可以通过 `AMLL_LINUX_WEBVIEW_BACKEND` 覆盖自动选择：
+
+- `auto`（默认）：NVIDIA Wayland 环境依次尝试 Openbox 包装、直接 XWayland 和软件 Wayland
+- `system`：保留桌面环境和 `GDK_BACKEND` 选择的后端
+- `openbox`：请求 Xephyr + Openbox 包装，并保留相同的自动回退
+- `x11`：优先使用 X11；没有可用 X 显示时回退到软件 Wayland
+- `wayland`：强制使用原生 Wayland 渲染
+- `wayland-software`：强制使用 Wayland，并禁用 WebKitGTK DMA-BUF 渲染器
+
+设置 `AMLL_LINUX_WEBVIEW_BACKEND=x11` 可立即绕过包装层；设置为 `system` 可恢复桌面环境原本选择的后端。在 `auto` 模式下，NVIDIA Wayland 会话可能覆盖 `GDK_BACKEND=wayland` 以绕过已知崩溃，其他显式配置的 GDK 后端仍会保留。
+
 ### 鸣谢
 
 -   [woshizja/sound-processor](https://github.com/woshizja/sound-processor)
