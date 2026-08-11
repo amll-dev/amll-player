@@ -6,10 +6,7 @@ use std::{
     os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::{
-        OnceLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::OnceLock,
     thread,
     time::{Duration, Instant},
 };
@@ -21,7 +18,7 @@ use x11rb::{
         randr::{ConnectionExt as _, Mode, ModeFlag, ModeInfo, Output, Rotation, SetConfig},
         xproto::{
             Atom, AtomEnum, ClientMessageEvent, ConfigureWindowAux, ConnectionExt as _, EventMask,
-            KeyButMask, PropMode, Window,
+            PropMode, Window,
         },
     },
     rust_connection::RustConnection,
@@ -47,14 +44,6 @@ struct HostDisplayMode {
     width: u16,
     height: u16,
     frame_rate: u16,
-}
-
-#[derive(Clone, Copy, Debug)]
-struct HostWindowGeometry {
-    x: i16,
-    y: i16,
-    width: u16,
-    height: u16,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -104,7 +93,6 @@ enum ConfiguredGdkBackend {
 }
 
 static SELECTED_BACKEND: OnceLock<LinuxWebviewBackend> = OnceLock::new();
-static HOST_RESIZE_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 /// Configures the current process, or supervises a nested Openbox child and returns its exit code.
 pub(crate) fn prepare() -> Option<i32> {
@@ -1002,88 +990,10 @@ fn start_host_drag() -> Result<()> {
 }
 
 fn start_host_manual_resize(direction: u32) -> Result<()> {
-    const MIN_WIDTH: i32 = 400;
-    const MIN_HEIGHT: i32 = 300;
-
-    if HOST_RESIZE_ACTIVE.swap(true, Ordering::AcqRel) {
-        return Ok(());
-    }
-
-    let result = (|| -> Result<()> {
-        let display = env::var(HOST_DISPLAY_ENV).context("missing Openbox host display")?;
-        let window = env::var(HOST_WINDOW_ENV)
-            .context("missing Openbox host window")?
-            .parse::<Window>()
-            .context("invalid Openbox host window")?;
-        let (conn, screen_num) = x11rb::connect(Some(&display))?;
-        let root = conn.setup().roots[screen_num].root;
-        let geometry = conn.get_geometry(window)?.reply()?;
-        let coordinates = conn.translate_coordinates(window, root, 0, 0)?.reply()?;
-        let pointer = conn.query_pointer(root)?.reply()?;
-        let start_pointer = (i32::from(pointer.root_x), i32::from(pointer.root_y));
-        let initial = HostWindowGeometry {
-            x: coordinates.dst_x,
-            y: coordinates.dst_y,
-            width: geometry.width,
-            height: geometry.height,
-        };
-
-        thread::spawn(move || {
-            let result = (|| -> Result<()> {
-                let (conn, screen_num) = x11rb::connect(Some(&display))?;
-                let root = conn.setup().roots[screen_num].root;
-                loop {
-                    let pointer = conn.query_pointer(root)?.reply()?;
-                    if u16::from(pointer.mask) & u16::from(KeyButMask::BUTTON1) == 0 {
-                        break;
-                    }
-
-                    let dx = i32::from(pointer.root_x) - start_pointer.0;
-                    let dy = i32::from(pointer.root_y) - start_pointer.1;
-                    let initial_width = i32::from(initial.width);
-                    let initial_height = i32::from(initial.height);
-                    let mut x = i32::from(initial.x);
-                    let mut y = i32::from(initial.y);
-                    let mut width = initial_width;
-                    let mut height = initial_height;
-
-                    if matches!(direction, 0 | 6 | 7) {
-                        width = (initial_width - dx).max(MIN_WIDTH);
-                        x += initial_width - width;
-                    } else if matches!(direction, 2 | 3 | 4) {
-                        width = (initial_width + dx).max(MIN_WIDTH);
-                    }
-                    if matches!(direction, 0..=2) {
-                        height = (initial_height - dy).max(MIN_HEIGHT);
-                        y += initial_height - height;
-                    } else if matches!(direction, 4..=6) {
-                        height = (initial_height + dy).max(MIN_HEIGHT);
-                    }
-
-                    conn.configure_window(
-                        window,
-                        &ConfigureWindowAux::new()
-                            .x(x)
-                            .y(y)
-                            .width(width as u32)
-                            .height(height as u32),
-                    )?;
-                    conn.flush()?;
-                    thread::sleep(Duration::from_millis(16));
-                }
-                Ok(())
-            })();
-            HOST_RESIZE_ACTIVE.store(false, Ordering::Release);
-            if let Err(error) = result {
-                eprintln!("Openbox host resize failed: {error:#}");
-            }
-        });
-        Ok(())
-    })();
-    if result.is_err() {
-        HOST_RESIZE_ACTIVE.store(false, Ordering::Release);
-    }
-    result
+    // The outer Xephyr window is managed by KWin. Let the window manager own
+    // the interactive resize instead of sending client-side ConfigureWindow
+    // requests that KWin may ignore or constrain.
+    start_host_move_resize(direction)
 }
 
 fn start_host_move_resize(direction: u32) -> Result<()> {
