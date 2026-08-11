@@ -6,12 +6,16 @@ use std::{
     os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::OnceLock,
+    sync::{
+        OnceLock,
+        atomic::{AtomicBool, Ordering},
+    },
     thread,
     time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result, anyhow, bail};
+use serde::{Deserialize, Serialize};
 use x11rb::{
     connection::Connection,
     protocol::{
@@ -27,6 +31,9 @@ use x11rb::{
 
 const BACKEND_ENV: &str = "AMLL_LINUX_WEBVIEW_BACKEND";
 const XEPHYR_FRAME_RATE_ENV: &str = "AMLL_XEPHYR_FPS";
+const CONFIG_DIRECTORY: &str = "net.stevexmh.amllplayer";
+const CONFIG_FILE: &str = "linux-webview.json";
+const FIRST_RUN_PROMPT_ENV: &str = "AMLL_OPENBOX_FIRST_RUN_PROMPT";
 const DMABUF_ENV: &str = "WEBKIT_DISABLE_DMABUF_RENDERER";
 const WRAPPER_CHILD_ENV: &str = "AMLL_OPENBOX_WRAPPER_CHILD";
 const HOST_DISPLAY_ENV: &str = "AMLL_OPENBOX_HOST_DISPLAY";
@@ -38,6 +45,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(50);
 const FALLBACK_FRAME_RATE: u16 = 60;
 const INITIAL_WIDTH: u16 = 1280;
 const INITIAL_HEIGHT: u16 = 800;
+const RESTART_SYSTEM_EXIT_CODE: i32 = 64;
 
 #[derive(Clone, Copy, Debug)]
 struct HostDisplayMode {
@@ -77,6 +85,11 @@ enum BackendPreference {
     WaylandSoftware,
 }
 
+#[derive(Deserialize, Serialize)]
+struct LinuxWebviewConfig {
+    backend: String,
+}
+
 #[derive(Clone, Copy, Debug)]
 struct LinuxDisplayContext {
     wayland_session: bool,
@@ -93,26 +106,21 @@ enum ConfiguredGdkBackend {
 }
 
 static SELECTED_BACKEND: OnceLock<LinuxWebviewBackend> = OnceLock::new();
+static SHOW_FIRST_RUN_PROMPT: AtomicBool = AtomicBool::new(false);
 
 /// Configures the current process, or supervises a nested Openbox child and returns its exit code.
 pub(crate) fn prepare() -> Option<i32> {
     if env::var_os(WRAPPER_CHILD_ENV).is_some() {
+        SHOW_FIRST_RUN_PROMPT.store(
+            env::var_os(FIRST_RUN_PROMPT_ENV).is_some()
+                && load_saved_preference()
+                    .map(|preference| preference.is_none())
+                    .unwrap_or(true),
+            Ordering::Release,
+        );
         apply_backend(LinuxWebviewBackend::Openbox);
         return None;
     }
-
-    let preference = env::var(BACKEND_ENV)
-        .ok()
-        .and_then(|value| match parse_preference(&value) {
-            Some(preference) => Some(preference),
-            None => {
-                eprintln!(
-                    "Ignoring invalid {BACKEND_ENV}={value:?}; expected auto, system, openbox, x11, wayland, or wayland-software"
-                );
-                None
-            }
-        })
-        .unwrap_or(BackendPreference::Auto);
 
     let context = LinuxDisplayContext {
         wayland_session: is_wayland_session(),
@@ -121,10 +129,44 @@ pub(crate) fn prepare() -> Option<i32> {
         openbox_available: command_available("Xephyr") && command_available("openbox"),
         configured_gdk_backend: configured_gdk_backend(),
     };
+    let environment_preference = env::var(BACKEND_ENV)
+        .ok()
+        .and_then(|value| parse_preference_or_log(BACKEND_ENV, &value));
+    let saved_preference = if environment_preference.is_none() {
+        match load_saved_preference() {
+            Ok(preference) => preference,
+            Err(error) => {
+                eprintln!("Failed to read Linux webview configuration: {error:#}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+    let first_run_prompt = environment_preference.is_none()
+        && saved_preference.is_none()
+        && context.wayland_session
+        && context.nvidia_gpu
+        && context.x11_available
+        && context.openbox_available;
+    SHOW_FIRST_RUN_PROMPT.store(first_run_prompt, Ordering::Release);
+    if first_run_prompt {
+        match supervise_openbox(true) {
+            Ok(exit_code) => return Some(exit_code),
+            Err(error) => {
+                eprintln!("Failed to start Linux webview compatibility prompt: {error:#}");
+                apply_backend(LinuxWebviewBackend::System);
+                return None;
+            }
+        }
+    }
+    let preference = environment_preference
+        .or(saved_preference)
+        .unwrap_or(BackendPreference::Auto);
     let mut backend = select_backend(preference, context);
 
     if backend == LinuxWebviewBackend::Openbox {
-        match supervise_openbox() {
+        match supervise_openbox(false) {
             Ok(exit_code) => return Some(exit_code),
             Err(error) => {
                 backend = fallback_backend(context);
@@ -149,6 +191,33 @@ pub(crate) fn selected_backend() -> LinuxWebviewBackend {
 
 pub(crate) fn is_openbox_wrapper() -> bool {
     env::var_os(WRAPPER_CHILD_ENV).is_some()
+}
+
+pub(crate) fn first_run_prompt() -> Option<PathBuf> {
+    if !SHOW_FIRST_RUN_PROMPT.load(Ordering::Acquire) {
+        return None;
+    }
+    linux_webview_config_path().ok()
+}
+
+pub(crate) fn save_preference(value: &str) -> Result<PathBuf> {
+    let preference = parse_preference(value).context("invalid Linux webview backend")?;
+    let path = linux_webview_config_path()?;
+    let parent = path
+        .parent()
+        .context("Linux webview configuration has no parent")?;
+    fs::create_dir_all(parent).context("failed to create Linux webview configuration directory")?;
+    let contents = serde_json::to_string_pretty(&LinuxWebviewConfig {
+        backend: preference.as_str().to_owned(),
+    })?;
+    fs::write(&path, format!("{contents}\n"))
+        .context("failed to save Linux webview configuration")?;
+    SHOW_FIRST_RUN_PROMPT.store(false, Ordering::Release);
+    Ok(path)
+}
+
+pub(crate) fn restart_with_system_backend() -> ! {
+    std::process::exit(RESTART_SYSTEM_EXIT_CODE);
 }
 
 pub(crate) fn toggle_openbox_fullscreen() -> Result<Option<bool>, String> {
@@ -255,6 +324,51 @@ fn parse_preference(value: &str) -> Option<BackendPreference> {
     }
 }
 
+impl BackendPreference {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::System => "system",
+            Self::Openbox => "openbox",
+            Self::X11 => "x11",
+            Self::Wayland => "wayland",
+            Self::WaylandSoftware => "wayland-software",
+        }
+    }
+}
+
+fn parse_preference_or_log(source: &str, value: &str) -> Option<BackendPreference> {
+    parse_preference(value).or_else(|| {
+        eprintln!(
+            "Ignoring invalid {source}={value:?}; expected auto, system, openbox, x11, wayland, or wayland-software"
+        );
+        None
+    })
+}
+
+fn linux_webview_config_path() -> Result<PathBuf> {
+    let config_home = env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+        .context("XDG_CONFIG_HOME and HOME are not configured")?;
+    Ok(config_home.join(CONFIG_DIRECTORY).join(CONFIG_FILE))
+}
+
+fn load_saved_preference() -> Result<Option<BackendPreference>> {
+    let path = linux_webview_config_path()?;
+    let contents = match fs::read_to_string(&path) {
+        Ok(contents) => contents,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+    let config: LinuxWebviewConfig = serde_json::from_str(&contents)
+        .with_context(|| format!("invalid JSON in {}", path.display()))?;
+    Ok(parse_preference_or_log(
+        "linux-webview.json backend",
+        &config.backend,
+    ))
+}
+
 fn select_backend(
     preference: BackendPreference,
     context: LinuxDisplayContext,
@@ -298,7 +412,7 @@ fn fallback_backend(context: LinuxDisplayContext) -> LinuxWebviewBackend {
     }
 }
 
-fn supervise_openbox() -> Result<i32> {
+fn supervise_openbox(first_run_prompt: bool) -> Result<i32> {
     let host_display = env::var("DISPLAY").context("DISPLAY is not configured")?;
     let host_windows = client_windows(&host_display).unwrap_or_default();
     let display = DisplayReservation::acquire()?;
@@ -394,6 +508,11 @@ fn supervise_openbox() -> Result<i32> {
     wait_for_window_manager(&nested_display, &mut openbox)?;
     let current_exe = env::current_exe().context("failed to locate the AMLL executable")?;
     let mut app_command = child_command(current_exe);
+    if first_run_prompt {
+        app_command.env(FIRST_RUN_PROMPT_ENV, "1");
+    } else {
+        app_command.env_remove(FIRST_RUN_PROMPT_ENV);
+    }
     let mut app = ManagedChild::new(
         app_command
             .args(env::args_os().skip(1))
@@ -418,6 +537,10 @@ fn supervise_openbox() -> Result<i32> {
         if let Some(status) = app.try_wait().context("failed to inspect AMLL process")? {
             terminate(&mut openbox);
             terminate(&mut xephyr);
+            if status.code() == Some(RESTART_SYSTEM_EXIT_CODE) {
+                restart_with_saved_system_environment()?;
+                return Ok(0);
+            }
             return Ok(status.code().unwrap_or(1));
         }
 
@@ -1124,6 +1247,16 @@ fn child_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
         });
     }
     command
+}
+
+fn restart_with_saved_system_environment() -> Result<()> {
+    let current_exe = env::current_exe().context("failed to locate the AMLL executable")?;
+    Command::new(current_exe)
+        .args(env::args_os().skip(1))
+        .stdin(Stdio::null())
+        .spawn()
+        .context("failed to restart AMLL with the system webview backend")?;
+    Ok(())
 }
 
 struct DisplayReservation {

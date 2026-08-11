@@ -41,7 +41,7 @@ pnpm tauri dev            # Development mode
 
 ### Linux display backend
 
-On NVIDIA Wayland sessions, AMLL Player automatically starts its webview in a nested `Xephyr + Openbox` session. Xephyr is exposed to the desktop as a normal application window while Openbox manages the inner X11 webview. This avoids the WebKitGTK explicit-sync crash and restores host-side resize, maximize, fullscreen, focus, and close behavior.
+On the first NVIDIA Wayland launch where the wrapper is available, AMLL Player asks before switching its webview to a nested `Xephyr + Openbox` session. Xephyr is exposed to the desktop as a normal application window while Openbox manages the inner X11 webview. This avoids the WebKitGTK explicit-sync crash and restores host-side resize, maximize, fullscreen, focus, and close behavior.
 
 Install the wrapper dependencies on Arch Linux with:
 
@@ -55,14 +55,14 @@ The wrapper defaults Xephyr to 60 FPS to avoid unnecessary nested compositing wo
 
 Set `AMLL_LINUX_WEBVIEW_BACKEND` to override the automatic selection:
 
-- `auto` (default): Openbox wrapper on NVIDIA Wayland, then direct XWayland, then software Wayland
+- `auto`: Openbox wrapper on NVIDIA Wayland, then direct XWayland, then software Wayland
 - `system`: keep the backend selected by the desktop environment and `GDK_BACKEND`
 - `openbox`: request the Xephyr + Openbox wrapper with the same automatic fallbacks
 - `x11`: prefer X11, with a software Wayland fallback when no X display is available
 - `wayland`: force native Wayland rendering
 - `wayland-software`: force Wayland and disable the WebKitGTK DMA-BUF renderer
 
-Set `AMLL_LINUX_WEBVIEW_BACKEND=x11` to immediately bypass the wrapper, or use `system` to restore the original desktop-selected behavior. In `auto` mode, an NVIDIA Wayland session may override `GDK_BACKEND=wayland` to avoid the known crash; other explicitly configured GDK backends are preserved.
+The first-run choice is stored in `~/.config/net.stevexmh.amllplayer/linux-webview.json` (or `$XDG_CONFIG_HOME/net.stevexmh.amllplayer/linux-webview.json`). Edit its `backend` value to any option above. `AMLL_LINUX_WEBVIEW_BACKEND` takes precedence over the saved value. In `auto` mode, an NVIDIA Wayland session may override `GDK_BACKEND=wayland` to avoid the known crash; other explicitly configured GDK backends are preserved.
 
 ### Acknowledgements
 

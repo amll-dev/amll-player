@@ -8,6 +8,7 @@ import styles from "./App.module.css";
 import { AppContainer } from "./components/AppContainer/index.tsx";
 import { ExtensionInjectPoint } from "./components/ExtensionInjectPoint/index.tsx";
 import { LocalMusicContext } from "./components/LocalMusicContext/index.tsx";
+import { LinuxWebviewStartupPrompt } from "./components/LinuxWebviewStartupPrompt/index.tsx";
 import { MigrationDialog } from "./components/MigrationDialog/index.tsx";
 import { NowPlayingBar } from "./components/NowPlayingBar/index.tsx";
 import { ShotcutContext } from "./components/ShotcutContext/index.tsx";
@@ -75,6 +76,7 @@ function App() {
 					hasBackground={hasBackground}
 					className={styles.radixTheme}
 				>
+					<LinuxWebviewStartupPrompt />
 					<MigrationDialog
 						state={migration}
 						onStart={migration.startMigration}

@@ -1,7 +1,13 @@
+use serde::Serialize;
 use tauri::{AppHandle, Manager, WebviewWindowBuilder};
 #[cfg(desktop)]
 use tauri::{PhysicalSize, Size, utils::config::WindowEffectsConfig, window::Effect};
 use tracing::*;
+
+#[derive(Serialize)]
+pub struct LinuxWebviewPrompt {
+    config_path: String,
+}
 
 pub async fn create_common_win<'a>(
     app: &'a AppHandle,
@@ -117,6 +123,47 @@ pub async fn recreate_window(app: &AppHandle, label: &str, path: Option<&str>) {
 #[tauri::command]
 pub async fn open_screenshot_window(app: AppHandle) {
     recreate_window(&app, "screenshot", Some("screenshot.html")).await;
+}
+
+#[tauri::command]
+pub fn get_linux_webview_startup_prompt() -> Option<LinuxWebviewPrompt> {
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux_webview::first_run_prompt().map(|path| LinuxWebviewPrompt {
+            config_path: path.display().to_string(),
+        })
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
+    }
+}
+
+#[tauri::command]
+pub fn set_linux_webview_backend(backend: String) -> Result<String, String> {
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux_webview::save_preference(&backend)
+            .map(|path| path.display().to_string())
+            .map_err(|error| error.to_string())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = backend;
+        Err("Linux webview settings are only available on Linux".to_string())
+    }
+}
+
+#[tauri::command]
+pub fn restart_linux_webview_with_system_backend() -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux_webview::restart_with_system_backend()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Err("Linux webview settings are only available on Linux".to_string())
+    }
 }
 
 #[tauri::command]
