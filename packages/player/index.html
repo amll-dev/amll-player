@@ -347,17 +347,14 @@
 							window.__TAURI__.core.invoke("start_openbox_drag");
 						}
 					});
-					document
-						.querySelectorAll(".openbox-resize-handle")
-						.forEach((handle) => {
-							handle.addEventListener("mousedown", (event) => {
-								if (event.button !== 0) return;
-								event.preventDefault();
-								window.__TAURI__.core.invoke("start_openbox_resize", {
-									direction: handle.dataset.direction,
-								});
-							});
+					document.addEventListener("mousedown", (event) => {
+						const handle = event.target.closest(".openbox-resize-handle");
+						if (!handle || event.button !== 0) return;
+						event.preventDefault();
+						window.__TAURI__.core.invoke("start_openbox_resize", {
+							direction: handle.dataset.direction,
 						});
+					});
 				}
 				window.SystemTitlebarAppearance = {
 					Windows: "windows",
