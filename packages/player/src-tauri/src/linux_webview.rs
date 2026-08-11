@@ -29,6 +29,7 @@ use x11rb::{
 };
 
 const BACKEND_ENV: &str = "AMLL_LINUX_WEBVIEW_BACKEND";
+const XEPHYR_FRAME_RATE_ENV: &str = "AMLL_XEPHYR_FPS";
 const DMABUF_ENV: &str = "WEBKIT_DISABLE_DMABUF_RENDERER";
 const WRAPPER_CHILD_ENV: &str = "AMLL_OPENBOX_WRAPPER_CHILD";
 const HOST_DISPLAY_ENV: &str = "AMLL_OPENBOX_HOST_DISPLAY";
@@ -322,7 +323,10 @@ fn supervise_openbox() -> Result<i32> {
         height: 1200,
         frame_rate: FALLBACK_FRAME_RATE,
     });
-    let frame_rate = host_mode.frame_rate;
+    let frame_rate = xephyr_frame_rate(
+        env::var(XEPHYR_FRAME_RATE_ENV).ok().as_deref(),
+        host_mode.frame_rate,
+    );
     let frame_rate_arg = frame_rate.to_string();
     let screen_arg = format!(
         "{}x{}",
@@ -602,6 +606,15 @@ fn host_display_mode(display: &str) -> Result<HostDisplayMode> {
         height,
         frame_rate: frame_rate.round().clamp(30.0, 1000.0) as u16,
     })
+}
+
+fn xephyr_frame_rate(requested: Option<&str>, host_frame_rate: u16) -> u16 {
+    let host_frame_rate = host_frame_rate.clamp(30, 1000);
+    let default_frame_rate = FALLBACK_FRAME_RATE.min(host_frame_rate);
+    requested
+        .and_then(|value| value.trim().parse::<u16>().ok())
+        .filter(|frame_rate| (30..=host_frame_rate).contains(frame_rate))
+        .unwrap_or(default_frame_rate)
 }
 
 fn configure_nested_display_mode(
@@ -1447,5 +1460,16 @@ mod tests {
             parse_preference("OPENBOX"),
             Some(BackendPreference::Openbox)
         );
+    }
+
+    #[test]
+    fn xephyr_defaults_to_sixty_hz() {
+        assert_eq!(xephyr_frame_rate(None, 260), 60);
+    }
+
+    #[test]
+    fn xephyr_accepts_a_high_refresh_override_within_host_limit() {
+        assert_eq!(xephyr_frame_rate(Some("120"), 260), 120);
+        assert_eq!(xephyr_frame_rate(Some("300"), 260), 60);
     }
 }

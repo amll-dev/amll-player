@@ -246,6 +246,7 @@ impl AudioPlayer {
 
     pub async fn run(mut self) {
         let mut check_end_interval = tokio::time::interval(Duration::from_millis(50));
+        let mut media_controls_events_open = true;
 
         loop {
             tokio::select! {
@@ -258,11 +259,16 @@ impl AudioPlayer {
                         }
                     } else { break; }
                 },
-                msg = self.npc_event_rx.recv() => {
+                msg = self.npc_event_rx.recv(), if media_controls_events_open => {
                     if let Some(event) = msg {
                         self.media_manager
                             .handle_event(event, &self.handler(), &self.evt_sender)
                             .await;
+                    } else {
+                        // A failed MPRIS/media-controls initialization drops its sender.
+                        // Polling the closed channel would otherwise keep this biased select!
+                        // loop runnable and consume a CPU core.
+                        media_controls_events_open = false;
                     }
                 },
                 _ = check_end_interval.tick() => {

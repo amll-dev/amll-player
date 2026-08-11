@@ -49,9 +49,9 @@ Install the wrapper dependencies on Arch Linux with:
 sudo pacman -S openbox xorg-server-xephyr
 ```
 
-If either dependency cannot be found or the wrapper fails during startup, AMLL Player automatically falls back to the existing XWayland display. The wrapper uses stable software rendering inside Xephyr; the direct `x11` fallback retains GPU acceleration.
+If either dependency cannot be found or the wrapper fails during startup, AMLL Player automatically falls back to the existing XWayland display. Xephyr does not expose DRI3 to its nested clients, so the wrapper adds a CPU copy/compositing step; WebKitGTK can still use the GPU for its own rendering. The direct `x11` fallback avoids that nested-server overhead.
 
-The wrapper matches Xephyr's display mode to the host refresh rate, but WebKitGTK may still limit animation to about 60 FPS in a nested X11 session; this does not guarantee application rendering-rate passthrough.
+The wrapper defaults Xephyr to 60 FPS to avoid unnecessary nested compositing work. Set `AMLL_XEPHYR_FPS` to a rate no higher than the host refresh rate to opt into high refresh, for example `AMLL_XEPHYR_FPS=120`; WebKitGTK may still limit animation to about 60 FPS in a nested X11 session, so this does not guarantee rendering-rate passthrough.
 
 Set `AMLL_LINUX_WEBVIEW_BACKEND` to override the automatic selection:
 

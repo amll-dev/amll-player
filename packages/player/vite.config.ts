@@ -86,7 +86,13 @@ const GitMetadataPlugin = (): Plugin => {
 };
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => {
+	// Vite uses NODE_ENV to decide whether to inject the React Refresh preamble.
+	// `vite` itself is always a development server, even when its parent process
+	// happens to export NODE_ENV=production.
+	if (command === "serve") process.env.NODE_ENV = "development";
+
+	return {
 	build: {
 		chunkSizeWarningLimit: 2000,
 		rolldownOptions: {
@@ -150,4 +156,5 @@ export default defineConfig({
 	// 3. to make use of `TAURI_DEBUG` and other env variables
 	// https://tauri.studio/v1/api/config#buildconfig.beforedevcommand
 	envPrefix: ["VITE_", "TAURI_"],
+	};
 });

@@ -49,9 +49,9 @@ pnpm tauri dev     # 开发模式
 sudo pacman -S openbox xorg-server-xephyr
 ```
 
-如果缺少任一依赖或包装层启动失败，AMLL Player 会自动回退到现有的 XWayland 显示。包装层在 Xephyr 内使用稳定的软件渲染；直接 `x11` 回退仍保留 GPU 加速。
+如果缺少任一依赖或包装层启动失败，AMLL Player 会自动回退到现有的 XWayland 显示。Xephyr 不会向嵌套客户端提供 DRI3，因此包装层会增加一次 CPU 拷贝/合成；WebKitGTK 自身仍可使用 GPU 渲染。直接 `x11` 回退可避免这层嵌套服务器开销。
 
-包装层会让 Xephyr 的显示模式跟随宿主刷新率，但 WebKitGTK 在嵌套 X11 会话中仍可能把动画限制在约 60 FPS；这不是应用渲染帧率穿透保证。
+包装层默认让 Xephyr 使用 60 FPS，避免不必要的嵌套合成开销。需要高刷新率时可设置不高于宿主刷新率的 `AMLL_XEPHYR_FPS`，例如 `AMLL_XEPHYR_FPS=120`；WebKitGTK 在嵌套 X11 会话中仍可能把动画限制在约 60 FPS，因此不保证应用渲染帧率能够穿透。
 
 可以通过 `AMLL_LINUX_WEBVIEW_BACKEND` 覆盖自动选择：
 
