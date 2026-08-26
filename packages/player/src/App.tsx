@@ -1,7 +1,7 @@
 import { Box, Theme } from "@radix-ui/themes";
 import classNames from "classnames";
 import { useAtomValue } from "jotai";
-import { lazy, StrictMode, Suspense } from "react";
+import { lazy, StrictMode, Suspense, useEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import styles from "./App.module.css";
@@ -19,7 +19,10 @@ import { WSProtocolMusicContext } from "./components/WSProtocolMusicContext/inde
 import { useMigration } from "./hooks/useMigration.ts";
 import { enableTaskbarLyricAtom } from "./states/appAtoms.ts";
 import "./i18n";
-import { isLyricPageOpenedAtom } from "@applemusic-like-lyrics/react-full";
+import {
+	isLyricPageOpenedAtom,
+	lyricBackgroundFPSAtom,
+} from "@applemusic-like-lyrics/react-full";
 import { StatsComponent } from "./components/StatsComponent/index.tsx";
 import { router } from "./router.tsx";
 import {
@@ -30,6 +33,7 @@ import {
 	showStatJSFrameAtom,
 } from "./states/appAtoms.ts";
 import { useInitializeWindow } from "./utils/useInitializeWindow.ts";
+import { invoke } from "@tauri-apps/api/core";
 
 const ExtensionContext = lazy(() => import("./components/ExtensionContext"));
 const AMLLWrapper = lazy(() => import("./components/AMLLWrapper"));
@@ -41,6 +45,16 @@ function App() {
 	const musicContextMode = useAtomValue(musicContextModeAtom);
 	const isDarkTheme = useAtomValue(isDarkThemeAtom);
 	const hasBackground = useAtomValue(hasBackgroundAtom);
+	const lyricBackgroundFPS = useAtomValue(lyricBackgroundFPSAtom);
+
+	useEffect(() => {
+		const frameRate = Number.isFinite(lyricBackgroundFPS)
+			? Math.max(1, Math.min(600, Math.round(lyricBackgroundFPS)))
+			: 60;
+		void invoke("set_linux_webview_fps", { frameRate }).catch((error) => {
+			console.warn("Failed to persist Linux webview frame rate", error);
+		});
+	}, [lyricBackgroundFPS]);
 
 	const migration = useMigration();
 

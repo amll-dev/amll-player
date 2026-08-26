@@ -41,6 +41,19 @@ fn restart_app<R: Runtime>(app: AppHandle<R>) {
     app.request_restart();
 }
 
+#[tauri::command]
+fn set_linux_webview_fps(frame_rate: u16) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        linux_webview::save_frame_rate(frame_rate).map_err(|error| error.to_string())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = frame_rate;
+        Ok(())
+    }
+}
+
 fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let log_dir = app
         .handle()
@@ -272,6 +285,7 @@ pub fn run() {
             music_info::read_local_music_metadata,
             music_info::save_cover_from_path,
             restart_app,
+            set_linux_webview_fps,
             ttml_db::sync_lyrics,
             ttml_db::search_lyrics,
             ttml_db::get_lyric_detail,

@@ -88,6 +88,8 @@ enum BackendPreference {
 #[derive(Deserialize, Serialize)]
 struct LinuxWebviewConfig {
     backend: String,
+    #[serde(default)]
+    frame_rate: Option<u16>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -207,13 +209,33 @@ pub(crate) fn save_preference(value: &str) -> Result<PathBuf> {
         .parent()
         .context("Linux webview configuration has no parent")?;
     fs::create_dir_all(parent).context("failed to create Linux webview configuration directory")?;
+    let frame_rate = load_saved_frame_rate()?.flatten();
     let contents = serde_json::to_string_pretty(&LinuxWebviewConfig {
         backend: preference.as_str().to_owned(),
+        frame_rate,
     })?;
     fs::write(&path, format!("{contents}\n"))
         .context("failed to save Linux webview configuration")?;
     SHOW_FIRST_RUN_PROMPT.store(false, Ordering::Release);
     Ok(path)
+}
+
+pub(crate) fn save_frame_rate(frame_rate: u16) -> Result<()> {
+    let path = linux_webview_config_path()?;
+    let contents = match fs::read_to_string(&path) {
+        Ok(contents) => contents,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    let mut config: LinuxWebviewConfig = serde_json::from_str(&contents)
+        .with_context(|| format!("invalid JSON in {}", path.display()))?;
+    config.frame_rate = Some(frame_rate.clamp(1, 600));
+    fs::write(
+        &path,
+        format!("{}\n", serde_json::to_string_pretty(&config)?),
+    )
+    .context("failed to save Linux webview frame rate")?;
+    Ok(())
 }
 
 pub(crate) fn restart_with_system_backend() -> ! {
@@ -369,6 +391,18 @@ fn load_saved_preference() -> Result<Option<BackendPreference>> {
     ))
 }
 
+fn load_saved_frame_rate() -> Result<Option<Option<u16>>> {
+    let path = linux_webview_config_path()?;
+    let contents = match fs::read_to_string(&path) {
+        Ok(contents) => contents,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+    let config: LinuxWebviewConfig = serde_json::from_str(&contents)
+        .with_context(|| format!("invalid JSON in {}", path.display()))?;
+    Ok(Some(config.frame_rate))
+}
+
 fn select_backend(
     preference: BackendPreference,
     context: LinuxDisplayContext,
@@ -425,10 +459,11 @@ fn supervise_openbox(first_run_prompt: bool) -> Result<i32> {
         height: 1200,
         frame_rate: FALLBACK_FRAME_RATE,
     });
-    let frame_rate = xephyr_frame_rate(
-        env::var(XEPHYR_FRAME_RATE_ENV).ok().as_deref(),
-        host_mode.frame_rate,
-    );
+    let saved_frame_rate = load_saved_frame_rate()?.flatten();
+    let requested_frame_rate = env::var(XEPHYR_FRAME_RATE_ENV)
+        .ok()
+        .or_else(|| saved_frame_rate.map(|rate| rate.to_string()));
+    let frame_rate = xephyr_frame_rate(requested_frame_rate.as_deref(), host_mode.frame_rate);
     let frame_rate_arg = frame_rate.to_string();
     let screen_arg = format!(
         "{}x{}",
@@ -724,7 +759,7 @@ fn xephyr_frame_rate(requested: Option<&str>, host_frame_rate: u16) -> u16 {
     let default_frame_rate = FALLBACK_FRAME_RATE.min(host_frame_rate);
     requested
         .and_then(|value| value.trim().parse::<u16>().ok())
-        .filter(|frame_rate| (30..=host_frame_rate).contains(frame_rate))
+        .map(|frame_rate| frame_rate.clamp(30, host_frame_rate))
         .unwrap_or(default_frame_rate)
 }
 
@@ -1513,6 +1548,18 @@ mod tests {
     #[test]
     fn xephyr_accepts_a_high_refresh_override_within_host_limit() {
         assert_eq!(xephyr_frame_rate(Some("120"), 260), 120);
-        assert_eq!(xephyr_frame_rate(Some("300"), 260), 60);
+        assert_eq!(xephyr_frame_rate(Some("300"), 260), 260);
+    }
+
+    #[test]
+    fn xephyr_uses_saved_rate_when_host_supports_it() {
+        assert_eq!(xephyr_frame_rate(Some("120"), 260), 120);
+        assert_eq!(xephyr_frame_rate(Some("240"), 260), 240);
+    }
+
+    #[test]
+    fn xephyr_caps_saved_rate_to_host_refresh() {
+        assert_eq!(xephyr_frame_rate(Some("120"), 60), 60);
+        assert_eq!(xephyr_frame_rate(Some("10"), 260), 30);
     }
 }
