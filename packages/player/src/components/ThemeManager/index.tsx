@@ -6,10 +6,14 @@ import {
 	DarkMode,
 	darkModeAtom,
 } from "../../states/appAtoms";
+import { effectiveHomeBackgroundConfigAtom } from "../../states/homeBackgroundAtoms.ts";
+import { isCustomHomeBackground } from "../../utils/home-background-state.ts";
 
 export const ThemeManager: FC = () => {
 	const setAutoDarkMode = useSetAtom(autoDarkModeAtom);
 	const darkMode = useAtomValue(darkModeAtom);
+	const homeBackgroundConfig = useAtomValue(effectiveHomeBackgroundConfigAtom);
+	const forceDarkWindowTheme = isCustomHomeBackground(homeBackgroundConfig);
 
 	useEffect(() => {
 		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -28,7 +32,9 @@ export const ThemeManager: FC = () => {
 		const syncThemeToWindow = async () => {
 			try {
 				const appWindow = getCurrentWindow();
-				if (darkMode === DarkMode.Auto) {
+				if (forceDarkWindowTheme) {
+					await appWindow.setTheme("dark");
+				} else if (darkMode === DarkMode.Auto) {
 					await appWindow.setTheme(null);
 				} else {
 					const theme = darkMode === DarkMode.Dark ? "dark" : "light";
@@ -40,7 +46,7 @@ export const ThemeManager: FC = () => {
 		};
 
 		syncThemeToWindow();
-	}, [darkMode]);
+	}, [darkMode, forceDarkWindowTheme]);
 
 	return null;
 };

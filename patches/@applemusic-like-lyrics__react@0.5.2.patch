@@ -1,0 +1,156 @@
+diff --git a/dist/amll-react.cjs b/dist/amll-react.cjs
+index 9e9850669eb7594292295a6de9fe3ce361af36b9..666af239f60922d507d152e4b484be3c2cc78521 100644
+--- a/dist/amll-react.cjs
++++ b/dist/amll-react.cjs
+@@ -7,67 +7,63 @@ let react_dom = require("react-dom");
+ /**
+ * 流体背景渲染组件，通过提供图片链接可以显示出酷似 Apple Music 的流体背景效果
+ */
+-const BackgroundRender = (0, react.forwardRef)(({ album, albumIsVideo, fps, playing, flowSpeed, renderScale, staticMode, lowFreqVolume, hasLyric, renderer, style, ...props }, ref) => {
+-	const coreBGRenderRef = (0, react.useRef)(null);
+-	const wrapperRef = (0, react.useRef)(null);
+-	const lastRendererRef = (0, react.useRef)(null);
++const BackgroundRender = react.forwardRef(({ album, albumIsVideo, fps, playing, flowSpeed, renderScale, staticMode, lowFreqVolume, hasLyric, renderer, style, ...props }, ref) => {
++	const coreBGRenderRef = react.useRef(null);
++	const wrapperRef = react.useRef(null);
+ 	const curRenderer = renderer ?? _applemusic_like_lyrics_core.MeshGradientRenderer;
+-	(0, react.useEffect)(() => {
+-		if (lastRendererRef.current !== curRenderer || coreBGRenderRef.current === void 0) {
+-			lastRendererRef.current = curRenderer;
+-			coreBGRenderRef.current?.dispose();
+-			coreBGRenderRef.current = _applemusic_like_lyrics_core.BackgroundRender.new(curRenderer);
+-		}
++	react.useLayoutEffect(() => {
++		const background = _applemusic_like_lyrics_core.BackgroundRender.new(curRenderer);
++		coreBGRenderRef.current = background;
++		const el = background.getElement();
++		el.style.width = "100%";
++		el.style.height = "100%";
++		el.style.minHeight = "0";
++		el.style.minWidth = "0";
++		el.style.overflow = "hidden";
++		wrapperRef.current?.appendChild(el);
++		return () => {
++			if (coreBGRenderRef.current === background) coreBGRenderRef.current = null;
++			background.dispose();
++		};
+ 	}, [curRenderer]);
+-	(0, react.useEffect)(() => {
++	react.useEffect(() => {
+ 		if (curRenderer && album) coreBGRenderRef.current?.setAlbum(album, albumIsVideo);
+ 	}, [
+ 		curRenderer,
+ 		album,
+ 		albumIsVideo
+ 	]);
+-	(0, react.useEffect)(() => {
++	react.useEffect(() => {
+ 		if (curRenderer && fps) coreBGRenderRef.current?.setFPS(fps);
+ 	}, [curRenderer, fps]);
+-	(0, react.useEffect)(() => {
++	react.useEffect(() => {
+ 		if (!curRenderer) return;
+ 		if (playing === void 0) coreBGRenderRef.current?.resume();
+ 		else if (playing) coreBGRenderRef.current?.resume();
+ 		else coreBGRenderRef.current?.pause();
+ 	}, [curRenderer, playing]);
+-	(0, react.useEffect)(() => {
++	react.useEffect(() => {
+ 		if (!curRenderer) return;
+ 		if (flowSpeed) coreBGRenderRef.current?.setFlowSpeed(flowSpeed);
+ 	}, [curRenderer, flowSpeed]);
+-	(0, react.useEffect)(() => {
++	react.useEffect(() => {
+ 		if (!curRenderer) return;
+ 		coreBGRenderRef.current?.setStaticMode(staticMode ?? false);
+ 	}, [curRenderer, staticMode]);
+-	(0, react.useEffect)(() => {
++	react.useEffect(() => {
+ 		if (curRenderer && renderScale) coreBGRenderRef.current?.setRenderScale(renderScale ?? .5);
+ 	}, [curRenderer, renderScale]);
+-	(0, react.useEffect)(() => {
++	react.useEffect(() => {
+ 		if (curRenderer && lowFreqVolume) coreBGRenderRef.current?.setLowFreqVolume(lowFreqVolume ?? 1);
+ 	}, [curRenderer, lowFreqVolume]);
+-	(0, react.useEffect)(() => {
++	react.useEffect(() => {
+ 		if (curRenderer && hasLyric !== void 0) coreBGRenderRef.current?.setHasLyric(hasLyric ?? true);
+ 	}, [curRenderer, hasLyric]);
+-	(0, react.useEffect)(() => {
+-		if (coreBGRenderRef.current) {
+-			const el = coreBGRenderRef.current.getElement();
+-			el.style.width = "100%";
+-			el.style.height = "100%";
+-			el.style.minHeight = "0";
+-			el.style.minWidth = "0";
+-			el.style.overflow = "hidden";
+-			wrapperRef.current?.appendChild(el);
+-		}
+-	}, [coreBGRenderRef.current]);
+-	(0, react.useImperativeHandle)(ref, () => ({
++	react.useImperativeHandle(ref, () => ({
+ 		wrapperEl: wrapperRef.current,
+ 		bgRender: coreBGRenderRef.current
+-	}), [wrapperRef.current, coreBGRenderRef.current]);
+-	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
++	}), [curRenderer]);
++	return /* @__PURE__ */ react_jsx_runtime.jsx("div", {
+ 		style: {
+ 			display: "contents",
+ 			...style
+diff --git a/dist/amll-react.mjs b/dist/amll-react.mjs
+index 6a34e6ddb4c57d9520b847589f06d37c3f353248..67245fb25ba205ebbb97667be77382b5a0094e62 100644
+--- a/dist/amll-react.mjs
++++ b/dist/amll-react.mjs
+@@ -9,14 +9,21 @@ import { createPortal } from "react-dom";
+ const BackgroundRender = forwardRef(({ album, albumIsVideo, fps, playing, flowSpeed, renderScale, staticMode, lowFreqVolume, hasLyric, renderer, style, ...props }, ref) => {
+ 	const coreBGRenderRef = useRef(null);
+ 	const wrapperRef = useRef(null);
+-	const lastRendererRef = useRef(null);
+ 	const curRenderer = renderer ?? MeshGradientRenderer$1;
+-	useEffect(() => {
+-		if (lastRendererRef.current !== curRenderer || coreBGRenderRef.current === void 0) {
+-			lastRendererRef.current = curRenderer;
+-			coreBGRenderRef.current?.dispose();
+-			coreBGRenderRef.current = BackgroundRender$1.new(curRenderer);
+-		}
++	useLayoutEffect(() => {
++		const background = BackgroundRender$1.new(curRenderer);
++		coreBGRenderRef.current = background;
++		const el = background.getElement();
++		el.style.width = "100%";
++		el.style.height = "100%";
++		el.style.minHeight = "0";
++		el.style.minWidth = "0";
++		el.style.overflow = "hidden";
++		wrapperRef.current?.appendChild(el);
++		return () => {
++			if (coreBGRenderRef.current === background) coreBGRenderRef.current = null;
++			background.dispose();
++		};
+ 	}, [curRenderer]);
+ 	useEffect(() => {
+ 		if (curRenderer && album) coreBGRenderRef.current?.setAlbum(album, albumIsVideo);
+@@ -51,21 +58,10 @@ const BackgroundRender = forwardRef(({ album, albumIsVideo, fps, playing, flowSp
+ 	useEffect(() => {
+ 		if (curRenderer && hasLyric !== void 0) coreBGRenderRef.current?.setHasLyric(hasLyric ?? true);
+ 	}, [curRenderer, hasLyric]);
+-	useEffect(() => {
+-		if (coreBGRenderRef.current) {
+-			const el = coreBGRenderRef.current.getElement();
+-			el.style.width = "100%";
+-			el.style.height = "100%";
+-			el.style.minHeight = "0";
+-			el.style.minWidth = "0";
+-			el.style.overflow = "hidden";
+-			wrapperRef.current?.appendChild(el);
+-		}
+-	}, [coreBGRenderRef.current]);
+ 	useImperativeHandle(ref, () => ({
+ 		wrapperEl: wrapperRef.current,
+ 		bgRender: coreBGRenderRef.current
+-	}), [wrapperRef.current, coreBGRenderRef.current]);
++	}), [curRenderer]);
+ 	return /* @__PURE__ */ jsx("div", {
+ 		style: {
+ 			display: "contents",

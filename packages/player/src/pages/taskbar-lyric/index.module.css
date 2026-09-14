@@ -2,6 +2,7 @@
 	height: 100vh;
 	width: 100vw;
 	box-sizing: border-box;
+	position: relative;
 	padding: 3px;
 	justify-content: left;
 	align-items: center;
@@ -12,6 +13,10 @@
 	transition:
 		opacity 0.35s ease,
 		filter 0.35s ease;
+}
+
+.wrapper[data-ready="false"] {
+	visibility: hidden;
 }
 
 .wrapper[data-visible="false"] {
@@ -33,9 +38,47 @@
 	justify-content: flex-end;
 }
 
+.hoverGuard {
+	position: absolute;
+	z-index: 0;
+	top: 3px;
+	bottom: 3px;
+	left: 3px;
+	width: 0;
+	pointer-events: auto;
+}
+
+.hoverGuard[data-align="right"] {
+	right: 3px;
+	left: auto;
+}
+
+.hoverGuard[data-orientation="vertical"] {
+	top: 3px;
+	right: 3px;
+	bottom: auto;
+	left: 3px;
+	width: auto;
+	height: 0;
+}
+
+.hoverGuard[data-orientation="vertical"][data-align="right"] {
+	top: auto;
+	bottom: 3px;
+}
+
+.layoutProbeLayer {
+	position: absolute;
+	inset: 3px;
+	z-index: -1;
+	visibility: hidden;
+	pointer-events: none;
+}
+
 .container {
 	--text-primary: #ffffff;
 	--text-secondary: rgba(255, 255, 255, 0.7);
+	--taskbar-word-pending-alpha: 0.7;
 
 	--container-bg: rgba(146, 146, 146, 0.445);
 	--cover-placeholder-bg: linear-gradient(135deg, #444, #222);
@@ -43,6 +86,8 @@
 
 	width: max-content;
 	height: 100%;
+	position: relative;
+	z-index: 1;
 	display: flex;
 	align-items: center;
 	padding: 4px 8px;
@@ -68,6 +113,7 @@
 	transition:
 		background 0.18s ease,
 		opacity 0.15s ease;
+	will-change: width, height;
 
 	pointer-events: auto;
 
@@ -88,7 +134,28 @@
 	flex-direction: row-reverse;
 }
 
-.container:hover {
+.layoutProbe {
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: -1;
+	background: transparent;
+	overflow: visible;
+	pointer-events: none;
+	transition: none;
+}
+
+.layoutProbe[data-orientation="horizontal"] {
+	width: max-content;
+	height: 100%;
+}
+
+.layoutProbe[data-orientation="vertical"] {
+	width: 100%;
+	height: max-content;
+}
+
+.wrapper[data-hovered="true"] .container {
 	background: var(--container-bg);
 }
 
@@ -99,6 +166,7 @@
 .container[data-theme="light"] {
 	--text-primary: #1a1a1a;
 	--text-secondary: rgba(0, 0, 0, 0.6);
+	--taskbar-word-pending-alpha: 0.6;
 
 	--container-bg: rgba(255, 255, 255, 0.4);
 	--cover-placeholder-bg: linear-gradient(135deg, #e0e0e0, #c0c0c0);
@@ -148,6 +216,11 @@
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
+	pointer-events: none;
+}
+
+.controlsWrapper[data-visible="true"] {
+	pointer-events: auto;
 }
 
 .container[data-orientation="vertical"] .controlsWrapper {
@@ -203,41 +276,6 @@
 	margin: -2px;
 
 	position: relative;
-
-	-webkit-mask-image:
-		linear-gradient(
-			to bottom,
-			transparent 0px,
-			black 4px,
-			black calc(100% - 4px),
-			transparent 100%
-		),
-		linear-gradient(
-			to right,
-			transparent 0px,
-			black 4px,
-			black calc(100% - 4px),
-			transparent 100%
-		);
-
-	-webkit-mask-composite: source-in;
-
-	mask-image:
-		linear-gradient(
-			to bottom,
-			transparent 0px,
-			black 4px,
-			black calc(100% - 4px),
-			transparent 100%
-		),
-		linear-gradient(
-			to right,
-			transparent 0px,
-			black 4px,
-			black calc(100% - 4px),
-			transparent 100%
-		);
-	mask-composite: intersect;
 }
 
 .container[data-orientation="vertical"] .textPanel {
@@ -262,6 +300,132 @@
 	height: 100%;
 	min-height: 0;
 	display: grid;
+}
+
+.groupContainer[data-group-content="lyrics"] {
+	--lyric-edge-mask: linear-gradient(
+		to right,
+		black 0,
+		black calc(100% - 6px),
+		transparent 100%
+	);
+}
+
+.container[data-align="right"] .groupContainer[data-group-content="lyrics"] {
+	--lyric-edge-mask: linear-gradient(
+		to right,
+		transparent 0,
+		black 6px,
+		black 100%
+	);
+}
+
+.container[data-orientation="vertical"]
+	.groupContainer[data-group-content="lyrics"] {
+	--lyric-edge-mask: linear-gradient(
+		to bottom,
+		black 0,
+		black calc(100% - 6px),
+		transparent 100%
+	);
+}
+
+.container[data-orientation="vertical"][data-align="right"]
+	.groupContainer[data-group-content="lyrics"] {
+	--lyric-edge-mask: linear-gradient(
+		to bottom,
+		transparent 0,
+		black 6px,
+		black 100%
+	);
+}
+
+.lyricViewport {
+	grid-area: 1 / 1;
+	display: grid;
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+	pointer-events: none;
+	-webkit-mask-image: var(--lyric-edge-mask);
+	mask-image: var(--lyric-edge-mask);
+}
+
+.lyricStack {
+	grid-area: 1 / 1;
+	display: grid;
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+}
+
+.container[data-orientation="horizontal"]:has(
+	> .textPanel[data-content="lyrics"]
+) {
+	overflow: visible;
+}
+
+.container[data-orientation="horizontal"] .lyricViewport {
+	--lyric-top-edge-mask: linear-gradient(
+		to bottom,
+		transparent 0,
+		black 4px,
+		black 100%
+	);
+
+	position: absolute;
+	top: calc(50% - 50vh);
+	left: 0;
+	z-index: 1;
+	height: 100vh;
+	overflow: hidden;
+	-webkit-mask-image: var(--lyric-edge-mask), var(--lyric-top-edge-mask);
+	-webkit-mask-composite: source-in;
+	mask-image: var(--lyric-edge-mask), var(--lyric-top-edge-mask);
+	mask-composite: intersect;
+}
+
+.container[data-orientation="horizontal"] .lyricStack {
+	position: absolute;
+	top: calc(50% - 1.2em);
+	left: 0;
+	height: 2.4em;
+}
+
+.container[data-orientation="horizontal"][data-single-line="true"] .lyricStack {
+	top: calc(50% - 0.6em);
+	height: 1.2em;
+}
+
+.container.layoutProbe .textPanel {
+	width: max-content;
+	flex: 0 0 auto;
+}
+
+.container.layoutProbe .groupContainer {
+	width: max-content;
+	height: max-content;
+}
+
+.container.layoutProbe .controlsWrapper {
+	width: auto;
+	height: auto;
+	margin: 0;
+	opacity: 1;
+	overflow: visible;
+}
+
+.container.layoutProbe[data-orientation="vertical"] .textPanel,
+.container.layoutProbe[data-orientation="vertical"] .controlsWrapper {
+	width: 100%;
+	height: max-content;
+}
+
+.container.layoutProbe[data-orientation="vertical"] .groupContainer {
+	width: max-content;
+	height: max-content;
 }
 
 .ghostPanel {
@@ -309,6 +473,25 @@
 	text-align: right;
 	padding-right: 0;
 	padding-left: 12px;
+}
+
+.container[data-orientation="horizontal"]
+	.textPanel[data-content="metadata"]
+	.ghostLine {
+	padding-right: 4px;
+}
+
+.container[data-orientation="horizontal"][data-align="right"]
+	.textPanel[data-content="metadata"]
+	.ghostLine {
+	padding-right: 0;
+	padding-left: 4px;
+}
+
+.groupContainer[data-group-content="metadata"]
+	.ghostLine[data-status="secondary"]
+	> span {
+	font-size: 0.85em;
 }
 
 .animatedLine {
@@ -385,4 +568,74 @@
 
 .container[data-orientation="vertical"] .scrollContent {
 	writing-mode: vertical-rl;
+}
+
+.wordProgressWord {
+	--taskbar-word-progress: 0%;
+	--taskbar-word-fade-width: 0.5em;
+	--taskbar-word-fade-offset: 0em;
+
+	position: relative;
+	display: inline-block;
+	color: var(--text-primary);
+	white-space: pre;
+	-webkit-mask-image: linear-gradient(
+		to right,
+		#000 0,
+		#000
+			calc(
+				var(--taskbar-word-progress) +
+				var(--taskbar-word-fade-offset) -
+				var(--taskbar-word-fade-width)
+			),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha))
+			calc(var(--taskbar-word-progress) + var(--taskbar-word-fade-offset)),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha)) 100%
+	);
+	mask-image: linear-gradient(
+		to right,
+		#000 0,
+		#000
+			calc(
+				var(--taskbar-word-progress) +
+				var(--taskbar-word-fade-offset) -
+				var(--taskbar-word-fade-width)
+			),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha))
+			calc(var(--taskbar-word-progress) + var(--taskbar-word-fade-offset)),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha)) 100%
+	);
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-size: 100% 100%;
+	mask-size: 100% 100%;
+}
+
+.container[data-orientation="vertical"] .wordProgressWord {
+	-webkit-mask-image: linear-gradient(
+		to bottom,
+		#000 0,
+		#000
+			calc(
+				var(--taskbar-word-progress) +
+				var(--taskbar-word-fade-offset) -
+				var(--taskbar-word-fade-width)
+			),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha))
+			calc(var(--taskbar-word-progress) + var(--taskbar-word-fade-offset)),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha)) 100%
+	);
+	mask-image: linear-gradient(
+		to bottom,
+		#000 0,
+		#000
+			calc(
+				var(--taskbar-word-progress) +
+				var(--taskbar-word-fade-offset) -
+				var(--taskbar-word-fade-width)
+			),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha))
+			calc(var(--taskbar-word-progress) + var(--taskbar-word-fade-offset)),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha)) 100%
+	);
 }

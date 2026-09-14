@@ -96,6 +96,7 @@ export default defineConfig({
 				"extension-window": resolve(__dirname, "extension-window.html"),
 				screenshot: resolve(__dirname, "screenshot.html"),
 				"taskbar-lyric": resolve(__dirname, "taskbar-lyric.html"),
+				"tray-player": resolve(__dirname, "tray-player.html"),
 			},
 		},
 	},

@@ -1,0 +1,11 @@
+"$schema" = "../gen/schemas/desktop-schema.json"
+
+identifier = "tray-player"
+local = true
+windows = ["tray-player"]
+platforms = ["windows"]
+
+[[permissions]]
+identifier = "core:event:allow-listen"
+[[permissions]]
+identifier = "core:event:allow-unlisten"

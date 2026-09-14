@@ -1,6 +1,7 @@
 {
 	"amll": {
 		"audioQuality": {
+			"bitDepth": "Độ sâu bit",
 			"channels": "音频通道数量",
 			"codec": "音频解码器",
 			"sampleFormat": "采样格式",
@@ -8,6 +9,7 @@
 			"title": "音频解码信息"
 		},
 		"contextMenu": {
+			"addToQueue": "Thêm vào cuối hàng đợi",
 			"editMusicOverrideMessage": "Chỉnh sửa thông tin bài hát",
 			"exitLyricPage": "Thoát lời bài hát",
 			"forwardSong": "Bài tiếp theo",
@@ -15,10 +17,17 @@
 			"openScreenshotTool": "打开截图工具",
 			"pauseOrResume": "Tạm dừng / Tiếp tục",
 			"play": "播放",
+			"playNext": "Phát tiếp theo",
 			"rewindSong": "Bài trước đó",
 			"toggleFullscreen": "Toàn màn hình / Thoát toàn màn hình",
 			"toggleLyrics": "Hiển thị lời bài hát",
 			"windowAlwaysOnTop": "窗口置顶"
+		},
+		"tray": {
+			"exit": "Thoát",
+			"pause": "Tạm dừng",
+			"showWindow": "Hiện cửa sổ",
+			"taskbarLyric": "Lời bài hát trên thanh tác vụ"
 		},
 		"loadAudioError": "Lỗi tải âm thanh từ tệp {error}",
 		"migrationDialog": {
@@ -115,6 +124,13 @@
 			}
 		}
 	},
+	"musicDrop": {
+		"addToCurrentPlaylistHint": "Thêm vào danh sách phát hiện tại",
+		"addToPlaylistHint": "Thêm vào “{name}”",
+		"createPlaylistHint": "Thả thư mục nhạc để tạo danh sách phát",
+		"homeFolderOnlyHint": "Trang chủ chỉ nhận một thư mục; hãy thả tệp nhạc vào một danh sách phát",
+		"playlistFilesAndFoldersHint": "Hỗ trợ tệp nhạc và thư mục"
+	},
 	"name": "",
 	"newPlaylist": {
 		"buttonLabel": "Tạo danh sách phát mới.",
@@ -190,7 +206,9 @@
 			},
 			"music": {
 				"dropdown": {
+					"addToQueue": "Thêm vào cuối hàng đợi",
 					"editMusicOverrideData": "Chỉnh sửa thông tin bài hát",
+					"playNext": "Phát tiếp theo",
 					"playMusic": "Phát nhạc",
 					"removeFromPlaylist": "Xóa khỏi danh sách phát"
 				},
@@ -269,9 +287,27 @@
 					"label": "界面主题",
 					"light": "浅色"
 				},
+				"volumeBalance": {
+					"description": "Tự động điều chỉnh mức khuếch đại phát lại theo độ lớn cảm nhận của từng bài hát cục bộ để giảm chênh lệch âm lượng khi chuyển bài.",
+					"label": "Cân bằng âm lượng"
+				},
+				"gaplessPlayback": {
+					"description": "Chuẩn bị trước bài hát tiếp theo, bỏ qua đoạn gần như im lặng được mã hóa ở cuối tệp và phát tiếp từ ranh giới nghe được.",
+					"label": "Phát liền mạch"
+				},
 				"windowAlwaysOnTop": {
 					"description": "将应用窗口设置为始终置顶",
 					"label": "启用窗口置顶"
+				},
+				"windowCloseBehavior": {
+					"description": "Chọn xem trình phát có thu nhỏ vào khay hệ thống khi đóng hay không.",
+					"label": "Hành vi khi đóng",
+					"menu": {
+						"alwaysMinimize": "Luôn thu nhỏ vào khay hệ thống",
+						"alwaysTray": "Luôn hiện biểu tượng khay",
+						"exit": "Thoát ngay",
+						"minimizeWhenPlaying": "Thu nhỏ khi đang phát"
+					}
 				}
 			},
 			"lyricAppearance": {
@@ -316,11 +352,16 @@
 				},
 				"lyricBackgroundColor": {
 					"description": "等同于放入 background 样式的字符串值，默认为 #111111",
-					"label": "CSS 背景属性值"
+					"label": "CSS 背景属性值",
+					"picker": "Chọn màu nền đơn sắc"
 				},
 				"lyricBackgroundFPS": {
 					"description": "Có ảnh hưởng đến hiệu suất, nhưng thực tế không lớn. Nếu gặp vấn đề về hiệu suất, có thể cân nhắc giảm giá trị này. Mặc định là 60.",
 					"label": "Tần suất khung hình cao nhất"
+				},
+				"lyricBackgroundAnimationIntensity": {
+					"description": "Điều chỉnh mức độ nền chuyển sắc dạng lưới co giãn và xoay theo nhịp nhạc. 1× giữ nguyên hiệu ứng hiện tại, 0× tắt phản ứng theo nhịp và tối đa là 2×.",
+					"label": "Hệ số cường độ hoạt ảnh theo nhịp"
 				},
 				"lyricBackgroundRenderScale": {
 					"description": "Có ảnh hưởng đến hiệu suất, nhưng thực tế không lớn. Nếu gặp vấn đề về hiệu suất, có thể cân nhắc giảm giá trị này. Mặc định là 1, tức là hiển thị mỗi khung hình một lần.",
@@ -336,6 +377,39 @@
 					"pixiRenderer": "PixiJS 渲染器"
 				},
 				"subtitle": "Nền của lời bài hát"
+			},
+			"homeBackground": {
+				"asset": {
+					"chooseImage": "Chọn ảnh nền",
+					"chooseVideo": "Chọn video nền",
+					"label": "Tệp nền",
+					"replace": "Thay tệp nền"
+				},
+				"color": {
+					"description": "Dùng màu đã chọn làm nền ứng dụng và tự động phủ một lớp tối để giao diện luôn dễ đọc.",
+					"label": "Màu nền",
+					"picker": "Chọn màu nền trang chính"
+				},
+				"description": "Mặc định giữ phong cách vật liệu hệ thống hiện tại; nền ảnh, video hoặc màu đặc sẽ tự động có lớp phủ tối để tăng độ tương phản.",
+				"error": {
+					"asset": "Không thể áp dụng nền trang chính: {message}",
+					"color": "Hãy nhập màu theo định dạng #RRGGBB",
+					"save": "Không thể lưu cài đặt nền trang chính: {message}"
+				},
+				"mode": {
+					"description": "Ảnh và video được sao chép vào dữ liệu ứng dụng, vì vậy việc di chuyển tệp gốc sẽ không làm mất nền.",
+					"label": "Loại nền",
+					"menu": {
+						"color": "Màu đặc",
+						"default": "Mặc định",
+						"image": "Hình ảnh",
+						"video": "Video"
+					}
+				},
+				"subtitle": "Nền trang chính",
+				"success": {
+					"asset": "Đã áp dụng nền trang chính"
+				}
 			},
 			"lyricContent": {
 				"bottomLyricMode": {
@@ -428,7 +502,11 @@
 					"description": "Có thể xem thông tin chiếm dụng bộ nhớ (chỉ dành cho các hệ thống Chromium) và các thông tin khác, ảnh hưởng đến hiệu suất khá nhỏ.",
 					"label": "Hiển thị thông tin thống kê hiệu suất"
 				},
-				"subtitle": "Các tùy chọn khác"
+				"subtitle": "Các tùy chọn khác",
+				"enableExperimentalFeatures": {
+					"label": "Bật tính năng thử nghiệm",
+					"description": "Hiển thị loại nền trong cài đặt Chung và bảng Nền trong trình chỉnh sửa bài hát. Tắt tùy chọn này sẽ vô hiệu hóa nền tùy chỉnh nhưng vẫn giữ cài đặt để bật lại sau."
+				}
 			},
 			"smtc": {
 				"enableMediaControls": {
@@ -454,6 +532,10 @@
 					"label": "歌词行数",
 					"single": "单行模式"
 				},
+				"wordProgress": {
+					"description": "Hiển thị tiến trình của dòng hiện tại theo thời gian từng từ. Lời không có thời gian từng từ vẫn hiển thị theo cả dòng.",
+					"label": "Tiến trình lời theo từng từ"
+				},
 				"openDevtools": "打开 DevTools",
 				"subtitle": "任务栏歌词",
 				"theme": {
@@ -466,15 +548,65 @@
 			}
 		},
 		"song": {
+			"backgroundOverride": {
+				"baseCssBackground": {
+					"description": "Được áp dụng làm giá trị CSS background; mặc định là màu đen (#000000).",
+					"label": "Giá trị CSS của nền kép",
+					"picker": "Chọn màu đơn cho nền kép"
+				},
+				"baseRenderer": {
+					"description": "Chọn nền cơ sở bên dưới video; cài đặt này chỉ áp dụng cho bài hát này.",
+					"label": "Bộ kết xuất nền kép"
+				},
+				"dualLayer": {
+					"description": "Giữ một nền cơ sở riêng bên dưới video và dùng độ mờ để điều chỉnh video.",
+					"label": "Sử dụng nền kép"
+				},
+				"enabled": {
+					"description": "Chọn nền lời bài hát riêng cho bài này; tắt để tiếp tục dùng cài đặt toàn cục.",
+					"label": "Ghi đè cài đặt toàn cục"
+				},
+				"error": "Không thể lưu cài đặt nền riêng cho bài hát: {message}",
+				"loadError": "Không thể đọc cài đặt nền riêng của bài hát.",
+				"opacity": {
+					"label": "Độ mờ đục của video"
+				},
+				"renderer": {
+					"css": "Nền CSS",
+					"label": "Bộ kết xuất nền",
+					"mesh": "Bộ kết xuất lưới chuyển sắc",
+					"pixi": "Bộ kết xuất PixiJS",
+					"video": "Nền video theo bài hát"
+				}
+			},
 			"basic": {
+				"album": "Album",
+				"albumArtist": "Nghệ sĩ album",
+				"composer": "Nhà soạn nhạc",
+				"copyFilePath": "Sao chép đường dẫn tệp",
+				"copyright": "Bản quyền",
+				"discNumber": "Số đĩa",
+				"encoder": "Bộ mã hóa",
+				"fileMetadataError": "Không thể đọc thông tin tệp nhạc gốc: {message}",
+				"fileModifiedAt": "Thời gian sửa đổi tệp",
+				"fileSize": "Kích thước tệp",
+				"genre": "Thể loại",
+				"loadingFileMetadata": "Đang đọc thông tin tệp nhạc gốc…",
+				"lyricist": "Người viết lời",
 				"musicDuration": "Thời gian bài hát",
 				"musicFilePath": "Đường dẫn tệp âm thanh",
 				"musicId": "ID bài hát",
+				"noFileMetadata": "Tệp nhạc gốc không có thẻ siêu dữ liệu để hiển thị",
+				"originalFileMetadata": "Siêu dữ liệu tệp gốc",
+				"publisher": "Nhà phát hành",
+				"recordingDate": "Ngày",
 				"tabs": {
 					"basic": "Cơ bản",
+					"background": "Nền",
 					"lyric": "Lời bài hát",
 					"metadata": "Siêu dữ liệu bài hát"
-				}
+				},
+				"trackNumber": "Số bài"
 			},
 			"lyric": {
 				"importFromFile": "从本地文件导入歌词",
@@ -496,12 +628,55 @@
 			},
 			"metadata": {
 				"changeCoverToImageOrVideo": "Thay đổi bìa thành bìa hình ảnh/ bìa video",
-				"importLyricFromFile": "从本地文件导入歌词",
 				"overrideSafeTip": "Cài đặt trên trang này sẽ không ảnh hưởng đến tệp âm thanh gốc",
 				"reloadMetadataFromFile": "Tải lại siêu dữ liệu từ tệp",
 				"songAlbum": "Tên album",
 				"songArtists": "Tác giả bài hát",
 				"songName": "Tên bài hát"
+			},
+			"videoBackground": {
+				"apply": "Áp dụng nền video",
+				"change": "Đổi video",
+				"choose": "Chọn video",
+				"description": "Chỉ thay thế nền lời bài hát toàn màn hình của bài hát này và không thay đổi ảnh bìa.",
+				"discard": "Bỏ video đã chọn",
+				"discarded": "Đã bỏ video đã chọn",
+				"retry": "Thử lại",
+				"empty": "Chưa đặt nền video",
+				"error": {
+					"import": "Không thể nhập nền video: {message}",
+					"load": "Không thể tải cài đặt nền video của bài hát này.",
+					"remove": "Không thể xóa nền video: {message}",
+					"save": "Không thể lưu nền video: {message}"
+				},
+				"fit": {
+					"contain": "Vừa khung (hiển thị toàn bộ)",
+					"cover": "Lấp đầy (cắt xén)",
+					"description": "Lấp đầy sẽ cắt xén, Vừa khung hiển thị toàn bộ và để lại khoảng trống, còn Kéo giãn sẽ phủ kín khung. Ba chế độ trông giống nhau khi video và khung xem trước có cùng tỷ lệ.",
+					"fill": "Kéo giãn",
+					"label": "Cách hiển thị"
+				},
+				"loop": {
+					"description": "Khi đến điểm kết thúc, video sẽ quay lại điểm bắt đầu; khi tắt, video sẽ dừng ở khung hình cuối.",
+					"label": "Phát lặp lại"
+				},
+				"pending": "Đây là video đang chờ áp dụng; video sẽ tự động bị xóa khi bạn rời khỏi trang.",
+				"preview": "Xem trước nền video",
+				"range": {
+					"in": "Điểm bắt đầu",
+					"label": "Phạm vi phát",
+					"out": "Điểm kết thúc",
+					"reset": "Đặt lại theo thời lượng bài hát"
+				},
+				"remove": "Xóa nền",
+				"removed": "Đã xóa nền video",
+				"saved": "Đã lưu nền video",
+				"syncOnSeek": {
+					"description": "Khi tắt, việc tua bài hát sẽ không làm thay đổi vị trí hiện tại của video.",
+					"label": "Đồng bộ video khi tua bài hát"
+				},
+				"title": "Nền video cho lời bài hát",
+				"videoFiles": "Tệp video"
 			}
 		},
 		"ws": {
@@ -515,7 +690,27 @@
 	},
 	"playbar": {
 		"playlist": {
-			"title": "当前播放列表"
+			"clearUpcoming": "Xóa bài chờ phát",
+			"clearUpcomingLabel": "Xóa {count, plural, other {# bài}} đang chờ phát",
+			"close": "Đóng danh sách phát hiện tại",
+			"closeShort": "Đóng",
+			"count": "{count, plural, other {# bài}}",
+			"current": "Đang phát",
+			"emptyHint": "Phát một bài hát hoặc thêm bài vào hàng đợi để hiển thị tại đây",
+			"emptyTitle": "Hàng đợi phát đang trống",
+			"moveDown": "Di chuyển {name} xuống",
+			"moveDownShort": "Di chuyển xuống",
+			"moveUp": "Di chuyển {name} lên",
+			"moveUpShort": "Di chuyển lên",
+			"open": "Mở danh sách phát hiện tại",
+			"playSong": "Phát {name} - {artists}",
+			"queueLabel": "Hàng đợi phát",
+			"removeShort": "Xóa",
+			"removeSong": "Xóa {name} khỏi hàng đợi phát",
+			"replaySong": "Phát lại {name} - {artists}",
+			"title": "Danh sách phát hiện tại",
+			"unknownArtist": "Nghệ sĩ không xác định",
+			"unknownSong": "Bài hát không xác định"
 		}
 	},
 	"settings": {

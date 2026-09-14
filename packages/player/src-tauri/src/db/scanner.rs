@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     fs::File,
     path::Path,
     sync::{
@@ -22,6 +21,16 @@ const AUDIO_EXTENSIONS: &[&str] = &[
 
 const LYRIC_EXTENSIONS: &[&str] = &["ttml", "lys", "yrc", "qrc", "eslrc", "lrc"];
 
+pub fn is_supported_audio_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| {
+            AUDIO_EXTENSIONS
+                .iter()
+                .any(|supported| ext.eq_ignore_ascii_case(supported))
+        })
+}
+
 fn run_parallel_scan<P, T, F>(
     folder: P,
     cancel_token: &Arc<AtomicBool>,
@@ -33,8 +42,6 @@ where
     T: Send,
     F: Fn(&Path) -> T + Send + Sync,
 {
-    let extensions: HashSet<String> = AUDIO_EXTENSIONS.iter().map(|s| s.to_string()).collect();
-
     let walker = WalkDir::new(&folder).follow_links(true);
     let results = Mutex::new(Vec::new());
     let processed = AtomicU32::new(0);
@@ -54,12 +61,11 @@ where
                 return None;
             }
 
-            let is_valid = path
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .is_some_and(|ext| extensions.contains(&ext.to_lowercase()));
-
-            if is_valid { Some(path) } else { None }
+            if is_supported_audio_path(&path) {
+                Some(path)
+            } else {
+                None
+            }
         })
         .for_each(|path| {
             let result = processor(&path);

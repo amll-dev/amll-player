@@ -1,0 +1,48 @@
+.background {
+	position: fixed;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+	overflow: hidden;
+	isolation: isolate;
+	contain: strict;
+	background: #111;
+}
+
+.background::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	pointer-events: none;
+	background: linear-gradient(
+		to bottom,
+		rgba(6, 8, 14, 0.74) 0%,
+		rgba(6, 8, 14, 0.66) 30%,
+		rgba(6, 8, 14, 0.66) 70%,
+		rgba(6, 8, 14, 0.76) 100%
+	);
+}
+
+.color,
+.media {
+	position: absolute;
+	inset: 0;
+	display: block;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	z-index: 0;
+}
+
+.media {
+	object-fit: cover;
+	object-position: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.background,
+	.media {
+		transition-duration: 1ms;
+	}
+}

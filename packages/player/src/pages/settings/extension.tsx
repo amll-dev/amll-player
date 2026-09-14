@@ -12,7 +12,6 @@ import {
 } from "@radix-ui/themes";
 import { path } from "@tauri-apps/api";
 import { BaseDirectory } from "@tauri-apps/api/path";
-import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { copyFile, mkdir, remove, rename } from "@tauri-apps/plugin-fs";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { platform } from "@tauri-apps/plugin-os";
@@ -21,6 +20,7 @@ import type { FC } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { extensionDirAtom, extensionMetaAtom } from "../../states/extension.ts";
 import { ExtensionLoadResult } from "../../states/extensionsAtoms.ts";
+import { openFileDialog } from "../../utils/file-dialog.ts";
 import { restartApp } from "../../utils/player.ts";
 
 const requireRestartAtom = atom(false);
@@ -58,6 +58,7 @@ export const ExtensionTab: FC = () => {
 				<Button
 					onClick={async () => {
 						const extensionDir = await store.get(extensionDirAtom);
+						const currentPlatform = platform();
 						const filters = [
 							{
 								name: t("common.dialog.filter.js", "JavaScript 文件 (*.js)"),
@@ -65,16 +66,16 @@ export const ExtensionTab: FC = () => {
 							},
 							{
 								name: t("common.dialog.filter.all", "全部文件 (*.*)"),
-								extensions: [],
+								extensions: currentPlatform === "windows" ? ["*"] : [],
 							},
 						];
-						if (platform() === "android") {
+						if (currentPlatform === "android") {
 							filters.length = 0;
 						}
-						if (platform() === "ios") {
+						if (currentPlatform === "ios") {
 							filters.length = 0;
 						}
-						const extensionFiles = await dialogOpen({
+						const extensionFiles = await openFileDialog({
 							title: t(
 								"settings.extension.install.title",
 								"请选择需要载入的 JavaScript 扩展程序文件",

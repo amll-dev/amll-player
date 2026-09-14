@@ -1,0 +1,1641 @@
+diff --git a/dist/amll-core.cjs b/dist/amll-core.cjs
+index 819b12c2307970f3b2dc160b47c90bc9a560887d..e3b1896adc46c20fe6aa0da425e31adbdc326fb7 100644
+--- a/dist/amll-core.cjs
++++ b/dist/amll-core.cjs
+@@ -41,6 +41,7 @@ function clamp1(x) {
+ var BaseRenderer = class extends AbstractBaseRenderer {
+ 	canvas;
+ 	observer;
++	albumLoadController = null;
+ 	flowSpeed = 1;
+ 	currerntRenderScale = .75;
+ 	constructor(canvas) {
+@@ -75,7 +76,14 @@ var BaseRenderer = class extends AbstractBaseRenderer {
+ 	setFlowSpeed(speed) {
+ 		this.flowSpeed = speed;
+ 	}
++	beginAlbumLoad() {
++		this.albumLoadController?.abort();
++		this.albumLoadController = new AbortController();
++		return this.albumLoadController.signal;
++	}
+ 	dispose() {
++		this.albumLoadController?.abort();
++		this.albumLoadController = null;
+ 		this.observer.disconnect();
+ 		this.canvas.remove();
+ 	}
+@@ -85,56 +93,117 @@ var BaseRenderer = class extends AbstractBaseRenderer {
+ };
+ //#endregion
+ //#region src/utils/resource.ts
+-function loadImage(imageUrl) {
++function releaseAlbumResource(resource) {
++	if (resource instanceof HTMLVideoElement) {
++		resource.pause();
++		resource.removeAttribute("src");
++		resource.load();
++	} else if (resource instanceof HTMLImageElement) resource.removeAttribute("src");
++}
++function waitForAlbumResource(promise, signal) {
++	return new Promise((resolve, reject) => {
++		const abort = () => {
++			signal.removeEventListener("abort", abort);
++			reject(new DOMException("Album load cancelled", "AbortError"));
++		};
++		// Attach both handlers even when already aborted so a late rejection
++		// from a decoder never becomes an unhandled promise rejection.
++		Promise.resolve(promise).then((value) => {
++			signal.removeEventListener("abort", abort);
++			resolve(value);
++		}, (error) => {
++			signal.removeEventListener("abort", abort);
++			reject(error);
++		});
++		if (signal.aborted) abort();
++		else signal.addEventListener("abort", abort, { once: true });
++	});
++}
++function loadImage(imageUrl, signal) {
+ 	return new Promise((resolve, reject) => {
+ 		const img = document.createElement("img");
+-		img.onload = () => resolve(img);
+-		img.onerror = reject;
+-		img.src = imageUrl;
++		const cleanup = () => {
++			img.onload = null;
++			img.onerror = null;
++			signal?.removeEventListener("abort", abort);
++		};
++		const abort = () => {
++			cleanup();
++			releaseAlbumResource(img);
++			reject(new DOMException("Album load cancelled", "AbortError"));
++		};
++		img.onload = () => { cleanup(); resolve(img); };
++		img.onerror = (error) => { cleanup(); releaseAlbumResource(img); reject(error); };
++		if (signal?.aborted) { abort(); return; }
++		signal?.addEventListener("abort", abort, { once: true });
+ 		img.crossOrigin = "anonymous";
+ 		img.loading = "eager";
++		img.src = imageUrl;
+ 	});
+ }
+-function loadVideo(videoUrl) {
++function loadVideo(videoUrl, signal) {
+ 	return new Promise((resolve, reject) => {
+ 		const video = document.createElement("video");
+ 		let playing = false;
+ 		let timeupdate = false;
+-		let rejected = false;
+-		video.addEventListener("playing", () => {
+-			playing = true;
+-			checkReady();
+-		}, true);
+-		video.addEventListener("timeupdate", () => {
+-			timeupdate = true;
+-			checkReady();
+-		}, true);
+-		video.addEventListener("error", (err) => {
+-			rejected = true;
+-			reject(err);
+-		}, true);
+-		function checkReady() {
+-			if (playing && timeupdate && !rejected) resolve(video);
+-		}
+-		video.src = videoUrl;
++		let settled = false;
++		const cleanup = () => {
++			video.removeEventListener("playing", onPlaying);
++			video.removeEventListener("timeupdate", onTimeUpdate);
++			video.removeEventListener("error", fail);
++			signal?.removeEventListener("abort", abort);
++		};
++		const fail = (error) => {
++			if (settled) return;
++			settled = true;
++			cleanup();
++			releaseAlbumResource(video);
++			reject(error);
++		};
++		const abort = () => fail(new DOMException("Album load cancelled", "AbortError"));
++		const checkReady = () => {
++			if (playing && timeupdate && !settled) {
++				settled = true;
++				cleanup();
++				resolve(video);
++			}
++		};
++		const onPlaying = () => { playing = true; checkReady(); };
++		const onTimeUpdate = () => { timeupdate = true; checkReady(); };
++		video.addEventListener("playing", onPlaying);
++		video.addEventListener("timeupdate", onTimeUpdate);
++		video.addEventListener("error", fail);
++		if (signal?.aborted) { abort(); return; }
++		signal?.addEventListener("abort", abort, { once: true });
+ 		video.playsInline = true;
+ 		video.crossOrigin = "anonymous";
+ 		video.autoplay = true;
+ 		video.loop = true;
+ 		video.muted = true;
+-		video.play();
++		video.src = videoUrl;
++		void video.play().catch(fail);
+ 	});
+ }
+-function loadResourceFromUrl(url, isVideo = false) {
+-	return isVideo ? loadVideo(url) : loadImage(url);
++function loadResourceFromUrl(url, isVideo = false, signal) {
++	return isVideo ? loadVideo(url, signal) : loadImage(url, signal);
+ }
+-function loadResourceFromElement(element) {
++function loadResourceFromElement(element, signal) {
+ 	return new Promise((resolve, reject) => {
+-		if (element instanceof HTMLImageElement ? element.complete : element.readyState >= 3) resolve(element);
+-		else {
+-			element.onload = () => resolve(element);
+-			element.onerror = reject;
+-		}
++		const event = element instanceof HTMLImageElement ? "load" : "canplay";
++		const cleanup = () => {
++			element.removeEventListener(event, ready);
++			element.removeEventListener("error", fail);
++			signal?.removeEventListener("abort", abort);
++		};
++		const ready = () => { cleanup(); resolve(element); };
++		const fail = (error) => { cleanup(); reject(error); };
++		// A caller-owned element must not be paused or have its source removed.
++		const abort = () => fail(new DOMException("Album load cancelled", "AbortError"));
++		if (signal?.aborted) { abort(); return; }
++		if (element instanceof HTMLImageElement ? element.complete : element.readyState >= 3) { ready(); return; }
++		element.addEventListener(event, ready);
++		element.addEventListener("error", fail);
++		signal?.addEventListener("abort", abort, { once: true });
+ 	});
+ }
+ //#endregion
+@@ -565,6 +634,8 @@ function generateControlPoints(width, height, variationFraction = randomRange(.4
+ //#endregion
+ //#region \0raw:/home/runner/work/applemusic-like-lyrics/applemusic-like-lyrics/packages/core/src/bg-render/mesh-renderer/mesh.frag.glsl
+ var mesh_frag_default = "precision mediump float;\n\nvarying vec3 v_color;\nvarying vec2 v_uv;\nuniform sampler2D u_texture;\nuniform float u_volume;\nuniform float u_alpha;\nuniform float u_sinAngle;\nuniform float u_cosAngle;\n\n// 预计算常量\nconst float INV_255 = 1.0 / 255.0;\nconst float HALF_INV_255 = 0.5 / 255.0;\nconst float GRADIENT_NOISE_A = 52.9829189;\nconst vec2 GRADIENT_NOISE_B = vec2(0.06711056, 0.00583715);\n\nfloat gradientNoise(in vec2 uv) {\n    return fract(GRADIENT_NOISE_A * fract(dot(uv, GRADIENT_NOISE_B)));\n}\n\nvoid main() {\n    float volumeEffect = u_volume * 2.0;\n\n    float dither = INV_255 * gradientNoise(gl_FragCoord.xy) - HALF_INV_255;\n\n    vec2 centeredUV = v_uv - vec2(0.2);\n\n    vec2 rotatedUV = vec2(\n        u_cosAngle * centeredUV.x - u_sinAngle * centeredUV.y,\n        u_sinAngle * centeredUV.x + u_cosAngle * centeredUV.y\n    );\n\n    vec2 finalUV = rotatedUV * max(0.001, 1.0 - volumeEffect) + vec2(0.5);\n    \n    vec4 result = texture2D(u_texture, finalUV);\n    \n    float alphaVolumeFactor = u_alpha * max(0.5, 1.0 - u_volume * 0.5);\n    result.rgb *= v_color * alphaVolumeFactor;\n    result.a *= alphaVolumeFactor;\n    \n    result.rgb += vec3(dither);\n    \n    float dist = distance(v_uv, vec2(0.5));\n    float vignette = smoothstep(0.8, 0.3, dist);\n    float mask = 0.6 + vignette * 0.4;\n    result.rgb *= mask;\n    \n    gl_FragColor = result;\n}\n";
++mesh_frag_default = mesh_frag_default.replace("vec2 centeredUV = v_uv - vec2(0.2);", "vec2 centeredUV = v_uv - vec2(0.5);");
++mesh_frag_default = mesh_frag_default.replace("uniform float u_cosAngle;", "uniform float u_cosAngle;\nuniform float u_flowOffsetX;\nuniform float u_flowOffsetY;").replace("rotatedUV * max(0.001, 1.0 - volumeEffect) + vec2(0.5)", "rotatedUV * max(0.001, 1.0 - volumeEffect) + vec2(0.5) + vec2(u_flowOffsetX, u_flowOffsetY)");
+ //#endregion
+ //#region \0raw:/home/runner/work/applemusic-like-lyrics/applemusic-like-lyrics/packages/core/src/bg-render/mesh-renderer/mesh.vert.glsl
+ var mesh_vert_default = "precision mediump float;\n\nattribute vec2 a_pos;\nattribute vec3 a_color;\nattribute vec2 a_uv;\nvarying vec3 v_color;\nvarying vec2 v_uv;\n\nuniform float u_aspect;\n\nvoid main() {\n    v_color = a_color;\n    v_uv = a_uv;\n    vec2 pos = a_pos;\n    if (u_aspect > 1.0) {\n        pos.y *= u_aspect;\n    } else {\n        pos.x /= u_aspect;\n    }\n    gl_Position = vec4(pos, 0.0, 1.0);\n}\n";
+@@ -1136,11 +1207,25 @@ function createOffscreenCanvas(width, height) {
+ 	return canvas;
+ }
+ var MeshGradientRenderer = class extends BaseRenderer {
++	static rhythmVisualVolume = 0;
++	static strongBeat = 0;
++	static rhythmVisualIntensity = 1;
++	static setRhythmVisualIntensity(intensity = 1) {
++		MeshGradientRenderer.rhythmVisualIntensity = Number.isFinite(intensity) ? Math.min(2, Math.max(0, intensity)) : 1;
++	}
++	static setRhythmVisualSignal(breath, heavyBeat) {
++		MeshGradientRenderer.rhythmVisualVolume = Number.isFinite(breath) ? Math.min(.4, Math.max(0, breath)) : 0;
++		MeshGradientRenderer.strongBeat = Number.isFinite(heavyBeat) ? Math.min(1, Math.max(0, heavyBeat)) : 0;
++	}
+ 	gl;
+ 	lastFrameTime = 0;
+ 	frameTime = 0;
+ 	lastTickTime = 0;
+ 	smoothedVolume = 0;
++	rhythmKick = 0;
++	kickVelocity = 0;
++	lastKickDrive = 0;
++	rhythmBreath = 0;
+ 	volume = 0;
+ 	tickHandle = 0;
+ 	maxFPS = 60;
+@@ -1192,8 +1277,10 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ 		const frameDelta = tickTime - this.lastFrameTime;
+ 		this.lastFrameTime = tickTime;
+ 		this.lastTickTime = tickTime - delta % interval;
+-		this.frameTime += frameDelta * this.flowSpeed;
+-		if (!(this.onRedraw(this.frameTime, frameDelta) && this.staticMode)) this.requestTick();
++		const maxFrameDelta = Math.max(50, (Number.isFinite(this.maxFPS) && this.maxFPS > 0 ? 1e3 / this.maxFPS : 0) * 1.5);
++		const safeFrameDelta = Number.isFinite(frameDelta) ? Math.min(maxFrameDelta, Math.max(0, frameDelta)) : 0;
++		this.frameTime += safeFrameDelta * this.flowSpeed;
++		if (!(this.onRedraw(this.frameTime, safeFrameDelta) && this.staticMode)) this.requestTick();
+ 		else if (this.staticMode) this.lastFrameTime = NaN;
+ 	}
+ 	checkIfResize() {
+@@ -1228,7 +1315,9 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ 	onRedraw(tickTime, delta) {
+ 		const latestMeshState = this.meshStates[this.meshStates.length - 1];
+ 		let canBeStatic = false;
+-		const deltaFactor = delta / 500;
++		const maxFrameDelta = Math.max(50, (Number.isFinite(this.maxFPS) && this.maxFPS > 0 ? 1e3 / this.maxFPS : 0) * 1.5);
++		const safeDelta = Number.isFinite(delta) ? Math.min(maxFrameDelta, Math.max(0, delta)) : 0;
++		const deltaFactor = safeDelta / 500;
+ 		if (latestMeshState) {
+ 			latestMeshState.mesh.bind();
+ 			if (this.manualControl) latestMeshState.mesh.updateMesh();
+@@ -1260,11 +1349,40 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ 		const gl = this.gl;
+ 		this.checkIfResize();
+ 		if (!this.fbo) return canBeStatic;
++		const kickDrive = MeshGradientRenderer.strongBeat;
++		// P=2.4 is impulse gain: raising it pushes each heavy beat farther.
++		this.kickVelocity += 2.4 * Math.max(0, kickDrive - this.lastKickDrive);
++		this.lastKickDrive = kickDrive;
+ 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+ 		gl.clearColor(0, 0, 0, 0);
+ 		gl.clear(gl.COLOR_BUFFER_BIT);
+-		const lerpFactor = Math.min(1, delta / 100);
++		const lerpFactor = Math.min(1, safeDelta / 100);
+ 		this.smoothedVolume += (this.volume - this.smoothedVolume) * lerpFactor;
++		const signal = Math.min(1, Math.max(0, MeshGradientRenderer.rhythmVisualVolume * 2.5));
++		let kickRemainingMs = safeDelta;
++		while (kickRemainingMs > 0) {
++			const kickStepMs = Math.min(2.5, kickRemainingMs);
++			const kickStepS = kickStepMs / 1e3;
++			// K=30 pulls back faster; C=16 damps overshoot and oscillation.
++			this.kickVelocity -= (30 * this.rhythmKick + 16 * this.kickVelocity) * kickStepS;
++			this.rhythmKick += this.kickVelocity * kickStepS;
++			kickRemainingMs -= kickStepMs;
++		}
++		if (this.rhythmKick < 0) {
++			this.rhythmKick = 0;
++			if (this.kickVelocity < 0) this.kickVelocity = 0;
++		}
++		const breathDuck = 1 - Math.min(1, this.rhythmKick / .12) * .5;
++		const targetBreath = Math.min(.12, signal * .16) * breathDuck;
++		const breathMs = targetBreath > this.rhythmBreath ? 110 : 380;
++		const breathFactor = 1 - Math.exp(-safeDelta / breathMs);
++		this.rhythmBreath += (targetBreath - this.rhythmBreath) * breathFactor;
++		const combinedBreath = Math.max(0, this.volume) + this.rhythmBreath;
++		const breathKnee = Math.min(1, Math.max(0, (combinedBreath - .16) / .06));
++		const breathVolume = combinedBreath <= .16 ? combinedBreath : .16 + .06 * breathKnee - .02 * breathKnee * breathKnee * breathKnee;
++		const rhythmVisualIntensity = MeshGradientRenderer.rhythmVisualIntensity;
++		const animatedBreathVolume = Math.min(.4, breathVolume * rhythmVisualIntensity);
++		const compensatedAlpha = 1 / Math.max(.5, 1 - animatedBreathVolume * .5);
+ 		for (const state of this.meshStates) {
+ 			gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+ 			gl.disable(gl.BLEND);
+@@ -1275,9 +1393,18 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ 			const uTime = tickTime / 1e4;
+ 			this.mainProgram.setUniform1f("u_aspect", this.manualControl ? 1 : this.canvas.width / this.canvas.height);
+ 			this.mainProgram.setUniform1i("u_texture", 0);
+-			this.mainProgram.setUniform1f("u_volume", this.volume);
+-			this.mainProgram.setUniform1f("u_alpha", 1);
+-			const angle = (uTime + this.volume) * 2;
++			this.mainProgram.setUniform1f("u_volume", animatedBreathVolume);
++			this.mainProgram.setUniform1f("u_alpha", compensatedAlpha);
++			const bassMotion = this.volume * rhythmVisualIntensity;
++			const angle = uTime * 2 + bassMotion * 2;
++			// Restore the original (.2 -> .5) pivot offset separately from centered breathing.
++			// Heavy beats move the texture along that orbit without rotating it further.
++			const flowAngle = angle + this.rhythmKick * rhythmVisualIntensity;
++			const flowRadius = .3 * Math.max(.001, 1 - bassMotion * 2);
++			const flowSin = Math.sin(flowAngle);
++			const flowCos = Math.cos(flowAngle);
++			this.mainProgram.setUniform1f("u_flowOffsetX", flowRadius * (flowCos - flowSin));
++			this.mainProgram.setUniform1f("u_flowOffsetY", flowRadius * (flowSin + flowCos));
+ 			this.mainProgram.setUniform1f("u_sinAngle", Math.sin(angle));
+ 			this.mainProgram.setUniform1f("u_cosAngle", Math.cos(angle));
+ 			state.texture.bind();
+@@ -1362,119 +1489,138 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ 		this.paused = true;
+ 	}
+ 	resume() {
++		const wasPaused = this.paused;
+ 		this.paused = false;
++		const now = performance.now();
++		this.lastFrameTime = now;
++		this.lastTickTime = now;
++		if (wasPaused) this.lastKickDrive = 0;
+ 		this.requestTick();
+ 	}
+ 	async setAlbum(albumSource, isVideo) {
+-		if (albumSource === void 0 || typeof albumSource === "string" && albumSource.trim().length === 0) {
+-			this.isNoCover = true;
+-			return;
+-		}
++		if (this._disposed) return;
++		const signal = this.beginAlbumLoad();
+ 		let res = null;
+-		let blob = null;
+-		let remainRetryTimes = 5;
+-		while (!res && remainRetryTimes > 0) try {
+-			if (typeof albumSource === "string") if (!isVideo && "createImageBitmap" in window) {
+-				blob = await (await fetch(albumSource)).blob();
+-				res = await loadResourceFromUrl(URL.createObjectURL(blob), false);
+-			} else res = await loadResourceFromUrl(albumSource, isVideo);
+-			else res = await loadResourceFromElement(albumSource);
+-		} catch (error) {
+-			console.warn(`failed on loading album resource, retrying (${remainRetryTimes})`, {
+-				albumSource,
+-				error
+-			});
+-			remainRetryTimes--;
+-		}
+-		if (!res) {
+-			console.error("Failed to load album resource", albumSource);
+-			this.isNoCover = true;
+-			return;
+-		}
+-		this.isNoCover = false;
+-		const c = this.reduceImageSizeCanvas;
+-		const ctx = c.getContext("2d", { willReadFrequently: true });
+-		if (!ctx) throw new Error("Failed to create canvas context");
+-		ctx.clearRect(0, 0, c.width, c.height);
+-		const imgw = res instanceof HTMLVideoElement ? res.videoWidth : res.naturalWidth;
+-		const imgh = res instanceof HTMLVideoElement ? res.videoHeight : res.naturalHeight;
+-		if (imgw * imgh === 0) throw new Error("Invalid image size");
+ 		let bitmap = null;
++		let objectUrl = null;
+ 		try {
+-			if ("createImageBitmap" in window) if (blob) {
+-				bitmap = await createImageBitmap(blob, {
++			if (albumSource === void 0 || typeof albumSource === "string" && albumSource.trim().length === 0) {
++				this.isNoCover = true;
++				return;
++			}
++			let blob = null;
++			let remainRetryTimes = 5;
++			while (!res && remainRetryTimes > 0 && !signal.aborted) try {
++				if (typeof albumSource === "string") if (!isVideo && "createImageBitmap" in window) {
++					blob = await (await fetch(albumSource, { signal })).blob();
++					if (signal.aborted) return;
++					if (objectUrl) URL.revokeObjectURL(objectUrl);
++					objectUrl = URL.createObjectURL(blob);
++					res = await loadResourceFromUrl(objectUrl, false, signal);
++				} else res = await loadResourceFromUrl(albumSource, isVideo, signal);
++				else res = await loadResourceFromElement(albumSource, signal);
++			} catch (error) {
++				if (signal.aborted) return;
++				console.warn(`failed on loading album resource, retrying (${remainRetryTimes})`, {
++					albumSource,
++					error
++				});
++				remainRetryTimes--;
++			}
++			if (signal.aborted) return;
++			if (!res) {
++				console.error("Failed to load album resource", albumSource);
++				this.isNoCover = true;
++				return;
++			}
++			this.isNoCover = false;
++			const c = this.reduceImageSizeCanvas;
++			const ctx = c.getContext("2d", { willReadFrequently: true });
++			if (!ctx) throw new Error("Failed to create canvas context");
++			ctx.clearRect(0, 0, c.width, c.height);
++			const imgw = res instanceof HTMLVideoElement ? res.videoWidth : res.naturalWidth;
++			const imgh = res instanceof HTMLVideoElement ? res.videoHeight : res.naturalHeight;
++			if (imgw * imgh === 0) throw new Error("Invalid image size");
++			try {
++				if ("createImageBitmap" in window) if (blob) {
++					bitmap = await createImageBitmap(blob, {
++						resizeWidth: c.width,
++						resizeHeight: c.height,
++						resizeQuality: "low"
++					});
++				} else bitmap = await createImageBitmap(res, {
+ 					resizeWidth: c.width,
+ 					resizeHeight: c.height,
+ 					resizeQuality: "low"
+ 				});
+-				URL.revokeObjectURL(res.src);
+-			} else bitmap = await createImageBitmap(res, {
+-				resizeWidth: c.width,
+-				resizeHeight: c.height,
+-				resizeQuality: "low"
+-			});
+-		} catch (e) {
+-			console.warn("createImageBitmap failed", e);
+-		}
+-		if (bitmap) {
+-			ctx.drawImage(bitmap, 0, 0);
+-			bitmap.close();
+-		} else ctx.drawImage(res, 0, 0, imgw, imgh, 0, 0, c.width, c.height);
+-		const imageData = ctx.getImageData(0, 0, c.width, c.height);
+-		const pixels = imageData.data;
+-		for (let i = 0; i < pixels.length; i += 4) {
+-			let r = pixels[i];
+-			let g = pixels[i + 1];
+-			let b = pixels[i + 2];
+-			r = (r - 128) * .4 + 128;
+-			g = (g - 128) * .4 + 128;
+-			b = (b - 128) * .4 + 128;
+-			const gray = r * .3 + g * .59 + b * .11;
+-			r = gray * -2 + r * 3;
+-			g = gray * -2 + g * 3;
+-			b = gray * -2 + b * 3;
+-			r = (r - 128) * 1.7 + 128;
+-			g = (g - 128) * 1.7 + 128;
+-			b = (b - 128) * 1.7 + 128;
+-			pixels[i] = r * .75;
+-			pixels[i + 1] = g * .75;
+-			pixels[i + 2] = b * .75;
+-		}
+-		blurImage(imageData, 2, 4);
+-		if (this.manualControl && this.meshStates.length > 0) {
+-			this.meshStates[0].texture.dispose();
+-			this.meshStates[0].texture = new GLTexture(this.gl, imageData);
+-		} else {
+-			const newMesh = new BHPMesh(this.gl, this.mainProgram.attrs.a_pos, this.mainProgram.attrs.a_color, this.mainProgram.attrs.a_uv);
+-			newMesh.resetSubdivition(50);
+-			const chosenPreset = Math.random() > .8 ? generateControlPoints(6, 6) : CONTROL_POINT_PRESETS[Math.floor(Math.random() * CONTROL_POINT_PRESETS.length)];
+-			newMesh.resizeControlPoints(chosenPreset.width, chosenPreset.height);
+-			const uPower = 2 / (chosenPreset.width - 1);
+-			const vPower = 2 / (chosenPreset.height - 1);
+-			for (const cp of chosenPreset.conf) {
+-				const p = newMesh.getControlPoint(cp.cx, cp.cy);
+-				p.location.x = cp.x;
+-				p.location.y = cp.y;
+-				p.uRot = cp.ur * Math.PI / 180;
+-				p.vRot = cp.vr * Math.PI / 180;
+-				p.uScale = uPower * cp.up;
+-				p.vScale = vPower * cp.vp;
++			} catch (e) {
++				console.warn("createImageBitmap failed", e);
+ 			}
+-			newMesh.updateMesh();
+-			const newState = {
+-				mesh: newMesh,
+-				texture: new GLTexture(this.gl, imageData),
+-				alpha: 0
+-			};
+-			this.meshStates.push(newState);
++			if (signal.aborted) return;
++			if (bitmap) {
++				ctx.drawImage(bitmap, 0, 0);
++			} else ctx.drawImage(res, 0, 0, imgw, imgh, 0, 0, c.width, c.height);
++			const imageData = ctx.getImageData(0, 0, c.width, c.height);
++			const pixels = imageData.data;
++			for (let i = 0; i < pixels.length; i += 4) {
++				let r = pixels[i];
++				let g = pixels[i + 1];
++				let b = pixels[i + 2];
++				r = (r - 128) * .4 + 128;
++				g = (g - 128) * .4 + 128;
++				b = (b - 128) * .4 + 128;
++				const gray = r * .3 + g * .59 + b * .11;
++				r = gray * -2 + r * 3;
++				g = gray * -2 + g * 3;
++				b = gray * -2 + b * 3;
++				r = (r - 128) * 1.7 + 128;
++				g = (g - 128) * 1.7 + 128;
++				b = (b - 128) * 1.7 + 128;
++				pixels[i] = r * .75;
++				pixels[i + 1] = g * .75;
++				pixels[i + 2] = b * .75;
++			}
++			blurImage(imageData, 2, 4);
++			if (this.manualControl && this.meshStates.length > 0) {
++				this.meshStates[0].texture.dispose();
++				this.meshStates[0].texture = new GLTexture(this.gl, imageData);
++			} else {
++				const newMesh = new BHPMesh(this.gl, this.mainProgram.attrs.a_pos, this.mainProgram.attrs.a_color, this.mainProgram.attrs.a_uv);
++				newMesh.resetSubdivition(50);
++				const chosenPreset = Math.random() > .8 ? generateControlPoints(6, 6) : CONTROL_POINT_PRESETS[Math.floor(Math.random() * CONTROL_POINT_PRESETS.length)];
++				newMesh.resizeControlPoints(chosenPreset.width, chosenPreset.height);
++				const uPower = 2 / (chosenPreset.width - 1);
++				const vPower = 2 / (chosenPreset.height - 1);
++				for (const cp of chosenPreset.conf) {
++					const p = newMesh.getControlPoint(cp.cx, cp.cy);
++					p.location.x = cp.x;
++					p.location.y = cp.y;
++					p.uRot = cp.ur * Math.PI / 180;
++					p.vRot = cp.vr * Math.PI / 180;
++					p.uScale = uPower * cp.up;
++					p.vScale = vPower * cp.vp;
++				}
++				newMesh.updateMesh();
++				const newState = {
++					mesh: newMesh,
++					texture: new GLTexture(this.gl, imageData),
++					alpha: 0
++				};
++				this.meshStates.push(newState);
++			}
++			this.requestTick();
++		} finally {
++			bitmap?.close();
++			if (objectUrl) URL.revokeObjectURL(objectUrl);
++			if (typeof albumSource === "string") releaseAlbumResource(res);
+ 		}
+-		this.requestTick();
+ 	}
+ 	setLowFreqVolume(volume) {
+-		this.volume = volume / 10;
++		this.volume = Number.isFinite(volume) ? volume / 10 : 0;
+ 	}
+ 	setHasLyric(_hasLyric) {}
+ 	dispose() {
++		if (this._disposed) return;
+ 		super.dispose();
+ 		if (this.tickHandle) {
+ 			cancelAnimationFrame(this.tickHandle);
+@@ -1490,6 +1636,10 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ 			state.mesh.dispose();
+ 			state.texture.dispose();
+ 		}
++		this.meshStates.length = 0;
++		this.reduceImageSizeCanvas.width = 1;
++		this.reduceImageSizeCanvas.height = 1;
++		this.gl.getExtension("WEBGL_lose_context")?.loseContext();
+ 	}
+ 	enablePerformanceMonitor(enable) {
+ 		this.enablePerformanceMonitoring = enable;
+@@ -1516,19 +1666,51 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ var TimedContainer = class extends _pixi_display.Container {
+ 	time = 0;
+ };
++// The renderer owns this resource wrapper, but not the supplied media element.
++// Detach Pixi callbacks without pausing or clearing the caller's video.
++var BorrowedAlbumVideoResource = class extends _pixi_core.VideoResource {
++	dispose() {
++		this.autoUpdate = false;
++		const source = this.source;
++		if (source) {
++			source.removeEventListener("play", this._onPlayStart);
++			source.removeEventListener("pause", this._onPlayStop);
++			source.removeEventListener("seeked", this._onSeeked);
++			source.removeEventListener("canplay", this._onCanPlay);
++			source.removeEventListener("canplaythrough", this._onCanPlay);
++			source.removeEventListener("error", this._onError, true);
++		}
++		this._load = null;
++		this._resolve = null;
++		this._reject = null;
++		_pixi_core.BaseImageResource.prototype.dispose.call(this);
++	}
++};
++function createAlbumTexture(source, owned) {
++	if (owned) return new _pixi_core.Texture(new _pixi_core.BaseTexture(source, { resourceOptions: { autoLoad: false, createBitmap: false } }));
++	const resource = source instanceof HTMLVideoElement
++		? new BorrowedAlbumVideoResource(source, { autoLoad: false, autoPlay: false })
++		: new _pixi_core.BaseImageResource(source);
++	resource.internal = true;
++	// Avoid Texture.from's global DOM-source cache: old and new fade containers
++	// must have separate textures, even when the caller reuses an element.
++	return new _pixi_core.Texture(new _pixi_core.BaseTexture(resource));
++}
+ var PixiRenderer = class extends BaseRenderer {
+ 	canvas;
+ 	app;
+ 	curContainer;
++	_disposed = false;
+ 	staticMode = false;
+ 	lastContainer = /* @__PURE__ */ new Set();
+ 	onTick = (delta) => {
++		if (this._disposed) return;
+ 		for (const lastContainer of this.lastContainer) {
+ 			lastContainer.alpha = clampPositive(lastContainer.alpha - delta / 60);
+ 			if (lastContainer.alpha <= 0) {
+ 				this.app.stage.removeChild(lastContainer);
+ 				this.lastContainer.delete(lastContainer);
+-				lastContainer.destroy(true);
++				lastContainer.destroy({ children: true, texture: true, baseTexture: true });
+ 			}
+ 		}
+ 		if (this.curContainer) {
+@@ -1574,6 +1756,7 @@ var PixiRenderer = class extends BaseRenderer {
+ 		this.app.ticker.start();
+ 	}
+ 	onResize(width, height) {
++		if (this._disposed) return;
+ 		super.onResize(width, height);
+ 		this.app.resize();
+ 		this.rebuildFilters();
+@@ -1643,45 +1826,67 @@ var PixiRenderer = class extends BaseRenderer {
+ 	setLowFreqVolume(_volume) {}
+ 	setHasLyric(_hasLyric) {}
+ 	async setAlbum(albumSource, isVideo) {
+-		if (!albumSource || typeof albumSource === "string" && albumSource.trim().length === 0) return;
++		if (this._disposed) return;
++		const signal = this.beginAlbumLoad();
++		let committed = false;
+ 		let res = null;
+-		let remainRetryTimes = 5;
+ 		let tex = null;
+-		while (!tex?.baseTexture?.resource?.valid && remainRetryTimes > 0) try {
+-			if (typeof albumSource === "string") res = await loadResourceFromUrl(albumSource, isVideo);
+-			else res = await loadResourceFromElement(albumSource);
+-			tex = _pixi_core.Texture.from(res, { resourceOptions: { autoLoad: false } });
+-			await tex.baseTexture.resource.load();
+-		} catch (error) {
+-			console.warn(`failed on loading album image, retrying (${remainRetryTimes})`, albumSource, error);
+-			tex = null;
+-			remainRetryTimes--;
++		try {
++			if (!albumSource || typeof albumSource === "string" && albumSource.trim().length === 0) return;
++			let remainRetryTimes = 5;
++			while (!tex?.baseTexture?.resource?.valid && remainRetryTimes > 0 && !signal.aborted) try {
++				if (typeof albumSource === "string") res = await loadResourceFromUrl(albumSource, isVideo, signal);
++				else res = await loadResourceFromElement(albumSource, signal);
++				if (signal.aborted) return;
++				tex = createAlbumTexture(res, typeof albumSource === "string");
++				await waitForAlbumResource(tex.baseTexture.resource.load(), signal);
++			} catch (error) {
++				if (signal.aborted) return;
++				tex?.destroy(true);
++				if (typeof albumSource === "string") releaseAlbumResource(res);
++				res = null;
++				console.warn(`failed on loading album image, retrying (${remainRetryTimes})`, albumSource, error);
++				tex = null;
++				remainRetryTimes--;
++			}
++			if (!tex || signal.aborted) return;
++			const container = new TimedContainer();
++			const s1 = new _pixi_sprite.Sprite(tex);
++			const s2 = new _pixi_sprite.Sprite(tex);
++			const s3 = new _pixi_sprite.Sprite(tex);
++			const s4 = new _pixi_sprite.Sprite(tex);
++			s1.anchor.set(.5, .5);
++			s2.anchor.set(.5, .5);
++			s3.anchor.set(.5, .5);
++			s4.anchor.set(.5, .5);
++			s1.rotation = Math.random() * Math.PI * 2;
++			s2.rotation = Math.random() * Math.PI * 2;
++			s3.rotation = Math.random() * Math.PI * 2;
++			s4.rotation = Math.random() * Math.PI * 2;
++			container.addChild(s1, s2, s3, s4);
++			if (this.curContainer) this.lastContainer.add(this.curContainer);
++			this.curContainer = container;
++			this.app.stage.addChild(container);
++			this.curContainer.alpha = 0;
++			this.app.ticker.start();
++			committed = true;
++		} finally {
++			if (!committed) {
++				tex?.destroy(true);
++				if (typeof albumSource === "string") releaseAlbumResource(res);
++			}
+ 		}
+-		if (!tex) return;
+-		const container = new TimedContainer();
+-		const s1 = new _pixi_sprite.Sprite(tex);
+-		const s2 = new _pixi_sprite.Sprite(tex);
+-		const s3 = new _pixi_sprite.Sprite(tex);
+-		const s4 = new _pixi_sprite.Sprite(tex);
+-		s1.anchor.set(.5, .5);
+-		s2.anchor.set(.5, .5);
+-		s3.anchor.set(.5, .5);
+-		s4.anchor.set(.5, .5);
+-		s1.rotation = Math.random() * Math.PI * 2;
+-		s2.rotation = Math.random() * Math.PI * 2;
+-		s3.rotation = Math.random() * Math.PI * 2;
+-		s4.rotation = Math.random() * Math.PI * 2;
+-		container.addChild(s1, s2, s3, s4);
+-		if (this.curContainer) this.lastContainer.add(this.curContainer);
+-		this.curContainer = container;
+-		this.app.stage.addChild(container);
+-		this.curContainer.alpha = 0;
+-		this.app.ticker.start();
+ 	}
+ 	dispose() {
++		if (this._disposed) return;
++		this._disposed = true;
+ 		super.dispose();
+ 		this.app.ticker.remove(this.onTick);
+-		this.app.destroy(true);
++		for (const filter of this.app.stage.filters ?? []) filter.destroy();
++		this.app.stage.filters = [];
++		this.app.destroy(true, { children: true, texture: true, baseTexture: true });
++		this.curContainer = undefined;
++		this.lastContainer.clear();
+ 	}
+ 	getElement() {
+ 		return this.canvas;
+@@ -1930,9 +2135,13 @@ function optimizeLyricLines(lines, options) {
+ }
+ //#endregion
+ //#region src/lyric-player/dom/interlude-dots.ts
+-function easeInOutBack(x) {
+-	const c2 = 1.70158 * 1.525;
+-	return x < .5 ? (2 * x) ** 2 * ((c2 + 1) * 2 * x - c2) / 2 : ((2 * x - 2) ** 2 * ((c2 + 1) * (x * 2 - 2) + c2) + 2) / 2;
++function smoothInterludeStep(x) {
++	const value = clamp01(x);
++	return value * value * (3 - 2 * value);
++}
++function getInterludeBreatheAmount(currentDuration, breatheDuration) {
++	const breatheProgress = currentDuration / breatheDuration;
++	return (Math.sin(1.5 * Math.PI - breatheProgress * 2) + 1) / 2;
+ }
+ function easeOutExpo(x) {
+ 	return x === 1 ? 1 : 1 - 2 ** (-10 * x);
+@@ -1985,19 +2194,36 @@ var InterludeDots = class {
+ 		if (this.currentInterlude) {
+ 			const interludeDuration = this.currentInterlude[1] - this.currentInterlude[0];
+ 			const currentDuration = this.currentTime - this.currentInterlude[0];
+-			if (currentDuration <= interludeDuration) {
++			if (currentDuration <= interludeDuration + 250) {
+ 				const breatheDuration = interludeDuration / Math.ceil(interludeDuration / this.targetBreatheDuration);
+-				let scale = 1;
++				const breatheAmount = getInterludeBreatheAmount(currentDuration, breatheDuration);
++				let scale = .9025 + breatheAmount * .1475;
++				let dotSpread = -.03 + breatheAmount * .11;
+ 				let globalOpacity = 1;
+-				scale *= Math.sin(1.5 * Math.PI - currentDuration / breatheDuration * 2) / 20 + 1;
+ 				if (currentDuration < 2e3) scale *= easeOutExpo(currentDuration / 2e3);
+ 				if (currentDuration < 500) globalOpacity = 0;
+ 				else if (currentDuration < 1e3) globalOpacity *= (currentDuration - 500) / 500;
+-				if (interludeDuration - currentDuration < 750) scale *= 1 - easeInOutBack((750 - (interludeDuration - currentDuration)) / 750 / 2);
+-				if (interludeDuration - currentDuration < 375) globalOpacity *= clamp01((interludeDuration - currentDuration) / 375);
++				const remainingDuration = interludeDuration + 250 - currentDuration;
++				const expansionDuration = 460, holdDuration = 100, collapseDuration = 260;
++				const exitDuration = expansionDuration + holdDuration + collapseDuration;
++				if (remainingDuration < exitDuration) {
++					const exitStartDuration = interludeDuration + 250 - exitDuration;
++					const exitStartBreatheAmount = getInterludeBreatheAmount(exitStartDuration, breatheDuration);
++					const exitStartScale = .9025 + exitStartBreatheAmount * .1475;
++					const exitStartSpread = -.03 + exitStartBreatheAmount * .11;
++					const expansion = smoothInterludeStep((exitDuration - remainingDuration) / expansionDuration);
++					dotSpread = exitStartSpread + (.192 - exitStartSpread) * expansion;
++					scale = exitStartScale * (1 + expansion * .05);
++					if (remainingDuration < collapseDuration) {
++						const collapse = smoothInterludeStep((collapseDuration - remainingDuration) / collapseDuration);
++						dotSpread = .192 + (-.09 - .192) * collapse;
++						scale *= 1 - collapse;
++						globalOpacity *= 1 - collapse;
++					}
++				}
+ 				const dotsDuration = clampPositive(interludeDuration - 750);
+ 				scale = clampPositive(scale) * .7;
+-				curStyle += ` scale(${scale})`;
++				curStyle += ` scale(${scale});--amll-lp-interlude-dot-spread:${dotSpread.toFixed(3)}em`;
+ 				const dot0Opacity = clamp(.25, currentDuration * 3 / dotsDuration * .75, 1);
+ 				const dot1Opacity = clamp(.25, (currentDuration - dotsDuration / 3) * 3 / dotsDuration * .75, 1);
+ 				const dot2Opacity = clamp(.25, (currentDuration - dotsDuration / 3 * 2) * 3 / dotsDuration * .75, 1);
+@@ -2005,7 +2231,7 @@ var InterludeDots = class {
+ 				this.dot1.style.opacity = `${clamp01(globalOpacity * dot1Opacity)}`;
+ 				this.dot2.style.opacity = `${clamp01(globalOpacity * dot2Opacity)}`;
+ 			} else {
+-				curStyle += " scale(0)";
++				curStyle += " scale(0);--amll-lp-interlude-dot-spread:-.09em";
+ 				this.dot0.style.opacity = "0";
+ 				this.dot1.style.opacity = "0";
+ 				this.dot2.style.opacity = "0";
+@@ -3050,7 +3276,8 @@ var LyricPlayerBase = class extends EventTarget {
+ 	* @param force 是否绕过弹簧效果强制更新位置
+ 	*/
+ 	async calcLayout(sync = false, force = false) {
+-		const interlude = computeCurrentInterlude({
++		const shouldHideInitialInterlude = !this.timelineState.isPlaying && this.timelineState.currentTime <= 0;
++		const interlude = shouldHideInitialInterlude ? void 0 : computeCurrentInterlude({
+ 			currentTime: this.timelineState.currentTime,
+ 			scrollToIndex: this.timelineState.scrollToIndex,
+ 			currentGroups: this.currentLyricGroups
+diff --git a/dist/amll-core.d.cts b/dist/amll-core.d.cts
+index ff58a0fe7d74f2e68010566f6249133241ac3d25..db432513c93186b84df204d32115de0f6328559b 100644
+--- a/dist/amll-core.d.cts
++++ b/dist/amll-core.d.cts
+@@ -243,6 +243,8 @@ declare class ControlPoint {
+   private updateVTangent;
+ }
+ declare class MeshGradientRenderer extends BaseRenderer {
++  static setRhythmVisualIntensity(intensity?: number): void;
++  static setRhythmVisualSignal(breath: number, heavyBeat: number): void;
+   private gl;
+   private lastFrameTime;
+   private frameTime;
+diff --git a/dist/amll-core.d.mts b/dist/amll-core.d.mts
+index 1d57d766316b1812de4ee13e5044ec24b32e7773..820fc77300632a99addf22b2866368396a74448d 100644
+--- a/dist/amll-core.d.mts
++++ b/dist/amll-core.d.mts
+@@ -243,6 +243,8 @@ declare class ControlPoint {
+   private updateVTangent;
+ }
+ declare class MeshGradientRenderer extends BaseRenderer {
++  static setRhythmVisualIntensity(intensity?: number): void;
++  static setRhythmVisualSignal(breath: number, heavyBeat: number): void;
+   private gl;
+   private lastFrameTime;
+   private frameTime;
+diff --git a/dist/amll-core.mjs b/dist/amll-core.mjs
+index 37bd9873e58044f0900c04c2ab80da5a6d29f16a..ddfbb9144b9aa2d52d24eb8d036322e5346e7ead 100644
+--- a/dist/amll-core.mjs
++++ b/dist/amll-core.mjs
+@@ -1,6 +1,6 @@
+ import { Mat4, Vec2, Vec3, Vec4 } from "gl-matrix";
+ import { Application } from "@pixi/app";
+-import { Texture } from "@pixi/core";
++import { BaseImageResource, BaseTexture, Texture, VideoResource } from "@pixi/core";
+ import { Container } from "@pixi/display";
+ import { BlurFilter } from "@pixi/filter-blur";
+ import { BulgePinchFilter } from "@pixi/filter-bulge-pinch";
+@@ -16,6 +16,7 @@ function clamp1(x) {
+ var BaseRenderer = class extends AbstractBaseRenderer {
+ 	canvas;
+ 	observer;
++	albumLoadController = null;
+ 	flowSpeed = 1;
+ 	currerntRenderScale = .75;
+ 	constructor(canvas) {
+@@ -50,7 +51,14 @@ var BaseRenderer = class extends AbstractBaseRenderer {
+ 	setFlowSpeed(speed) {
+ 		this.flowSpeed = speed;
+ 	}
++	beginAlbumLoad() {
++		this.albumLoadController?.abort();
++		this.albumLoadController = new AbortController();
++		return this.albumLoadController.signal;
++	}
+ 	dispose() {
++		this.albumLoadController?.abort();
++		this.albumLoadController = null;
+ 		this.observer.disconnect();
+ 		this.canvas.remove();
+ 	}
+@@ -60,56 +68,117 @@ var BaseRenderer = class extends AbstractBaseRenderer {
+ };
+ //#endregion
+ //#region src/utils/resource.ts
+-function loadImage(imageUrl) {
++function releaseAlbumResource(resource) {
++	if (resource instanceof HTMLVideoElement) {
++		resource.pause();
++		resource.removeAttribute("src");
++		resource.load();
++	} else if (resource instanceof HTMLImageElement) resource.removeAttribute("src");
++}
++function waitForAlbumResource(promise, signal) {
++	return new Promise((resolve, reject) => {
++		const abort = () => {
++			signal.removeEventListener("abort", abort);
++			reject(new DOMException("Album load cancelled", "AbortError"));
++		};
++		// Attach both handlers even when already aborted so a late rejection
++		// from a decoder never becomes an unhandled promise rejection.
++		Promise.resolve(promise).then((value) => {
++			signal.removeEventListener("abort", abort);
++			resolve(value);
++		}, (error) => {
++			signal.removeEventListener("abort", abort);
++			reject(error);
++		});
++		if (signal.aborted) abort();
++		else signal.addEventListener("abort", abort, { once: true });
++	});
++}
++function loadImage(imageUrl, signal) {
+ 	return new Promise((resolve, reject) => {
+ 		const img = document.createElement("img");
+-		img.onload = () => resolve(img);
+-		img.onerror = reject;
+-		img.src = imageUrl;
++		const cleanup = () => {
++			img.onload = null;
++			img.onerror = null;
++			signal?.removeEventListener("abort", abort);
++		};
++		const abort = () => {
++			cleanup();
++			releaseAlbumResource(img);
++			reject(new DOMException("Album load cancelled", "AbortError"));
++		};
++		img.onload = () => { cleanup(); resolve(img); };
++		img.onerror = (error) => { cleanup(); releaseAlbumResource(img); reject(error); };
++		if (signal?.aborted) { abort(); return; }
++		signal?.addEventListener("abort", abort, { once: true });
+ 		img.crossOrigin = "anonymous";
+ 		img.loading = "eager";
++		img.src = imageUrl;
+ 	});
+ }
+-function loadVideo(videoUrl) {
++function loadVideo(videoUrl, signal) {
+ 	return new Promise((resolve, reject) => {
+ 		const video = document.createElement("video");
+ 		let playing = false;
+ 		let timeupdate = false;
+-		let rejected = false;
+-		video.addEventListener("playing", () => {
+-			playing = true;
+-			checkReady();
+-		}, true);
+-		video.addEventListener("timeupdate", () => {
+-			timeupdate = true;
+-			checkReady();
+-		}, true);
+-		video.addEventListener("error", (err) => {
+-			rejected = true;
+-			reject(err);
+-		}, true);
+-		function checkReady() {
+-			if (playing && timeupdate && !rejected) resolve(video);
+-		}
+-		video.src = videoUrl;
++		let settled = false;
++		const cleanup = () => {
++			video.removeEventListener("playing", onPlaying);
++			video.removeEventListener("timeupdate", onTimeUpdate);
++			video.removeEventListener("error", fail);
++			signal?.removeEventListener("abort", abort);
++		};
++		const fail = (error) => {
++			if (settled) return;
++			settled = true;
++			cleanup();
++			releaseAlbumResource(video);
++			reject(error);
++		};
++		const abort = () => fail(new DOMException("Album load cancelled", "AbortError"));
++		const checkReady = () => {
++			if (playing && timeupdate && !settled) {
++				settled = true;
++				cleanup();
++				resolve(video);
++			}
++		};
++		const onPlaying = () => { playing = true; checkReady(); };
++		const onTimeUpdate = () => { timeupdate = true; checkReady(); };
++		video.addEventListener("playing", onPlaying);
++		video.addEventListener("timeupdate", onTimeUpdate);
++		video.addEventListener("error", fail);
++		if (signal?.aborted) { abort(); return; }
++		signal?.addEventListener("abort", abort, { once: true });
+ 		video.playsInline = true;
+ 		video.crossOrigin = "anonymous";
+ 		video.autoplay = true;
+ 		video.loop = true;
+ 		video.muted = true;
+-		video.play();
++		video.src = videoUrl;
++		void video.play().catch(fail);
+ 	});
+ }
+-function loadResourceFromUrl(url, isVideo = false) {
+-	return isVideo ? loadVideo(url) : loadImage(url);
++function loadResourceFromUrl(url, isVideo = false, signal) {
++	return isVideo ? loadVideo(url, signal) : loadImage(url, signal);
+ }
+-function loadResourceFromElement(element) {
++function loadResourceFromElement(element, signal) {
+ 	return new Promise((resolve, reject) => {
+-		if (element instanceof HTMLImageElement ? element.complete : element.readyState >= 3) resolve(element);
+-		else {
+-			element.onload = () => resolve(element);
+-			element.onerror = reject;
+-		}
++		const event = element instanceof HTMLImageElement ? "load" : "canplay";
++		const cleanup = () => {
++			element.removeEventListener(event, ready);
++			element.removeEventListener("error", fail);
++			signal?.removeEventListener("abort", abort);
++		};
++		const ready = () => { cleanup(); resolve(element); };
++		const fail = (error) => { cleanup(); reject(error); };
++		// A caller-owned element must not be paused or have its source removed.
++		const abort = () => fail(new DOMException("Album load cancelled", "AbortError"));
++		if (signal?.aborted) { abort(); return; }
++		if (element instanceof HTMLImageElement ? element.complete : element.readyState >= 3) { ready(); return; }
++		element.addEventListener(event, ready);
++		element.addEventListener("error", fail);
++		signal?.addEventListener("abort", abort, { once: true });
+ 	});
+ }
+ //#endregion
+@@ -540,6 +609,8 @@ function generateControlPoints(width, height, variationFraction = randomRange(.4
+ //#endregion
+ //#region \0raw:/home/runner/work/applemusic-like-lyrics/applemusic-like-lyrics/packages/core/src/bg-render/mesh-renderer/mesh.frag.glsl
+ var mesh_frag_default = "precision mediump float;\n\nvarying vec3 v_color;\nvarying vec2 v_uv;\nuniform sampler2D u_texture;\nuniform float u_volume;\nuniform float u_alpha;\nuniform float u_sinAngle;\nuniform float u_cosAngle;\n\n// 预计算常量\nconst float INV_255 = 1.0 / 255.0;\nconst float HALF_INV_255 = 0.5 / 255.0;\nconst float GRADIENT_NOISE_A = 52.9829189;\nconst vec2 GRADIENT_NOISE_B = vec2(0.06711056, 0.00583715);\n\nfloat gradientNoise(in vec2 uv) {\n    return fract(GRADIENT_NOISE_A * fract(dot(uv, GRADIENT_NOISE_B)));\n}\n\nvoid main() {\n    float volumeEffect = u_volume * 2.0;\n\n    float dither = INV_255 * gradientNoise(gl_FragCoord.xy) - HALF_INV_255;\n\n    vec2 centeredUV = v_uv - vec2(0.2);\n\n    vec2 rotatedUV = vec2(\n        u_cosAngle * centeredUV.x - u_sinAngle * centeredUV.y,\n        u_sinAngle * centeredUV.x + u_cosAngle * centeredUV.y\n    );\n\n    vec2 finalUV = rotatedUV * max(0.001, 1.0 - volumeEffect) + vec2(0.5);\n    \n    vec4 result = texture2D(u_texture, finalUV);\n    \n    float alphaVolumeFactor = u_alpha * max(0.5, 1.0 - u_volume * 0.5);\n    result.rgb *= v_color * alphaVolumeFactor;\n    result.a *= alphaVolumeFactor;\n    \n    result.rgb += vec3(dither);\n    \n    float dist = distance(v_uv, vec2(0.5));\n    float vignette = smoothstep(0.8, 0.3, dist);\n    float mask = 0.6 + vignette * 0.4;\n    result.rgb *= mask;\n    \n    gl_FragColor = result;\n}\n";
++mesh_frag_default = mesh_frag_default.replace("vec2 centeredUV = v_uv - vec2(0.2);", "vec2 centeredUV = v_uv - vec2(0.5);");
++mesh_frag_default = mesh_frag_default.replace("uniform float u_cosAngle;", "uniform float u_cosAngle;\nuniform float u_flowOffsetX;\nuniform float u_flowOffsetY;").replace("rotatedUV * max(0.001, 1.0 - volumeEffect) + vec2(0.5)", "rotatedUV * max(0.001, 1.0 - volumeEffect) + vec2(0.5) + vec2(u_flowOffsetX, u_flowOffsetY)");
+ //#endregion
+ //#region \0raw:/home/runner/work/applemusic-like-lyrics/applemusic-like-lyrics/packages/core/src/bg-render/mesh-renderer/mesh.vert.glsl
+ var mesh_vert_default = "precision mediump float;\n\nattribute vec2 a_pos;\nattribute vec3 a_color;\nattribute vec2 a_uv;\nvarying vec3 v_color;\nvarying vec2 v_uv;\n\nuniform float u_aspect;\n\nvoid main() {\n    v_color = a_color;\n    v_uv = a_uv;\n    vec2 pos = a_pos;\n    if (u_aspect > 1.0) {\n        pos.y *= u_aspect;\n    } else {\n        pos.x /= u_aspect;\n    }\n    gl_Position = vec4(pos, 0.0, 1.0);\n}\n";
+@@ -1111,11 +1182,25 @@ function createOffscreenCanvas(width, height) {
+ 	return canvas;
+ }
+ var MeshGradientRenderer = class extends BaseRenderer {
++	static rhythmVisualVolume = 0;
++	static strongBeat = 0;
++	static rhythmVisualIntensity = 1;
++	static setRhythmVisualIntensity(intensity = 1) {
++		MeshGradientRenderer.rhythmVisualIntensity = Number.isFinite(intensity) ? Math.min(2, Math.max(0, intensity)) : 1;
++	}
++	static setRhythmVisualSignal(breath, heavyBeat) {
++		MeshGradientRenderer.rhythmVisualVolume = Number.isFinite(breath) ? Math.min(.4, Math.max(0, breath)) : 0;
++		MeshGradientRenderer.strongBeat = Number.isFinite(heavyBeat) ? Math.min(1, Math.max(0, heavyBeat)) : 0;
++	}
+ 	gl;
+ 	lastFrameTime = 0;
+ 	frameTime = 0;
+ 	lastTickTime = 0;
+ 	smoothedVolume = 0;
++	rhythmKick = 0;
++	kickVelocity = 0;
++	lastKickDrive = 0;
++	rhythmBreath = 0;
+ 	volume = 0;
+ 	tickHandle = 0;
+ 	maxFPS = 60;
+@@ -1167,8 +1252,10 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ 		const frameDelta = tickTime - this.lastFrameTime;
+ 		this.lastFrameTime = tickTime;
+ 		this.lastTickTime = tickTime - delta % interval;
+-		this.frameTime += frameDelta * this.flowSpeed;
+-		if (!(this.onRedraw(this.frameTime, frameDelta) && this.staticMode)) this.requestTick();
++		const maxFrameDelta = Math.max(50, (Number.isFinite(this.maxFPS) && this.maxFPS > 0 ? 1e3 / this.maxFPS : 0) * 1.5);
++		const safeFrameDelta = Number.isFinite(frameDelta) ? Math.min(maxFrameDelta, Math.max(0, frameDelta)) : 0;
++		this.frameTime += safeFrameDelta * this.flowSpeed;
++		if (!(this.onRedraw(this.frameTime, safeFrameDelta) && this.staticMode)) this.requestTick();
+ 		else if (this.staticMode) this.lastFrameTime = NaN;
+ 	}
+ 	checkIfResize() {
+@@ -1203,7 +1290,9 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ 	onRedraw(tickTime, delta) {
+ 		const latestMeshState = this.meshStates[this.meshStates.length - 1];
+ 		let canBeStatic = false;
+-		const deltaFactor = delta / 500;
++		const maxFrameDelta = Math.max(50, (Number.isFinite(this.maxFPS) && this.maxFPS > 0 ? 1e3 / this.maxFPS : 0) * 1.5);
++		const safeDelta = Number.isFinite(delta) ? Math.min(maxFrameDelta, Math.max(0, delta)) : 0;
++		const deltaFactor = safeDelta / 500;
+ 		if (latestMeshState) {
+ 			latestMeshState.mesh.bind();
+ 			if (this.manualControl) latestMeshState.mesh.updateMesh();
+@@ -1235,11 +1324,40 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ 		const gl = this.gl;
+ 		this.checkIfResize();
+ 		if (!this.fbo) return canBeStatic;
++		const kickDrive = MeshGradientRenderer.strongBeat;
++		// P=2.4 is impulse gain: raising it pushes each heavy beat farther.
++		this.kickVelocity += 2.4 * Math.max(0, kickDrive - this.lastKickDrive);
++		this.lastKickDrive = kickDrive;
+ 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+ 		gl.clearColor(0, 0, 0, 0);
+ 		gl.clear(gl.COLOR_BUFFER_BIT);
+-		const lerpFactor = Math.min(1, delta / 100);
++		const lerpFactor = Math.min(1, safeDelta / 100);
+ 		this.smoothedVolume += (this.volume - this.smoothedVolume) * lerpFactor;
++		const signal = Math.min(1, Math.max(0, MeshGradientRenderer.rhythmVisualVolume * 2.5));
++		let kickRemainingMs = safeDelta;
++		while (kickRemainingMs > 0) {
++			const kickStepMs = Math.min(2.5, kickRemainingMs);
++			const kickStepS = kickStepMs / 1e3;
++			// K=30 pulls back faster; C=16 damps overshoot and oscillation.
++			this.kickVelocity -= (30 * this.rhythmKick + 16 * this.kickVelocity) * kickStepS;
++			this.rhythmKick += this.kickVelocity * kickStepS;
++			kickRemainingMs -= kickStepMs;
++		}
++		if (this.rhythmKick < 0) {
++			this.rhythmKick = 0;
++			if (this.kickVelocity < 0) this.kickVelocity = 0;
++		}
++		const breathDuck = 1 - Math.min(1, this.rhythmKick / .12) * .5;
++		const targetBreath = Math.min(.12, signal * .16) * breathDuck;
++		const breathMs = targetBreath > this.rhythmBreath ? 110 : 380;
++		const breathFactor = 1 - Math.exp(-safeDelta / breathMs);
++		this.rhythmBreath += (targetBreath - this.rhythmBreath) * breathFactor;
++		const combinedBreath = Math.max(0, this.volume) + this.rhythmBreath;
++		const breathKnee = Math.min(1, Math.max(0, (combinedBreath - .16) / .06));
++		const breathVolume = combinedBreath <= .16 ? combinedBreath : .16 + .06 * breathKnee - .02 * breathKnee * breathKnee * breathKnee;
++		const rhythmVisualIntensity = MeshGradientRenderer.rhythmVisualIntensity;
++		const animatedBreathVolume = Math.min(.4, breathVolume * rhythmVisualIntensity);
++		const compensatedAlpha = 1 / Math.max(.5, 1 - animatedBreathVolume * .5);
+ 		for (const state of this.meshStates) {
+ 			gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+ 			gl.disable(gl.BLEND);
+@@ -1250,9 +1368,18 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ 			const uTime = tickTime / 1e4;
+ 			this.mainProgram.setUniform1f("u_aspect", this.manualControl ? 1 : this.canvas.width / this.canvas.height);
+ 			this.mainProgram.setUniform1i("u_texture", 0);
+-			this.mainProgram.setUniform1f("u_volume", this.volume);
+-			this.mainProgram.setUniform1f("u_alpha", 1);
+-			const angle = (uTime + this.volume) * 2;
++			this.mainProgram.setUniform1f("u_volume", animatedBreathVolume);
++			this.mainProgram.setUniform1f("u_alpha", compensatedAlpha);
++			const bassMotion = this.volume * rhythmVisualIntensity;
++			const angle = uTime * 2 + bassMotion * 2;
++			// Restore the original (.2 -> .5) pivot offset separately from centered breathing.
++			// Heavy beats move the texture along that orbit without rotating it further.
++			const flowAngle = angle + this.rhythmKick * rhythmVisualIntensity;
++			const flowRadius = .3 * Math.max(.001, 1 - bassMotion * 2);
++			const flowSin = Math.sin(flowAngle);
++			const flowCos = Math.cos(flowAngle);
++			this.mainProgram.setUniform1f("u_flowOffsetX", flowRadius * (flowCos - flowSin));
++			this.mainProgram.setUniform1f("u_flowOffsetY", flowRadius * (flowSin + flowCos));
+ 			this.mainProgram.setUniform1f("u_sinAngle", Math.sin(angle));
+ 			this.mainProgram.setUniform1f("u_cosAngle", Math.cos(angle));
+ 			state.texture.bind();
+@@ -1337,119 +1464,138 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ 		this.paused = true;
+ 	}
+ 	resume() {
++		const wasPaused = this.paused;
+ 		this.paused = false;
++		const now = performance.now();
++		this.lastFrameTime = now;
++		this.lastTickTime = now;
++		if (wasPaused) this.lastKickDrive = 0;
+ 		this.requestTick();
+ 	}
+ 	async setAlbum(albumSource, isVideo) {
+-		if (albumSource === void 0 || typeof albumSource === "string" && albumSource.trim().length === 0) {
+-			this.isNoCover = true;
+-			return;
+-		}
++		if (this._disposed) return;
++		const signal = this.beginAlbumLoad();
+ 		let res = null;
+-		let blob = null;
+-		let remainRetryTimes = 5;
+-		while (!res && remainRetryTimes > 0) try {
+-			if (typeof albumSource === "string") if (!isVideo && "createImageBitmap" in window) {
+-				blob = await (await fetch(albumSource)).blob();
+-				res = await loadResourceFromUrl(URL.createObjectURL(blob), false);
+-			} else res = await loadResourceFromUrl(albumSource, isVideo);
+-			else res = await loadResourceFromElement(albumSource);
+-		} catch (error) {
+-			console.warn(`failed on loading album resource, retrying (${remainRetryTimes})`, {
+-				albumSource,
+-				error
+-			});
+-			remainRetryTimes--;
+-		}
+-		if (!res) {
+-			console.error("Failed to load album resource", albumSource);
+-			this.isNoCover = true;
+-			return;
+-		}
+-		this.isNoCover = false;
+-		const c = this.reduceImageSizeCanvas;
+-		const ctx = c.getContext("2d", { willReadFrequently: true });
+-		if (!ctx) throw new Error("Failed to create canvas context");
+-		ctx.clearRect(0, 0, c.width, c.height);
+-		const imgw = res instanceof HTMLVideoElement ? res.videoWidth : res.naturalWidth;
+-		const imgh = res instanceof HTMLVideoElement ? res.videoHeight : res.naturalHeight;
+-		if (imgw * imgh === 0) throw new Error("Invalid image size");
+ 		let bitmap = null;
++		let objectUrl = null;
+ 		try {
+-			if ("createImageBitmap" in window) if (blob) {
+-				bitmap = await createImageBitmap(blob, {
++			if (albumSource === void 0 || typeof albumSource === "string" && albumSource.trim().length === 0) {
++				this.isNoCover = true;
++				return;
++			}
++			let blob = null;
++			let remainRetryTimes = 5;
++			while (!res && remainRetryTimes > 0 && !signal.aborted) try {
++				if (typeof albumSource === "string") if (!isVideo && "createImageBitmap" in window) {
++					blob = await (await fetch(albumSource, { signal })).blob();
++					if (signal.aborted) return;
++					if (objectUrl) URL.revokeObjectURL(objectUrl);
++					objectUrl = URL.createObjectURL(blob);
++					res = await loadResourceFromUrl(objectUrl, false, signal);
++				} else res = await loadResourceFromUrl(albumSource, isVideo, signal);
++				else res = await loadResourceFromElement(albumSource, signal);
++			} catch (error) {
++				if (signal.aborted) return;
++				console.warn(`failed on loading album resource, retrying (${remainRetryTimes})`, {
++					albumSource,
++					error
++				});
++				remainRetryTimes--;
++			}
++			if (signal.aborted) return;
++			if (!res) {
++				console.error("Failed to load album resource", albumSource);
++				this.isNoCover = true;
++				return;
++			}
++			this.isNoCover = false;
++			const c = this.reduceImageSizeCanvas;
++			const ctx = c.getContext("2d", { willReadFrequently: true });
++			if (!ctx) throw new Error("Failed to create canvas context");
++			ctx.clearRect(0, 0, c.width, c.height);
++			const imgw = res instanceof HTMLVideoElement ? res.videoWidth : res.naturalWidth;
++			const imgh = res instanceof HTMLVideoElement ? res.videoHeight : res.naturalHeight;
++			if (imgw * imgh === 0) throw new Error("Invalid image size");
++			try {
++				if ("createImageBitmap" in window) if (blob) {
++					bitmap = await createImageBitmap(blob, {
++						resizeWidth: c.width,
++						resizeHeight: c.height,
++						resizeQuality: "low"
++					});
++				} else bitmap = await createImageBitmap(res, {
+ 					resizeWidth: c.width,
+ 					resizeHeight: c.height,
+ 					resizeQuality: "low"
+ 				});
+-				URL.revokeObjectURL(res.src);
+-			} else bitmap = await createImageBitmap(res, {
+-				resizeWidth: c.width,
+-				resizeHeight: c.height,
+-				resizeQuality: "low"
+-			});
+-		} catch (e) {
+-			console.warn("createImageBitmap failed", e);
+-		}
+-		if (bitmap) {
+-			ctx.drawImage(bitmap, 0, 0);
+-			bitmap.close();
+-		} else ctx.drawImage(res, 0, 0, imgw, imgh, 0, 0, c.width, c.height);
+-		const imageData = ctx.getImageData(0, 0, c.width, c.height);
+-		const pixels = imageData.data;
+-		for (let i = 0; i < pixels.length; i += 4) {
+-			let r = pixels[i];
+-			let g = pixels[i + 1];
+-			let b = pixels[i + 2];
+-			r = (r - 128) * .4 + 128;
+-			g = (g - 128) * .4 + 128;
+-			b = (b - 128) * .4 + 128;
+-			const gray = r * .3 + g * .59 + b * .11;
+-			r = gray * -2 + r * 3;
+-			g = gray * -2 + g * 3;
+-			b = gray * -2 + b * 3;
+-			r = (r - 128) * 1.7 + 128;
+-			g = (g - 128) * 1.7 + 128;
+-			b = (b - 128) * 1.7 + 128;
+-			pixels[i] = r * .75;
+-			pixels[i + 1] = g * .75;
+-			pixels[i + 2] = b * .75;
+-		}
+-		blurImage(imageData, 2, 4);
+-		if (this.manualControl && this.meshStates.length > 0) {
+-			this.meshStates[0].texture.dispose();
+-			this.meshStates[0].texture = new GLTexture(this.gl, imageData);
+-		} else {
+-			const newMesh = new BHPMesh(this.gl, this.mainProgram.attrs.a_pos, this.mainProgram.attrs.a_color, this.mainProgram.attrs.a_uv);
+-			newMesh.resetSubdivition(50);
+-			const chosenPreset = Math.random() > .8 ? generateControlPoints(6, 6) : CONTROL_POINT_PRESETS[Math.floor(Math.random() * CONTROL_POINT_PRESETS.length)];
+-			newMesh.resizeControlPoints(chosenPreset.width, chosenPreset.height);
+-			const uPower = 2 / (chosenPreset.width - 1);
+-			const vPower = 2 / (chosenPreset.height - 1);
+-			for (const cp of chosenPreset.conf) {
+-				const p = newMesh.getControlPoint(cp.cx, cp.cy);
+-				p.location.x = cp.x;
+-				p.location.y = cp.y;
+-				p.uRot = cp.ur * Math.PI / 180;
+-				p.vRot = cp.vr * Math.PI / 180;
+-				p.uScale = uPower * cp.up;
+-				p.vScale = vPower * cp.vp;
++			} catch (e) {
++				console.warn("createImageBitmap failed", e);
+ 			}
+-			newMesh.updateMesh();
+-			const newState = {
+-				mesh: newMesh,
+-				texture: new GLTexture(this.gl, imageData),
+-				alpha: 0
+-			};
+-			this.meshStates.push(newState);
++			if (signal.aborted) return;
++			if (bitmap) {
++				ctx.drawImage(bitmap, 0, 0);
++			} else ctx.drawImage(res, 0, 0, imgw, imgh, 0, 0, c.width, c.height);
++			const imageData = ctx.getImageData(0, 0, c.width, c.height);
++			const pixels = imageData.data;
++			for (let i = 0; i < pixels.length; i += 4) {
++				let r = pixels[i];
++				let g = pixels[i + 1];
++				let b = pixels[i + 2];
++				r = (r - 128) * .4 + 128;
++				g = (g - 128) * .4 + 128;
++				b = (b - 128) * .4 + 128;
++				const gray = r * .3 + g * .59 + b * .11;
++				r = gray * -2 + r * 3;
++				g = gray * -2 + g * 3;
++				b = gray * -2 + b * 3;
++				r = (r - 128) * 1.7 + 128;
++				g = (g - 128) * 1.7 + 128;
++				b = (b - 128) * 1.7 + 128;
++				pixels[i] = r * .75;
++				pixels[i + 1] = g * .75;
++				pixels[i + 2] = b * .75;
++			}
++			blurImage(imageData, 2, 4);
++			if (this.manualControl && this.meshStates.length > 0) {
++				this.meshStates[0].texture.dispose();
++				this.meshStates[0].texture = new GLTexture(this.gl, imageData);
++			} else {
++				const newMesh = new BHPMesh(this.gl, this.mainProgram.attrs.a_pos, this.mainProgram.attrs.a_color, this.mainProgram.attrs.a_uv);
++				newMesh.resetSubdivition(50);
++				const chosenPreset = Math.random() > .8 ? generateControlPoints(6, 6) : CONTROL_POINT_PRESETS[Math.floor(Math.random() * CONTROL_POINT_PRESETS.length)];
++				newMesh.resizeControlPoints(chosenPreset.width, chosenPreset.height);
++				const uPower = 2 / (chosenPreset.width - 1);
++				const vPower = 2 / (chosenPreset.height - 1);
++				for (const cp of chosenPreset.conf) {
++					const p = newMesh.getControlPoint(cp.cx, cp.cy);
++					p.location.x = cp.x;
++					p.location.y = cp.y;
++					p.uRot = cp.ur * Math.PI / 180;
++					p.vRot = cp.vr * Math.PI / 180;
++					p.uScale = uPower * cp.up;
++					p.vScale = vPower * cp.vp;
++				}
++				newMesh.updateMesh();
++				const newState = {
++					mesh: newMesh,
++					texture: new GLTexture(this.gl, imageData),
++					alpha: 0
++				};
++				this.meshStates.push(newState);
++			}
++			this.requestTick();
++		} finally {
++			bitmap?.close();
++			if (objectUrl) URL.revokeObjectURL(objectUrl);
++			if (typeof albumSource === "string") releaseAlbumResource(res);
+ 		}
+-		this.requestTick();
+ 	}
+ 	setLowFreqVolume(volume) {
+-		this.volume = volume / 10;
++		this.volume = Number.isFinite(volume) ? volume / 10 : 0;
+ 	}
+ 	setHasLyric(_hasLyric) {}
+ 	dispose() {
++		if (this._disposed) return;
+ 		super.dispose();
+ 		if (this.tickHandle) {
+ 			cancelAnimationFrame(this.tickHandle);
+@@ -1465,6 +1611,10 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ 			state.mesh.dispose();
+ 			state.texture.dispose();
+ 		}
++		this.meshStates.length = 0;
++		this.reduceImageSizeCanvas.width = 1;
++		this.reduceImageSizeCanvas.height = 1;
++		this.gl.getExtension("WEBGL_lose_context")?.loseContext();
+ 	}
+ 	enablePerformanceMonitor(enable) {
+ 		this.enablePerformanceMonitoring = enable;
+@@ -1491,19 +1641,51 @@ var MeshGradientRenderer = class extends BaseRenderer {
+ var TimedContainer = class extends Container {
+ 	time = 0;
+ };
++// The renderer owns this resource wrapper, but not the supplied media element.
++// Detach Pixi callbacks without pausing or clearing the caller's video.
++var BorrowedAlbumVideoResource = class extends VideoResource {
++	dispose() {
++		this.autoUpdate = false;
++		const source = this.source;
++		if (source) {
++			source.removeEventListener("play", this._onPlayStart);
++			source.removeEventListener("pause", this._onPlayStop);
++			source.removeEventListener("seeked", this._onSeeked);
++			source.removeEventListener("canplay", this._onCanPlay);
++			source.removeEventListener("canplaythrough", this._onCanPlay);
++			source.removeEventListener("error", this._onError, true);
++		}
++		this._load = null;
++		this._resolve = null;
++		this._reject = null;
++		BaseImageResource.prototype.dispose.call(this);
++	}
++};
++function createAlbumTexture(source, owned) {
++	if (owned) return new Texture(new BaseTexture(source, { resourceOptions: { autoLoad: false, createBitmap: false } }));
++	const resource = source instanceof HTMLVideoElement
++		? new BorrowedAlbumVideoResource(source, { autoLoad: false, autoPlay: false })
++		: new BaseImageResource(source);
++	resource.internal = true;
++	// Avoid Texture.from's global DOM-source cache: old and new fade containers
++	// must have separate textures, even when the caller reuses an element.
++	return new Texture(new BaseTexture(resource));
++}
+ var PixiRenderer = class extends BaseRenderer {
+ 	canvas;
+ 	app;
+ 	curContainer;
++	_disposed = false;
+ 	staticMode = false;
+ 	lastContainer = /* @__PURE__ */ new Set();
+ 	onTick = (delta) => {
++		if (this._disposed) return;
+ 		for (const lastContainer of this.lastContainer) {
+ 			lastContainer.alpha = clampPositive(lastContainer.alpha - delta / 60);
+ 			if (lastContainer.alpha <= 0) {
+ 				this.app.stage.removeChild(lastContainer);
+ 				this.lastContainer.delete(lastContainer);
+-				lastContainer.destroy(true);
++				lastContainer.destroy({ children: true, texture: true, baseTexture: true });
+ 			}
+ 		}
+ 		if (this.curContainer) {
+@@ -1549,6 +1731,7 @@ var PixiRenderer = class extends BaseRenderer {
+ 		this.app.ticker.start();
+ 	}
+ 	onResize(width, height) {
++		if (this._disposed) return;
+ 		super.onResize(width, height);
+ 		this.app.resize();
+ 		this.rebuildFilters();
+@@ -1618,45 +1801,67 @@ var PixiRenderer = class extends BaseRenderer {
+ 	setLowFreqVolume(_volume) {}
+ 	setHasLyric(_hasLyric) {}
+ 	async setAlbum(albumSource, isVideo) {
+-		if (!albumSource || typeof albumSource === "string" && albumSource.trim().length === 0) return;
++		if (this._disposed) return;
++		const signal = this.beginAlbumLoad();
++		let committed = false;
+ 		let res = null;
+-		let remainRetryTimes = 5;
+ 		let tex = null;
+-		while (!tex?.baseTexture?.resource?.valid && remainRetryTimes > 0) try {
+-			if (typeof albumSource === "string") res = await loadResourceFromUrl(albumSource, isVideo);
+-			else res = await loadResourceFromElement(albumSource);
+-			tex = Texture.from(res, { resourceOptions: { autoLoad: false } });
+-			await tex.baseTexture.resource.load();
+-		} catch (error) {
+-			console.warn(`failed on loading album image, retrying (${remainRetryTimes})`, albumSource, error);
+-			tex = null;
+-			remainRetryTimes--;
++		try {
++			if (!albumSource || typeof albumSource === "string" && albumSource.trim().length === 0) return;
++			let remainRetryTimes = 5;
++			while (!tex?.baseTexture?.resource?.valid && remainRetryTimes > 0 && !signal.aborted) try {
++				if (typeof albumSource === "string") res = await loadResourceFromUrl(albumSource, isVideo, signal);
++				else res = await loadResourceFromElement(albumSource, signal);
++				if (signal.aborted) return;
++				tex = createAlbumTexture(res, typeof albumSource === "string");
++				await waitForAlbumResource(tex.baseTexture.resource.load(), signal);
++			} catch (error) {
++				if (signal.aborted) return;
++				tex?.destroy(true);
++				if (typeof albumSource === "string") releaseAlbumResource(res);
++				res = null;
++				console.warn(`failed on loading album image, retrying (${remainRetryTimes})`, albumSource, error);
++				tex = null;
++				remainRetryTimes--;
++			}
++			if (!tex || signal.aborted) return;
++			const container = new TimedContainer();
++			const s1 = new Sprite(tex);
++			const s2 = new Sprite(tex);
++			const s3 = new Sprite(tex);
++			const s4 = new Sprite(tex);
++			s1.anchor.set(.5, .5);
++			s2.anchor.set(.5, .5);
++			s3.anchor.set(.5, .5);
++			s4.anchor.set(.5, .5);
++			s1.rotation = Math.random() * Math.PI * 2;
++			s2.rotation = Math.random() * Math.PI * 2;
++			s3.rotation = Math.random() * Math.PI * 2;
++			s4.rotation = Math.random() * Math.PI * 2;
++			container.addChild(s1, s2, s3, s4);
++			if (this.curContainer) this.lastContainer.add(this.curContainer);
++			this.curContainer = container;
++			this.app.stage.addChild(container);
++			this.curContainer.alpha = 0;
++			this.app.ticker.start();
++			committed = true;
++		} finally {
++			if (!committed) {
++				tex?.destroy(true);
++				if (typeof albumSource === "string") releaseAlbumResource(res);
++			}
+ 		}
+-		if (!tex) return;
+-		const container = new TimedContainer();
+-		const s1 = new Sprite(tex);
+-		const s2 = new Sprite(tex);
+-		const s3 = new Sprite(tex);
+-		const s4 = new Sprite(tex);
+-		s1.anchor.set(.5, .5);
+-		s2.anchor.set(.5, .5);
+-		s3.anchor.set(.5, .5);
+-		s4.anchor.set(.5, .5);
+-		s1.rotation = Math.random() * Math.PI * 2;
+-		s2.rotation = Math.random() * Math.PI * 2;
+-		s3.rotation = Math.random() * Math.PI * 2;
+-		s4.rotation = Math.random() * Math.PI * 2;
+-		container.addChild(s1, s2, s3, s4);
+-		if (this.curContainer) this.lastContainer.add(this.curContainer);
+-		this.curContainer = container;
+-		this.app.stage.addChild(container);
+-		this.curContainer.alpha = 0;
+-		this.app.ticker.start();
+ 	}
+ 	dispose() {
++		if (this._disposed) return;
++		this._disposed = true;
+ 		super.dispose();
+ 		this.app.ticker.remove(this.onTick);
+-		this.app.destroy(true);
++		for (const filter of this.app.stage.filters ?? []) filter.destroy();
++		this.app.stage.filters = [];
++		this.app.destroy(true, { children: true, texture: true, baseTexture: true });
++		this.curContainer = undefined;
++		this.lastContainer.clear();
+ 	}
+ 	getElement() {
+ 		return this.canvas;
+@@ -1905,9 +2110,13 @@ function optimizeLyricLines(lines, options) {
+ }
+ //#endregion
+ //#region src/lyric-player/dom/interlude-dots.ts
+-function easeInOutBack(x) {
+-	const c2 = 1.70158 * 1.525;
+-	return x < .5 ? (2 * x) ** 2 * ((c2 + 1) * 2 * x - c2) / 2 : ((2 * x - 2) ** 2 * ((c2 + 1) * (x * 2 - 2) + c2) + 2) / 2;
++function smoothInterludeStep(x) {
++	const value = clamp01(x);
++	return value * value * (3 - 2 * value);
++}
++function getInterludeBreatheAmount(currentDuration, breatheDuration) {
++	const breatheProgress = currentDuration / breatheDuration;
++	return (Math.sin(1.5 * Math.PI - breatheProgress * 2) + 1) / 2;
+ }
+ function easeOutExpo(x) {
+ 	return x === 1 ? 1 : 1 - 2 ** (-10 * x);
+@@ -1960,19 +2169,36 @@ var InterludeDots = class {
+ 		if (this.currentInterlude) {
+ 			const interludeDuration = this.currentInterlude[1] - this.currentInterlude[0];
+ 			const currentDuration = this.currentTime - this.currentInterlude[0];
+-			if (currentDuration <= interludeDuration) {
++			if (currentDuration <= interludeDuration + 250) {
+ 				const breatheDuration = interludeDuration / Math.ceil(interludeDuration / this.targetBreatheDuration);
+-				let scale = 1;
++				const breatheAmount = getInterludeBreatheAmount(currentDuration, breatheDuration);
++				let scale = .9025 + breatheAmount * .1475;
++				let dotSpread = -.03 + breatheAmount * .11;
+ 				let globalOpacity = 1;
+-				scale *= Math.sin(1.5 * Math.PI - currentDuration / breatheDuration * 2) / 20 + 1;
+ 				if (currentDuration < 2e3) scale *= easeOutExpo(currentDuration / 2e3);
+ 				if (currentDuration < 500) globalOpacity = 0;
+ 				else if (currentDuration < 1e3) globalOpacity *= (currentDuration - 500) / 500;
+-				if (interludeDuration - currentDuration < 750) scale *= 1 - easeInOutBack((750 - (interludeDuration - currentDuration)) / 750 / 2);
+-				if (interludeDuration - currentDuration < 375) globalOpacity *= clamp01((interludeDuration - currentDuration) / 375);
++				const remainingDuration = interludeDuration + 250 - currentDuration;
++				const expansionDuration = 460, holdDuration = 100, collapseDuration = 260;
++				const exitDuration = expansionDuration + holdDuration + collapseDuration;
++				if (remainingDuration < exitDuration) {
++					const exitStartDuration = interludeDuration + 250 - exitDuration;
++					const exitStartBreatheAmount = getInterludeBreatheAmount(exitStartDuration, breatheDuration);
++					const exitStartScale = .9025 + exitStartBreatheAmount * .1475;
++					const exitStartSpread = -.03 + exitStartBreatheAmount * .11;
++					const expansion = smoothInterludeStep((exitDuration - remainingDuration) / expansionDuration);
++					dotSpread = exitStartSpread + (.192 - exitStartSpread) * expansion;
++					scale = exitStartScale * (1 + expansion * .05);
++					if (remainingDuration < collapseDuration) {
++						const collapse = smoothInterludeStep((collapseDuration - remainingDuration) / collapseDuration);
++						dotSpread = .192 + (-.09 - .192) * collapse;
++						scale *= 1 - collapse;
++						globalOpacity *= 1 - collapse;
++					}
++				}
+ 				const dotsDuration = clampPositive(interludeDuration - 750);
+ 				scale = clampPositive(scale) * .7;
+-				curStyle += ` scale(${scale})`;
++				curStyle += ` scale(${scale});--amll-lp-interlude-dot-spread:${dotSpread.toFixed(3)}em`;
+ 				const dot0Opacity = clamp(.25, currentDuration * 3 / dotsDuration * .75, 1);
+ 				const dot1Opacity = clamp(.25, (currentDuration - dotsDuration / 3) * 3 / dotsDuration * .75, 1);
+ 				const dot2Opacity = clamp(.25, (currentDuration - dotsDuration / 3 * 2) * 3 / dotsDuration * .75, 1);
+@@ -1980,7 +2206,7 @@ var InterludeDots = class {
+ 				this.dot1.style.opacity = `${clamp01(globalOpacity * dot1Opacity)}`;
+ 				this.dot2.style.opacity = `${clamp01(globalOpacity * dot2Opacity)}`;
+ 			} else {
+-				curStyle += " scale(0)";
++				curStyle += " scale(0);--amll-lp-interlude-dot-spread:-.09em";
+ 				this.dot0.style.opacity = "0";
+ 				this.dot1.style.opacity = "0";
+ 				this.dot2.style.opacity = "0";
+@@ -3025,7 +3251,8 @@ var LyricPlayerBase = class extends EventTarget {
+ 	* @param force 是否绕过弹簧效果强制更新位置
+ 	*/
+ 	async calcLayout(sync = false, force = false) {
+-		const interlude = computeCurrentInterlude({
++		const shouldHideInitialInterlude = !this.timelineState.isPlaying && this.timelineState.currentTime <= 0;
++		const interlude = shouldHideInitialInterlude ? void 0 : computeCurrentInterlude({
+ 			currentTime: this.timelineState.currentTime,
+ 			scrollToIndex: this.timelineState.scrollToIndex,
+ 			currentGroups: this.currentLyricGroups
+diff --git a/dist/style.css b/dist/style.css
+index 70b5c0350240b7d82347f0f527659683f7b0b9e9..fb5d33a289b2a8beb87254b61a1b65dbbfd309b1 100644
+--- a/dist/style.css
++++ b/dist/style.css
+@@ -140,6 +140,11 @@
+   }
+ }
+ 
++.FmKaba_lyricMainLine span.FmKaba_emphasizeWrapper > span:not(.FmKaba_emphasize) {
++  margin: -.1em;
++  padding: .1em;
++}
++
+ .FmKaba_lyricBgLine {
+   opacity: .4;
+   font-size: max(calc(1em * var(--amll-lp-bg-line-scale, .7)), 10px);
+@@ -221,6 +226,7 @@
+ }
+ 
+ .FmKaba_interludeDots {
++  --amll-lp-interlude-dot-spread: 0em;
+   opacity: 0;
+   transform-origin: center;
+   gap: .25em;
+@@ -252,6 +258,14 @@
+   }
+ }
+ 
++.FmKaba_interludeDots > :first-child {
++  transform: translateX(calc(-1 * var(--amll-lp-interlude-dot-spread)));
++}
++
++.FmKaba_interludeDots > :last-child {
++  transform: translateX(var(--amll-lp-interlude-dot-spread));
++}
++
+ .FmKaba_disableSpring > *, .FmKaba_disableSpring .FmKaba_lyricLine {
+   transition: filter .25s, transform .5s, background-color .25s, box-shadow .25s;
+ }

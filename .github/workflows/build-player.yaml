@@ -152,12 +152,28 @@ jobs:
           fi
           node ./packages/player/scripts/gen-dev-version.mjs
 
+      - name: 配置桌面构建签名参数
+        id: configure_tauri_build
+        shell: bash
+        env:
+          MATRIX_ARGS: ${{ matrix.args }}
+          HAS_TAURI_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        run: |
+          if [[ "$HAS_TAURI_SIGNING_KEY" == "true" ]]; then
+            echo "args=$MATRIX_ARGS" >> "$GITHUB_OUTPUT"
+            echo "include_updater_json=true" >> "$GITHUB_OUTPUT"
+          else
+            node -e 'require("node:fs").writeFileSync("packages/player/src-tauri/tauri.unsigned.conf.json", JSON.stringify({ bundle: { createUpdaterArtifacts: false } }))'
+            echo "args=$MATRIX_ARGS --config src-tauri/tauri.unsigned.conf.json" >> "$GITHUB_OUTPUT"
+            echo "include_updater_json=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 构建 AMLL Player 程序并发布自动构建
         uses: tauri-apps/tauri-action@v0
         with:
           projectPath: packages/player
           tagName: ${{ github.ref_name }}-player-dev
-          includeUpdaterJson: true
+          includeUpdaterJson: ${{ steps.configure_tauri_build.outputs.include_updater_json }}
           releaseName: AMLL Player ${{ github.ref_name }} branch development build
           releaseBody: |
             Latest ${{ github.ref_name }} branch development build.
@@ -167,7 +183,7 @@ jobs:
 
             Latest commits (最新提交): ${{ github.event.head_commit.message }}
           prerelease: true
-          args: ${{ matrix.args }}
+          args: ${{ steps.configure_tauri_build.outputs.args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

@@ -130,17 +130,24 @@ impl SystemMediaManager {
         player_handler: &AudioPlayerHandle,
         event_sender: &AudioPlayerEventSender,
     ) {
+        let emit_frontend_command = |command: &str| {
+            let evt = AudioThreadEventMessage::new(
+                "".into(),
+                Some(AudioThreadEvent::HardwareMediaCommand {
+                    command: command.into(),
+                }),
+            );
+            event_sender.send(evt).map_err(anyhow::Error::from)
+        };
         let result = match event.type_ {
-            SystemMediaEventType::Play => {
-                player_handler
-                    .send_anonymous(AudioThreadMessage::ResumeAudio)
-                    .await
-            }
-            SystemMediaEventType::Pause => {
-                player_handler
-                    .send_anonymous(AudioThreadMessage::PauseAudio)
-                    .await
-            }
+            SystemMediaEventType::Play => player_handler
+                .send_anonymous(AudioThreadMessage::ResumeAudio)
+                .await
+                .and_then(|_| emit_frontend_command("play")),
+            SystemMediaEventType::Pause => player_handler
+                .send_anonymous(AudioThreadMessage::PauseAudio)
+                .await
+                .and_then(|_| emit_frontend_command("pause")),
             SystemMediaEventType::NextSong => {
                 let evt = AudioThreadEventMessage::new(
                     "".into(),
@@ -170,11 +177,10 @@ impl SystemMediaManager {
                     Ok(())
                 }
             }
-            SystemMediaEventType::Stop => {
-                player_handler
-                    .send_anonymous(AudioThreadMessage::StopAudio)
-                    .await
-            }
+            SystemMediaEventType::Stop => player_handler
+                .send_anonymous(AudioThreadMessage::StopAudio)
+                .await
+                .and_then(|_| emit_frontend_command("stop")),
             SystemMediaEventType::ToggleShuffle => {
                 player_handler
                     .send_anonymous(AudioThreadMessage::ToggleShuffle)

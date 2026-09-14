@@ -8,29 +8,92 @@
 }
 
 .playlistCard {
+	position: relative;
+	z-index: 1;
 	border-radius: var(--radius-4);
 	border: solid 1px var(--gray-6);
-	backdrop-filter: blur(5vh) brightness(0.5);
+	background-color: transparent;
 	transition: transform 0.2s ease;
-	max-width: 400px;
-	max-height: 50vh;
-	width: 100%;
+}
+
+.playlistPanel {
+	z-index: 10;
+	isolation: isolate;
+	overflow: hidden;
+	border-radius: var(--radius-4);
+	background-color: transparent;
+}
+
+.playlistPanelSnapshot {
+	/* Keep the original page covered even when capture fails or has alpha. */
+	background-color: var(--gray-2);
+}
+
+.playlistPanelSnapshot[data-amll-playlist-native-surface] {
+	/* The sharp page is clipped below us; leave its DWM material visible. */
+	background-color: transparent;
+}
+
+.playlistPanelLive {
+	background-color: color-mix(in srgb, var(--gray-2) 64%, transparent);
+	-webkit-backdrop-filter: blur(14px) saturate(1.12) brightness(0.78);
+	backdrop-filter: blur(14px) saturate(1.12) brightness(0.78);
+}
+
+.playlistDismissLayer {
+	position: fixed;
+	inset: 0;
+	z-index: 9;
+	margin: 0;
+	padding: 0;
+	border: none;
+	background: transparent;
+	cursor: default;
 }
 
 .playBar {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 2;
+	box-sizing: border-box;
+	width: 100%;
 	padding: var(--space-3);
 	padding-left: calc(var(--space-3) + env(safe-area-inset-left));
 	padding-right: calc(var(--space-3) + env(safe-area-inset-right));
 	padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
 	/* border-radius: var(--radius-4); */
-	transition: transform 0.2s ease;
+	opacity: 1;
+	transition:
+		transform 0.2s ease,
+		opacity 0.18s 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 	margin: auto;
 	max-width: 800px;
+
+	&.lyricPageOpened {
+		opacity: 0;
+		pointer-events: none;
+		transition:
+			transform 0.2s ease,
+			opacity 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+	}
 }
 
 .playBar > * {
 	min-width: 0;
 	overflow: hidden;
+}
+
+.playBar [data-amll-playbar-reveal] {
+	transform: translateY(0);
+	transition: transform 0.18s 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+	will-change: transform;
+}
+
+.playBar.lyricPageOpened [data-amll-playbar-reveal] {
+	transform: translateY(-36px);
+	transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .coverButton {
@@ -65,6 +128,22 @@
 		pointer-events: none;
 	}
 
+	&::before {
+		pointer-events: none;
+		border-radius: 6px;
+		box-shadow: inset 0 0 0 1px #504e4e25;
+		content: "";
+		display: block;
+		position: absolute;
+		width: var(--cover-button-size);
+		height: var(--cover-button-size);
+		margin-top: calc(var(--cover-button-size) / -2);
+		transition:
+			background-color 0.2s ease,
+			backdrop-filter 0.2s ease;
+		background: rgba(100, 100, 100, 0.1);
+	}
+
 	&:hover {
 		.lyricIconButton {
 			opacity: 1;
@@ -87,20 +166,23 @@
 			background-color: #0006;
 		}
 	}
+}
 
-	&::before {
-		pointer-events: none;
-		border-radius: 6px;
-		box-shadow: inset 0 0 0 1px #504e4e25;
-		content: "";
-		display: block;
-		position: absolute;
-		width: var(--cover-button-size);
-		height: var(--cover-button-size);
-		margin-top: calc(var(--cover-button-size) / -2);
-		transition:
-			background-color 0.2s ease,
-			backdrop-filter 0.2s ease;
-		background: rgba(100, 100, 100, 0.1);
+.coverTransitionSourceHidden {
+	opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.playBar,
+	.playBar.lyricPageOpened {
+		transition-duration: 1ms;
+		transition-delay: 0s;
+	}
+
+	.playBar [data-amll-playbar-reveal],
+	.playBar.lyricPageOpened [data-amll-playbar-reveal] {
+		transform: translateY(0);
+		transition-duration: 1ms;
+		transition-delay: 0s;
 	}
 }

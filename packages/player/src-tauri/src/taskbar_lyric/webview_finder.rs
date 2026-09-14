@@ -21,7 +21,6 @@ pub fn find_webview_hwnd(parent_hwnd: HWND) -> Option<HWND> {
     }
 
     if target_hwnd.0.is_null() {
-        warn!("未找到 Chrome_RenderWidgetHostHWND");
         None
     } else {
         Some(target_hwnd)

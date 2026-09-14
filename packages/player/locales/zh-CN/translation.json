@@ -1,6 +1,7 @@
 {
 	"amll": {
 		"audioQuality": {
+			"bitDepth": "位深",
 			"channels": "音频通道数量",
 			"codec": "音频解码器",
 			"sampleFormat": "采样格式",
@@ -8,6 +9,7 @@
 			"title": "音频解码信息"
 		},
 		"contextMenu": {
+			"addToQueue": "添加到播放队列末尾",
 			"editMusicOverrideMessage": "编辑歌曲覆盖信息",
 			"exitLyricPage": "退出歌词页面",
 			"forwardSong": "下一首",
@@ -15,10 +17,17 @@
 			"openScreenshotTool": "打开截图工具",
 			"pauseOrResume": "暂停 / 继续",
 			"play": "播放",
+			"playNext": "下一首播放",
 			"rewindSong": "上一首",
 			"toggleFullscreen": "全屏 / 取消全屏",
 			"toggleLyrics": "显示歌词",
 			"windowAlwaysOnTop": "窗口置顶"
+		},
+		"tray": {
+			"exit": "退出",
+			"pause": "暂停",
+			"showWindow": "显示窗口",
+			"taskbarLyric": "任务栏歌词"
 		},
 		"loadAudioError": "播放后端加载音频失败\n{error}",
 		"migrationDialog": {
@@ -115,6 +124,13 @@
 			}
 		}
 	},
+	"musicDrop": {
+		"addToCurrentPlaylistHint": "添加到当前歌单",
+		"addToPlaylistHint": "添加到“{name}”",
+		"createPlaylistHint": "拖入音乐文件夹创建歌单",
+		"homeFolderOnlyHint": "首页仅接受单个文件夹；音乐文件请拖到具体歌单",
+		"playlistFilesAndFoldersHint": "支持音乐文件和文件夹"
+	},
 	"name": "",
 	"newPlaylist": {
 		"buttonLabel": "新建歌单",
@@ -192,7 +208,9 @@
 			},
 			"music": {
 				"dropdown": {
+					"addToQueue": "添加到播放队列末尾",
 					"editMusicOverrideData": "编辑歌曲覆盖信息",
+					"playNext": "下一首播放",
 					"playMusic": "播放音乐",
 					"removeFromPlaylist": "从歌单中删除"
 				},
@@ -271,9 +289,27 @@
 					"label": "界面主题",
 					"light": "浅色"
 				},
+				"volumeBalance": {
+					"description": "根据每首本地歌曲的感知响度自动调整播放增益，减少切歌时音量忽大忽小的情况。",
+					"label": "音量平衡"
+				},
+				"gaplessPlayback": {
+					"description": "提前准备队列中的下一首歌曲，跳过文件末尾的近静音，并在听感结束处连续播放。",
+					"label": "无缝播放"
+				},
 				"windowAlwaysOnTop": {
 					"description": "将应用窗口设置为始终置顶",
 					"label": "启用窗口置顶"
+				},
+				"windowCloseBehavior": {
+					"description": "选择关闭时播放器是否最小化到任务栏托盘",
+					"label": "关闭选项",
+					"menu": {
+						"alwaysMinimize": "始终最小化",
+						"alwaysTray": "常驻托盘",
+						"exit": "直接退出",
+						"minimizeWhenPlaying": "播放时最小化"
+					}
 				}
 			},
 			"lyricAppearance": {
@@ -318,11 +354,16 @@
 				},
 				"lyricBackgroundColor": {
 					"description": "等同于放入 background 样式的字符串值，默认为 #111111",
-					"label": "CSS 背景属性值"
+					"label": "CSS 背景属性值",
+					"picker": "选择纯色背景"
 				},
 				"lyricBackgroundFPS": {
 					"description": "对性能影响较高，但是实际开销不大，如果遇到性能问题，可以尝试降低此值。默认值为 60。",
 					"label": "背景最高帧数"
+				},
+				"lyricBackgroundAnimationIntensity": {
+					"description": "调节网格渐变背景跟随音乐节拍的呼吸与旋转幅度。1× 保持当前效果，0× 关闭节拍响应，最高可调至 2×。",
+					"label": "节拍动画强度倍率"
 				},
 				"lyricBackgroundRenderScale": {
 					"description": "对性能影响较高，但是实际开销不大，如果遇到性能问题，可以尝试降低此值。默认值为 1 即每像素点渲染。",
@@ -338,6 +379,39 @@
 					"pixiRenderer": "PixiJS 渲染器"
 				},
 				"subtitle": "歌词背景"
+			},
+			"homeBackground": {
+				"asset": {
+					"chooseImage": "选择背景图像",
+					"chooseVideo": "选择背景视频",
+					"label": "背景素材",
+					"replace": "更换素材"
+				},
+				"color": {
+					"description": "使用所选纯色作为应用背景，并自动叠加深色对比层以保证界面清晰。",
+					"label": "背景颜色",
+					"picker": "选择首页背景颜色"
+				},
+				"description": "默认保留当前系统材质风格；自定义图像、视频或纯色背景会自动叠加深色对比层。",
+				"error": {
+					"asset": "无法应用首页背景：{message}",
+					"color": "请输入 #RRGGBB 格式的颜色值",
+					"save": "无法保存首页背景设置：{message}"
+				},
+				"mode": {
+					"description": "图像和视频会复制到应用数据目录，原文件移动后仍可使用。",
+					"label": "背景类型",
+					"menu": {
+						"color": "纯色",
+						"default": "默认",
+						"image": "图像",
+						"video": "视频"
+					}
+				},
+				"subtitle": "首页背景",
+				"success": {
+					"asset": "首页背景已应用"
+				}
 			},
 			"lyricContent": {
 				"bottomLyricMode": {
@@ -430,7 +504,11 @@
 					"description": "可以看到帧率、帧时间、内存占用（仅 Chromuim 系）等信息，对性能影响较小。",
 					"label": "显示性能统计信息"
 				},
-				"subtitle": "杂项"
+				"subtitle": "杂项",
+				"enableExperimentalFeatures": {
+					"label": "启用实验性功能",
+					"description": "显示常规设置中的背景类型和歌曲编辑中的背景面板。关闭后停用自定义背景，保留配置以便再次启用。"
+				}
 			},
 			"smtc": {
 				"enableMediaControls": {
@@ -456,6 +534,10 @@
 					"label": "歌词行数",
 					"single": "单行模式"
 				},
+				"wordProgress": {
+					"description": "根据歌词中的逐字时间显示当前行播放进度；没有逐字时间时保持整行显示",
+					"label": "逐字歌词进度"
+				},
 				"openDevtools": "打开 DevTools",
 				"subtitle": "任务栏歌词",
 				"theme": {
@@ -468,15 +550,65 @@
 			}
 		},
 		"song": {
+			"backgroundOverride": {
+				"baseCssBackground": {
+					"description": "等同于 background 样式的字符串值，默认为黑色 #000000。",
+					"label": "双重背景 CSS 属性值",
+					"picker": "选择双重背景纯色"
+				},
+				"baseRenderer": {
+					"description": "选择视频下方的基础背景；该设置只影响这首歌曲。",
+					"label": "双重背景渲染器"
+				},
+				"dualLayer": {
+					"description": "在视频下方保留独立的基础背景，并用透明度控制视频显现程度。",
+					"label": "叠加双重背景"
+				},
+				"enabled": {
+					"description": "仅为这首歌曲选择不同的歌词背景；关闭时继续使用全局设置。",
+					"label": "覆盖全局设置"
+				},
+				"error": "无法保存这首歌曲的背景覆盖设置：{message}",
+				"loadError": "无法读取这首歌曲的背景覆盖设置。",
+				"opacity": {
+					"label": "视频不透明度"
+				},
+				"renderer": {
+					"css": "CSS 背景",
+					"label": "背景渲染器",
+					"mesh": "网格渐变渲染器",
+					"pixi": "PixiJS 渲染器",
+					"video": "歌曲视频背景"
+				}
+			},
 			"basic": {
+				"album": "专辑",
+				"albumArtist": "专辑艺术家",
+				"composer": "作曲",
+				"copyFilePath": "复制文件路径",
+				"copyright": "版权",
+				"discNumber": "碟号",
+				"encoder": "编码器",
+				"fileMetadataError": "无法读取原始音乐文件信息：{message}",
+				"fileModifiedAt": "文件修改时间",
+				"fileSize": "文件大小",
+				"genre": "流派",
+				"loadingFileMetadata": "正在读取原始音乐文件信息…",
+				"lyricist": "作词",
 				"musicDuration": "音乐时长",
 				"musicFilePath": "音乐文件路径",
 				"musicId": "音乐 ID",
+				"noFileMetadata": "原始音乐文件中没有可显示的元数据标签",
+				"originalFileMetadata": "原始文件元数据",
+				"publisher": "发行方",
+				"recordingDate": "日期",
 				"tabs": {
 					"basic": "基本",
+					"background": "背景",
 					"lyric": "歌词",
 					"metadata": "元数据"
-				}
+				},
+				"trackNumber": "音轨号"
 			},
 			"lyric": {
 				"importFromFile": "从本地文件导入歌词",
@@ -498,12 +630,55 @@
 			},
 			"metadata": {
 				"changeCoverToImageOrVideo": "更换封面图为图片 / 视频",
-				"importLyricFromFile": "从本地文件导入歌词",
 				"overrideSafeTip": "本页面的设置不会写入到原始音乐文件中",
 				"reloadMetadataFromFile": "重新从文件中读取元数据",
 				"songAlbum": "音乐专辑名",
 				"songArtists": "音乐作者",
 				"songName": "音乐名称"
+			},
+			"videoBackground": {
+				"apply": "应用视频背景",
+				"change": "更换视频",
+				"choose": "选择视频",
+				"description": "仅覆盖这首歌曲的全屏歌词背景，不会修改歌曲封面。",
+				"discard": "放弃候选视频",
+				"discarded": "已放弃候选视频",
+				"retry": "重试",
+				"empty": "尚未设置视频背景",
+				"error": {
+					"import": "无法导入视频背景：{message}",
+					"load": "无法读取这首歌曲的视频背景设置。",
+					"remove": "无法移除视频背景：{message}",
+					"save": "无法保存视频背景：{message}"
+				},
+				"fit": {
+					"contain": "适应（完整显示）",
+					"cover": "填充（裁切）",
+					"description": "填充会裁切，适应会完整显示并留出空白，拉伸会铺满；视频与预览比例相同时三者看起来相同。",
+					"fill": "拉伸",
+					"label": "适应方式"
+				},
+				"loop": {
+					"description": "到达出点后返回入点；关闭时停留在最后一帧。",
+					"label": "循环播放"
+				},
+				"pending": "这是尚未应用的候选视频，离开页面时会自动清理。",
+				"preview": "视频背景预览",
+				"range": {
+					"in": "入点",
+					"label": "播放范围",
+					"out": "出点",
+					"reset": "重置为歌曲长度"
+				},
+				"remove": "移除背景",
+				"removed": "视频背景已移除",
+				"saved": "视频背景已保存",
+				"syncOnSeek": {
+					"description": "关闭后，拖动音乐进度不会改变视频当时的位置。",
+					"label": "调整音乐进度时同步视频"
+				},
+				"title": "歌词视频背景",
+				"videoFiles": "视频文件"
 			}
 		},
 		"ws": {
@@ -517,7 +692,27 @@
 	},
 	"playbar": {
 		"playlist": {
-			"title": "当前播放列表"
+			"clearUpcoming": "清空待播",
+			"clearUpcomingLabel": "清空 {count, plural, other {#}} 首待播歌曲",
+			"close": "关闭当前播放列表",
+			"closeShort": "关闭",
+			"count": "{count, plural, other {#}} 首",
+			"current": "正在播放",
+			"emptyHint": "播放歌曲或将歌曲添加到队列后会显示在这里",
+			"emptyTitle": "播放队列为空",
+			"moveDown": "下移 {name}",
+			"moveDownShort": "下移",
+			"moveUp": "上移 {name}",
+			"moveUpShort": "上移",
+			"open": "打开当前播放列表",
+			"playSong": "播放 {name} - {artists}",
+			"queueLabel": "播放队列",
+			"removeShort": "移除",
+			"removeSong": "从播放队列移除 {name}",
+			"replaySong": "重新播放 {name} - {artists}",
+			"title": "当前播放列表",
+			"unknownArtist": "未知艺术家",
+			"unknownSong": "未知歌曲"
 		}
 	},
 	"settings": {

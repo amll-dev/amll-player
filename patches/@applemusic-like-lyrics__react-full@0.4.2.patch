@@ -1,0 +1,180 @@
+diff --git a/dist/amll-react-framework.cjs b/dist/amll-react-framework.cjs
+index a79ba6b8..aa85b785 100644
+--- a/dist/amll-react-framework.cjs
++++ b/dist/amll-react-framework.cjs
+@@ -727,0 +728 @@ const ControlThumb = (t0) => {
++			"data-amll-control-thumb": "",
+@@ -763,0 +765,33 @@ globalThis.jotaiAtomCache = globalThis.jotaiAtomCache || {
++// Keep the displayed bitmap until its replacement can be painted. Layout cleanup
++// invalidates late load/decode callbacks before a newer cover is committed.
++function useDecodedCoverUrl(coverUrl, coverIsVideo) {
++	const [loadedCoverUrl, setLoadedCoverUrl] = (0, react.useState)(coverIsVideo ? "" : coverUrl);
++	(0, react.useLayoutEffect)(() => {
++		if (coverIsVideo || !coverUrl) {
++			setLoadedCoverUrl("");
++			return;
++		}
++		let active = true;
++		const image = new Image();
++		image.decoding = "async";
++		image.onload = async () => {
++			try {
++				await image.decode?.();
++			} catch {
++				// A loaded image can still be usable when decode is unsupported.
++			}
++			if (active) setLoadedCoverUrl(image.naturalWidth > 0 ? coverUrl : "");
++		};
++		image.onerror = () => {
++			if (active) setLoadedCoverUrl("");
++		};
++		image.src = coverUrl;
++		return () => {
++			active = false;
++			image.onload = null;
++			image.onerror = null;
++			image.src = "";
++		};
++	}, [coverUrl, coverIsVideo]);
++	return coverIsVideo ? coverUrl : loadedCoverUrl;
++}
+@@ -791,0 +826 @@ const Cover = (0, react.forwardRef)((t0, ref) => {
++	const displayedCoverUrl = useDecodedCoverUrl(coverUrl, coverIsVideo);
+@@ -865 +900 @@ const Cover = (0, react.forwardRef)((t0, ref) => {
+-	if ($[20] !== coverIsVideo || $[21] !== coverUrl || $[22] !== pauseShrinkAspect) {
++	if ($[20] !== coverIsVideo || $[21] !== displayedCoverUrl || $[22] !== pauseShrinkAspect) {
+@@ -868 +903 @@ const Cover = (0, react.forwardRef)((t0, ref) => {
+-			src: coverUrl,
++			src: displayedCoverUrl,
+@@ -878 +913 @@ const Cover = (0, react.forwardRef)((t0, ref) => {
+-				backgroundImage: `url(${coverUrl})`,
++				backgroundImage: displayedCoverUrl ? `url(${JSON.stringify(displayedCoverUrl)})` : "none",
+@@ -883 +918 @@ const Cover = (0, react.forwardRef)((t0, ref) => {
+-		$[21] = coverUrl;
++		$[21] = displayedCoverUrl;
+@@ -905,0 +941 @@ const Cover = (0, react.forwardRef)((t0, ref) => {
++			"data-amll-cover": "",
+@@ -2105,0 +2142 @@ const PrebuiltToggleIconButton = (0, react.memo)((t0) => {
++			"data-amll-toggle-type": type,
+@@ -3073,0 +3111 @@ const PrebuiltMediaButtons = (t0) => {
++			"data-amll-media-action": "shuffle",
+@@ -3105 +3143,22 @@ const PrebuiltMediaButtons = (t0) => {
+-		t6 = musicIsPlaying ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ForwardRef$7, { color: "#FFFFFF" }) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ForwardRef$6, { color: "#FFFFFF" });
++		t6 = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
++			color: "#FFFFFF",
++			viewBox: "0 0 38 38",
++			"data-play-pause-icon": "",
++			"data-playing": musicIsPlaying ? "true" : "false",
++			"aria-hidden": "true",
++			focusable: "false",
++			width: 38,
++			height: 38,
++			children: [
++				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
++					"data-play-icon": "",
++					d: "M7.5776,36C5.619,36 4.1567,34.6943 4,32.5008L4,5.4992C4.1567,3.3057 5.619,2 7.5776,2C8.5438,2 9.2227,2.2873 10.3195,2.8618L35.1536,15.5269C36.9293,16.4409 38,17.3287 38,19C38,20.6713 36.9293,21.5591 35.1536,22.4731L10.3195,35.1382C9.2227,35.7127 8.5438,36 7.5776,36Z",
++					fill: "currentColor"
++				}),
++				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
++					"data-pause-icon": "",
++					d: "M8.7384,36C6.3594,36 5,34.5857 5,32.4261L5,5.593C5,3.4143 6.3594,2 8.7384,2L12.911,2C15.2711,2 16.6305,3.4143 16.6305,5.593L16.6305,32.4261C16.6305,34.6048 15.2711,36 12.911,36L8.7384,36ZM25.089,36C22.7289,36 21.3695,34.6048 21.3695,32.4261L21.3695,5.593C21.3695,3.4143 22.7289,2 25.089,2L29.2616,2C31.6406,2 33,3.4143 33,5.593L33,32.4261C33,34.5857 31.6406,36 29.2616,36L25.089,36Z",
++					fill: "currentColor"
++				})
++			]
++		});
+@@ -3138,0 +3198 @@ const PrebuiltMediaButtons = (t0) => {
++			"data-amll-media-action": "repeat",
+@@ -3978 +4038 @@ exports.verticalCoverLayoutAtom = verticalCoverLayoutAtom;
+-//# sourceMappingURL=amll-react-framework.cjs.map
+\ No newline at end of file
++//# sourceMappingURL=amll-react-framework.cjs.map
+diff --git a/dist/amll-react-framework.mjs b/dist/amll-react-framework.mjs
+index 9bc62b45..441afd09 100644
+--- a/dist/amll-react-framework.mjs
++++ b/dist/amll-react-framework.mjs
+@@ -701,0 +702 @@ const ControlThumb = (t0) => {
++			"data-amll-control-thumb": "",
+@@ -737,0 +739,33 @@ globalThis.jotaiAtomCache = globalThis.jotaiAtomCache || {
++// Keep the displayed bitmap until its replacement can be painted. Layout cleanup
++// invalidates late load/decode callbacks before a newer cover is committed.
++function useDecodedCoverUrl(coverUrl, coverIsVideo) {
++	const [loadedCoverUrl, setLoadedCoverUrl] = useState(coverIsVideo ? "" : coverUrl);
++	useLayoutEffect(() => {
++		if (coverIsVideo || !coverUrl) {
++			setLoadedCoverUrl("");
++			return;
++		}
++		let active = true;
++		const image = new Image();
++		image.decoding = "async";
++		image.onload = async () => {
++			try {
++				await image.decode?.();
++			} catch {
++				// A loaded image can still be usable when decode is unsupported.
++			}
++			if (active) setLoadedCoverUrl(image.naturalWidth > 0 ? coverUrl : "");
++		};
++		image.onerror = () => {
++			if (active) setLoadedCoverUrl("");
++		};
++		image.src = coverUrl;
++		return () => {
++			active = false;
++			image.onload = null;
++			image.onerror = null;
++			image.src = "";
++		};
++	}, [coverUrl, coverIsVideo]);
++	return coverIsVideo ? coverUrl : loadedCoverUrl;
++}
+@@ -765,0 +800 @@ const Cover = forwardRef((t0, ref) => {
++	const displayedCoverUrl = useDecodedCoverUrl(coverUrl, coverIsVideo);
+@@ -839 +874 @@ const Cover = forwardRef((t0, ref) => {
+-	if ($[20] !== coverIsVideo || $[21] !== coverUrl || $[22] !== pauseShrinkAspect) {
++	if ($[20] !== coverIsVideo || $[21] !== displayedCoverUrl || $[22] !== pauseShrinkAspect) {
+@@ -842 +877 @@ const Cover = forwardRef((t0, ref) => {
+-			src: coverUrl,
++			src: displayedCoverUrl,
+@@ -852 +887 @@ const Cover = forwardRef((t0, ref) => {
+-				backgroundImage: `url(${coverUrl})`,
++				backgroundImage: displayedCoverUrl ? `url(${JSON.stringify(displayedCoverUrl)})` : "none",
+@@ -857 +892 @@ const Cover = forwardRef((t0, ref) => {
+-		$[21] = coverUrl;
++		$[21] = displayedCoverUrl;
+@@ -879,0 +915 @@ const Cover = forwardRef((t0, ref) => {
++			"data-amll-cover": "",
+@@ -2079,0 +2116 @@ const PrebuiltToggleIconButton = memo((t0) => {
++			"data-amll-toggle-type": type,
+@@ -3047,0 +3085 @@ const PrebuiltMediaButtons = (t0) => {
++			"data-amll-media-action": "shuffle",
+@@ -3079 +3117,22 @@ const PrebuiltMediaButtons = (t0) => {
+-		t6 = musicIsPlaying ? /* @__PURE__ */ jsx(ForwardRef$7, { color: "#FFFFFF" }) : /* @__PURE__ */ jsx(ForwardRef$6, { color: "#FFFFFF" });
++		t6 = /* @__PURE__ */ jsxs("svg", {
++			color: "#FFFFFF",
++			viewBox: "0 0 38 38",
++			"data-play-pause-icon": "",
++			"data-playing": musicIsPlaying ? "true" : "false",
++			"aria-hidden": "true",
++			focusable: "false",
++			width: 38,
++			height: 38,
++			children: [
++				/* @__PURE__ */ jsx("path", {
++					"data-play-icon": "",
++					d: "M7.5776,36C5.619,36 4.1567,34.6943 4,32.5008L4,5.4992C4.1567,3.3057 5.619,2 7.5776,2C8.5438,2 9.2227,2.2873 10.3195,2.8618L35.1536,15.5269C36.9293,16.4409 38,17.3287 38,19C38,20.6713 36.9293,21.5591 35.1536,22.4731L10.3195,35.1382C9.2227,35.7127 8.5438,36 7.5776,36Z",
++					fill: "currentColor"
++				}),
++				/* @__PURE__ */ jsx("path", {
++					"data-pause-icon": "",
++					d: "M8.7384,36C6.3594,36 5,34.5857 5,32.4261L5,5.593C5,3.4143 6.3594,2 8.7384,2L12.911,2C15.2711,2 16.6305,3.4143 16.6305,5.593L16.6305,32.4261C16.6305,34.6048 15.2711,36 12.911,36L8.7384,36ZM25.089,36C22.7289,36 21.3695,34.6048 21.3695,32.4261L21.3695,5.593C21.3695,3.4143 22.7289,2 25.089,2L29.2616,2C31.6406,2 33,3.4143 33,5.593L33,32.4261C33,34.5857 31.6406,36 29.2616,36L25.089,36Z",
++					fill: "currentColor"
++				})
++			]
++		});
+@@ -3112,0 +3172 @@ const PrebuiltMediaButtons = (t0) => {
++			"data-amll-media-action": "repeat",
+@@ -3868 +3928 @@ export { AudioFFTVisualizer, AudioQualityTag, AudioQualityType, AutoLyricLayout,
+-//# sourceMappingURL=amll-react-framework.mjs.map
+\ No newline at end of file
++//# sourceMappingURL=amll-react-framework.mjs.map

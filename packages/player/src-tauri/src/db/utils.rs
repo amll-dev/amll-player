@@ -4,7 +4,10 @@ use sea_orm::{
 };
 use tauri::{AppHandle, Manager as _, path::BaseDirectory};
 
-use crate::db::entity::{playlist, playlist_song_sources, playlist_songs, song};
+use crate::db::entity::{
+    playlist, playlist_song_sources, playlist_songs, song, song_background_override,
+    song_video_background,
+};
 
 pub fn save_cover(
     covers_dir: &std::path::Path,
@@ -50,17 +53,45 @@ pub async fn cleanup_orphaned_songs(
             .await
             .map_err(|e| format!("Failed to find song: {e}"))?
         {
-            if let Some(ref cover_path) = s.cover_path
-                && !cover_path.is_empty()
-            {
-                let _ = std::fs::remove_file(cover_path);
-            }
+            let had_video_background = song_video_background::Entity::find_by_id(song_id)
+                .one(db)
+                .await
+                .map_err(|e| format!("Failed to find orphaned song video background: {e}"))?
+                .is_some();
+            let had_background_override = song_background_override::Entity::find_by_id(song_id)
+                .one(db)
+                .await
+                .map_err(|e| format!("Failed to find orphaned song background override: {e}"))?
+                .is_some();
+            let cover_path = s.cover_path.clone();
 
             let active: song::ActiveModel = s.into();
             active
                 .delete(db)
                 .await
                 .map_err(|e| format!("Failed to delete orphaned song: {e}"))?;
+
+            // The song statement atomically cascades rhythm/video/override rows,
+            // so a later failure cannot leave a surviving song with lost data.
+            if let Some(cover_path) = cover_path
+                && !cover_path.is_empty()
+            {
+                let _ = std::fs::remove_file(cover_path);
+            }
+            if had_video_background {
+                crate::db_events::emit_event(
+                    "song_video_backgrounds",
+                    "delete",
+                    serde_json::json!(song_id),
+                );
+            }
+            if had_background_override {
+                crate::db_events::emit_event(
+                    "song_background_overrides",
+                    "delete",
+                    serde_json::json!(song_id),
+                );
+            }
             deleted.push(song_id.clone());
         }
     }
@@ -173,4 +204,99 @@ pub async fn link_song_sources(
             .map_err(|e| format!("Failed to insert song source: {e}"))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use sea_orm::{Database, EntityTrait};
+
+    use super::*;
+    use crate::db::migration;
+
+    #[tokio::test]
+    async fn orphan_song_cleanup_cascades_background_records_with_song() {
+        let db = Database::connect("sqlite::memory:")
+            .await
+            .expect("in-memory SQLite should open");
+        migration::run_migrations(&db)
+            .await
+            .expect("database migrations should run");
+        let song_id = "orphan-with-video";
+        song::Entity::insert(song::ActiveModel {
+            id: Set(song_id.to_owned()),
+            file_path: Set("song.flac".to_owned()),
+            song_name: Set("Song".to_owned()),
+            song_artists: Set("Artist".to_owned()),
+            song_album: Set("Album".to_owned()),
+            duration: Set(1.0),
+            lyric_format: Set("lrc".to_owned()),
+            lyric: Set(String::new()),
+            translated_lrc: Set(None),
+            roman_lrc: Set(None),
+            cover_path: Set(None),
+            modified_at: Set(None),
+        })
+        .exec(&db)
+        .await
+        .expect("song fixture should insert");
+        song_video_background::Entity::insert(song_video_background::ActiveModel {
+            song_id: Set(song_id.to_owned()),
+            asset_id: Set("abcdef0123456789abcdef0123456789-1.mp4".to_owned()),
+            mime_type: Set("video/mp4".to_owned()),
+            duration_ms: Set(1_000),
+            width: Set(1280),
+            height: Set(720),
+            fit_mode: Set("cover".to_owned()),
+            in_point_ms: Set(0),
+            out_point_ms: Set(1_000),
+            loop_enabled: Set(false),
+            sync_on_seek: Set(true),
+            updated_at: Set(1),
+        })
+        .exec(&db)
+        .await
+        .expect("video background fixture should insert");
+        song_background_override::Entity::insert(song_background_override::ActiveModel {
+            song_id: Set(song_id.to_owned()),
+            override_enabled: Set(true),
+            renderer_mode: Set("video".to_owned()),
+            dual_layer: Set(true),
+            video_opacity: Set(0.4),
+            video_base_renderer_mode: Set("css-bg".to_owned()),
+            video_base_css_background: Set("#000000".to_owned()),
+            renderer_options: Set(None),
+            updated_at: Set(1),
+        })
+        .exec(&db)
+        .await
+        .expect("background override fixture should insert");
+
+        assert_eq!(
+            cleanup_orphaned_songs(&db, &[song_id.to_owned()])
+                .await
+                .expect("orphan cleanup should succeed"),
+            vec![song_id.to_owned()]
+        );
+        assert!(
+            song_video_background::Entity::find_by_id(song_id)
+                .one(&db)
+                .await
+                .expect("mapping query should succeed")
+                .is_none()
+        );
+        assert!(
+            song::Entity::find_by_id(song_id)
+                .one(&db)
+                .await
+                .expect("song query should succeed")
+                .is_none()
+        );
+        assert!(
+            song_background_override::Entity::find_by_id(song_id)
+                .one(&db)
+                .await
+                .expect("override query should succeed")
+                .is_none()
+        );
+    }
 }

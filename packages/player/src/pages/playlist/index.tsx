@@ -17,15 +17,14 @@ import {
 	Grid,
 	Heading,
 	IconButton,
-	ScrollArea,
 	Separator,
+	Spinner,
 	Text,
 	TextField,
 	Tooltip,
 } from "@radix-ui/themes";
 import { path } from "@tauri-apps/api";
 import { listen } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { platform } from "@tauri-apps/plugin-os";
 import { motion, useMotionTemplate, useScroll } from "framer-motion";
@@ -40,14 +39,26 @@ import {
 	useState,
 } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import {
+	type LoaderFunctionArgs,
+	useLoaderData,
+	useParams,
+} from "react-router-dom";
 import { toast } from "react-toastify";
 import { ViewportList } from "react-viewport-list";
+import { MusicDropVisual } from "../../components/MusicDropVisual/index.tsx";
 import { PageContainer } from "../../components/PageContainer/index.tsx";
 import { PlaylistCover } from "../../components/PlaylistCover/index.tsx";
 import { PlaylistSongCard } from "../../components/PlaylistSongCard/index.tsx";
+import { ScrollViewport } from "../../components/ScrollViewport/index.tsx";
 import { queueManagerAtom } from "../../states/appAtoms.ts";
-import { db, type Song } from "../../utils/db-client.ts";
+import {
+	db,
+	type Playlist,
+	type Song,
+	startRhythmPrecache,
+} from "../../utils/db-client.ts";
+import { openFileDialog } from "../../utils/file-dialog.ts";
 import { queuePlaylistIdAtom } from "../../utils/play-queue-manager.ts";
 import {
 	readLocalMusicMetadata,
@@ -126,14 +137,20 @@ const formatDateTime = (value?: number) => {
 	return new Date(value).toLocaleString();
 };
 
+export const loader = ({ params }: LoaderFunctionArgs) =>
+	db.playlists.get(Number(params.id));
+
 export const Component: FC = () => {
 	const param = useParams();
-	const { data: playlist } = useDbQuery(
+	const routePlaylist = useLoaderData() as Playlist | undefined;
+	const { data: queriedPlaylist, loading: playlistLoading } = useDbQuery(
 		() => db.playlists.get(Number(param.id)),
 		[param.id],
-		undefined,
+		routePlaylist,
 		["playlists", "playlist_songs", "songs"],
 	);
+	const playlist =
+		queriedPlaylist?.id === Number(param.id) ? queriedPlaylist : routePlaylist;
 	const { t } = useTranslation();
 	const playlistViewRef = useRef<HTMLDivElement>(null);
 	const playlistViewScroll = useScroll({
@@ -174,7 +191,7 @@ export const Component: FC = () => {
 	}, [param.id, playlist, settingsPlaylistName]);
 
 	const onUploadPlaylistCover = useCallback(async () => {
-		const selected = await open({
+		const selected = await openFileDialog({
 			multiple: false,
 			filters: [
 				{
@@ -212,7 +229,7 @@ export const Component: FC = () => {
 	);
 
 	const onAddFolder = useCallback(async () => {
-		const selected = await open({
+		const selected = await openFileDialog({
 			directory: true,
 			multiple: false,
 			title: t("page.playlist.settings.selectFolder", "选择要关联的文件夹"),
@@ -356,7 +373,7 @@ export const Component: FC = () => {
 		if (platform() === "ios") {
 			filters.length = 0;
 		}
-		const results = await open({
+		const results = await openFileDialog({
 			multiple: true,
 			title: "选择本地音乐",
 			filters,
@@ -431,6 +448,9 @@ export const Component: FC = () => {
 			.map((v) => v.id)
 			.filter((v) => !playlist?.songIds.includes(v));
 		await db.playlists.addSongs(Number(param.id), shouldAddIds);
+		if (transformed.length > 0) {
+			void startRhythmPrecache().catch(() => {});
+		}
 
 		if (shouldAddIds.length > 0 && queueManager) {
 			const queuePlaylistId = store.get(queuePlaylistIdAtom);
@@ -481,7 +501,7 @@ export const Component: FC = () => {
 	}, [playlist, param.id, t, queueManager]);
 
 	const onPlayList = useCallback(
-		async (songIndex = 0, shuffle = false) => {
+		async (songIndex: number | undefined, shuffle = false) => {
 			if (playlist === undefined || !queueManager) return;
 			const collected = await db.playlists.getSongs(Number(param.id));
 			if (shuffle) {
@@ -489,11 +509,7 @@ export const Component: FC = () => {
 			} else {
 				queueManager.toggleShuffleOff();
 			}
-			queueManager.setQueue(collected, Number(param.id));
-
-			if (songIndex > 0 && songIndex < collected.length) {
-				queueManager.playAt(songIndex);
-			}
+			queueManager.setQueue(collected, Number(param.id), songIndex);
 		},
 		[playlist, param.id, queueManager],
 	);
@@ -512,13 +528,28 @@ export const Component: FC = () => {
 
 	const onPlaylistDefault = useCallback(onPlayList.bind(null, 0), [onPlayList]);
 	const onPlaylistShuffle = useMemo(
-		() => onPlayList.bind(null, 0, true),
+		() => onPlayList.bind(null, undefined, true),
 		[onPlayList],
 	);
 
+	if (playlistLoading && playlist === undefined) {
+		return (
+			<div className={styles.loadingSurface} aria-live="polite">
+				<Flex direction="column" gap="2" justify="center" align="center">
+					<Spinner size="3" />
+					<Trans i18nKey="page.main.loadingPlaylist">加载歌单中</Trans>
+				</Flex>
+			</div>
+		);
+	}
+
 	return (
 		<PageContainer>
-			<Flex direction="column" height="100%">
+			<Flex
+				direction="column"
+				height="100%"
+				data-music-drop-playlist-id={param.id}
+			>
 				<Flex gap="4" direction="column" flexGrow="0" pb="4" mt="5">
 					<Flex align="end" pt="4">
 						<Button variant="soft" onClick={() => history.back()}>
@@ -552,33 +583,7 @@ export const Component: FC = () => {
 										</Trans>
 									</ContextMenu.Item>
 									<ContextMenu.Item
-										onClick={async () => {
-											const selected = await open({
-												multiple: false,
-												filters: [
-													{
-														name: t(
-															"page.playlist.cover.mediaFiles",
-															"媒体文件",
-														),
-														extensions: [
-															"jpg",
-															"jpeg",
-															"png",
-															"gif",
-															"webp",
-															"mp4",
-														],
-													},
-												],
-											});
-											if (selected) {
-												await db.playlists.saveCover(
-													Number(param.id),
-													selected,
-												);
-											}
-										}}
+										onClick={() => void onUploadPlaylistCover()}
 									>
 										<Trans i18nKey="page.playlist.cover.uploadCoverImage">
 											上传封面图片
@@ -712,30 +717,38 @@ export const Component: FC = () => {
 						</Flex>
 					</Flex>
 				</Flex>
-				<Box
-					flexGrow="1"
-					overflowY="auto"
-					minHeight="0"
-					pb="4"
-					ref={playlistViewRef}
-				>
-					{playlist?.songIds && (
-						<ViewportList
-							items={playlist.songIds}
-							viewportRef={playlistViewRef}
-						>
-							{(songId, index) => (
-								<PlaylistSongCard
-									key={`playlist-song-card-${songId}`}
-									songId={songId}
-									songIndex={index}
-									onPlayList={onPlayList}
-									onDeleteSong={onDeleteSong}
-								/>
-							)}
-						</ViewportList>
-					)}
-				</Box>
+				<div className={styles.dropListTarget}>
+					<MusicDropVisual
+						variant="playlist-detail"
+						title={t("musicDrop.addToCurrentPlaylistHint", "添加到当前歌单")}
+						detail={t(
+							"musicDrop.playlistFilesAndFoldersHint",
+							"支持音乐文件和文件夹",
+						)}
+					/>
+					<ScrollViewport
+						className={styles.songViewport}
+						ref={playlistViewRef}
+						bleed
+					>
+						{playlist?.songIds && (
+							<ViewportList
+								items={playlist.songIds}
+								viewportRef={playlistViewRef}
+							>
+								{(songId, index) => (
+									<PlaylistSongCard
+										key={`playlist-song-card-${songId}`}
+										songId={songId}
+										songIndex={index}
+										onPlayList={onPlayList}
+										onDeleteSong={onDeleteSong}
+									/>
+								)}
+							</ViewportList>
+						)}
+					</ScrollViewport>
+				</div>
 			</Flex>
 
 			<Dialog.Root
@@ -761,11 +774,7 @@ export const Component: FC = () => {
 						)}
 					</Dialog.Description>
 
-					<ScrollArea
-						type="always"
-						scrollbars="vertical"
-						style={{ maxHeight: 300 }}
-					>
+					<ScrollViewport style={{ maxHeight: 300 }}>
 						<Flex direction="column" gap="3" pr="3">
 							{failedImports.map((item, index) => (
 								<Box
@@ -796,7 +805,7 @@ export const Component: FC = () => {
 								</Box>
 							))}
 						</Flex>
-					</ScrollArea>
+					</ScrollViewport>
 
 					<Flex gap="3" mt="4" justify="end">
 						<Dialog.Close>

@@ -3,7 +3,13 @@ import type { Update } from "@tauri-apps/plugin-updater";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import i18n from "../i18n";
+import type { RhythmAnalysis } from "../utils/db-client.ts";
 import type { PlayQueueManager } from "../utils/play-queue-manager.ts";
+import {
+	DEFAULT_WINDOW_CLOSE_BEHAVIOR,
+	normalizeWindowCloseBehavior,
+	type WindowCloseBehaviorMode,
+} from "../utils/window-lifecycle.ts";
 
 export enum DarkMode {
 	Auto = "auto",
@@ -21,6 +27,42 @@ export const darkModeAtom = atomWithStorage(
 	DarkMode.Auto,
 );
 
+export const LYRIC_BACKGROUND_ANIMATION_INTENSITY_MIN = 0;
+export const LYRIC_BACKGROUND_ANIMATION_INTENSITY_MAX = 2;
+export const LYRIC_BACKGROUND_ANIMATION_INTENSITY_DEFAULT = 1;
+
+export function normalizeLyricBackgroundAnimationIntensity(
+	value: number,
+): number {
+	if (!Number.isFinite(value)) {
+		return LYRIC_BACKGROUND_ANIMATION_INTENSITY_DEFAULT;
+	}
+	return Math.min(
+		LYRIC_BACKGROUND_ANIMATION_INTENSITY_MAX,
+		Math.max(LYRIC_BACKGROUND_ANIMATION_INTENSITY_MIN, value),
+	);
+}
+
+const lyricBackgroundAnimationIntensityStorageAtom = atomWithStorage<number>(
+	"amll-player.lyricBackgroundAnimationIntensity",
+	LYRIC_BACKGROUND_ANIMATION_INTENSITY_DEFAULT,
+	undefined,
+	{ getOnInit: true },
+);
+
+export const lyricBackgroundAnimationIntensityAtom = atom(
+	(get) =>
+		normalizeLyricBackgroundAnimationIntensity(
+			get(lyricBackgroundAnimationIntensityStorageAtom),
+		),
+	(_get, set, value: number) => {
+		set(
+			lyricBackgroundAnimationIntensityStorageAtom,
+			normalizeLyricBackgroundAnimationIntensity(value),
+		);
+	},
+);
+
 export const musicContextModeAtom = atomWithStorage(
 	"amll-player.musicContextMode",
 	MusicContextMode.Local,
@@ -34,6 +76,34 @@ export const advanceLyricDynamicLyricTimeAtom = atomWithStorage(
 const enableMediaControlsInternalAtom = atomWithStorage(
 	"amll-player.enableMediaControls",
 	true,
+);
+
+export const enableLoudnessNormalizationAtom = atomWithStorage(
+	"amll-player.enableLoudnessNormalization",
+	false,
+	undefined,
+	{ getOnInit: true },
+);
+
+export const enableGaplessPlaybackAtom = atomWithStorage(
+	"amll-player.enableGaplessPlayback",
+	false,
+	undefined,
+	{ getOnInit: true },
+);
+
+const windowCloseBehaviorStorageAtom = atomWithStorage<unknown>(
+	"amll-player.windowCloseBehavior",
+	DEFAULT_WINDOW_CLOSE_BEHAVIOR,
+	undefined,
+	{ getOnInit: true },
+);
+
+export const windowCloseBehaviorAtom = atom(
+	(get) => normalizeWindowCloseBehavior(get(windowCloseBehaviorStorageAtom)),
+	(_get, set, value: WindowCloseBehaviorMode) => {
+		set(windowCloseBehaviorStorageAtom, normalizeWindowCloseBehavior(value));
+	},
 );
 
 export const enableMediaControlsAtom = atom(
@@ -71,6 +141,35 @@ export const showStatJSFrameAtom = atomWithStorage(
 	false,
 );
 
+export const enableExperimentalFeaturesAtom = atomWithStorage(
+	"amll-player.enableExperimentalFeatures",
+	false,
+	undefined,
+	{ getOnInit: true },
+);
+
+export interface MusicTimelineJump {
+	sequence: number;
+	positionMs: number;
+	reason: "seek" | "lyric-click" | "track-change" | "remote-jump";
+}
+
+export const musicTimelineJumpAtom = atom<MusicTimelineJump>({
+	sequence: 0,
+	positionMs: 0,
+	reason: "track-change",
+});
+
+export const emitMusicTimelineJumpAtom = atom(
+	null,
+	(get, set, event: Omit<MusicTimelineJump, "sequence">) => {
+		set(musicTimelineJumpAtom, {
+			...event,
+			sequence: get(musicTimelineJumpAtom).sequence + 1,
+		});
+	},
+);
+
 export const autoDarkModeAtom = atom(true);
 
 export const isDarkThemeAtom = atom(
@@ -102,6 +201,11 @@ export const autoUpdateAtom = atomWithStorage("amll-player.autoUpdate", true);
 
 export const enableTaskbarLyricAtom = atomWithStorage(
 	"amll-player.enableTaskbarLyric",
+	false,
+);
+
+export const taskbarLyricWordProgressAtom = atomWithStorage(
+	"amll-player.taskbarLyricWordProgress",
 	false,
 );
 
@@ -137,6 +241,21 @@ export const currentLyricAuthorsAtom = atom<string[]>([]);
 export const currentSongWritersAtom = atom<string[]>([]);
 
 export const queueManagerAtom = atom<PlayQueueManager | null>(null);
+
+export interface CurrentRhythmAnalysisState {
+	musicId: string;
+	generation: number;
+	analysis: RhythmAnalysis | null;
+}
+
+/**
+ * 当前本地歌曲的节奏分析结果。持久化由 SQLite 负责，这里只保存播放期状态。
+ */
+export const currentRhythmAnalysisAtom =
+	atom<CurrentRhythmAnalysisState | null>(null);
+
+/** 让节奏视觉包络在 seek 等时间轴跳变后立即重新采样。 */
+export const rhythmVisualResetAtom = atom(0);
 
 const _languageBaseAtom = atom(i18n.language);
 export const languageAtom = atom(

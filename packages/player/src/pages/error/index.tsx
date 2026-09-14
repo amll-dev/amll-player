@@ -1,8 +1,9 @@
-import { Box, Button, Card, Code, Flex, Text } from "@radix-ui/themes";
+import { Button, Card, Code, Flex, Text } from "@radix-ui/themes";
 import { type FC, useMemo } from "react";
 import { Trans } from "react-i18next";
 import { Link, useRouteError } from "react-router-dom";
 import { AppContainer } from "../../components/AppContainer/index.tsx";
+import { ScrollViewport } from "../../components/ScrollViewport/index.tsx";
 
 export const Component: FC = () => {
 	const error = useRouteError();
@@ -65,7 +66,7 @@ export const Component: FC = () => {
 						padding: "0",
 					}}
 				>
-					<Box overflow="auto" height="100%">
+					<ScrollViewport horizontal style={{ height: "100%" }}>
 						<Code
 							variant="ghost"
 							style={{
@@ -77,7 +78,7 @@ export const Component: FC = () => {
 						>
 							{errorText}
 						</Code>
-					</Box>
+					</ScrollViewport>
 				</Card>
 			</Flex>
 		</AppContainer>

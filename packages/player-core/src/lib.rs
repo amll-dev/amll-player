@@ -8,15 +8,34 @@ mod ffmpeg_decoder;
 mod fft_player;
 mod media_controls;
 mod player;
+mod rhythm;
 pub mod utils;
 pub use now_playing_controls::model::NowPlayingOptions;
 pub use player::*;
+pub use rhythm::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SongData {
     pub file_path: String,
     pub song_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub struct LoudnessNormalizationData {
+    pub enabled: bool,
+    pub integrated_loudness_lufs: Option<f64>,
+    pub sample_peak: Option<f64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GaplessPlaybackData {
+    pub song: SongData,
+    #[serde(default)]
+    pub loudness_normalization: Option<LoudnessNormalizationData>,
+    pub playback_id: String,
 }
 
 impl SongData {
@@ -51,9 +70,26 @@ pub enum AudioThreadMessage {
     #[serde(rename_all = "camelCase")]
     SeekAudio { position: f64 },
     #[serde(rename_all = "camelCase")]
-    PlayAudio { song: SongData },
+    PlayAudio {
+        song: SongData,
+        #[serde(default)]
+        loudness_normalization: Option<LoudnessNormalizationData>,
+        #[serde(default)]
+        playback_id: Option<String>,
+        #[serde(default)]
+        start_paused: bool,
+    },
+    #[serde(rename_all = "camelCase")]
+    SetGaplessNext { next: Option<GaplessPlaybackData> },
     #[serde(rename_all = "camelCase")]
     SetVolume { volume: f64 },
+    #[serde(rename_all = "camelCase")]
+    SetLoudnessNormalization {
+        music_id: String,
+        enabled: bool,
+        integrated_loudness_lufs: Option<f64>,
+        sample_peak: Option<f64>,
+    },
     #[serde(rename_all = "camelCase")]
     SetVolumeRelative { volume: f64 },
     #[serde(rename_all = "camelCase")]
@@ -109,13 +145,25 @@ pub enum AudioThreadEvent {
     #[serde(rename_all = "camelCase")]
     AudioPlayFinished { music_id: String },
     #[serde(rename_all = "camelCase")]
-    TrackEnded,
+    TrackEnded {
+        music_id: String,
+        playback_id: String,
+        #[serde(default)]
+        gapless: bool,
+        #[serde(default)]
+        next_playback_id: Option<String>,
+        #[serde(default)]
+        next_music_id: Option<String>,
+    },
     #[serde(rename_all = "camelCase")]
     HardwareMediaCommand { command: String },
     #[serde(rename_all = "camelCase")]
     PlayStatus { is_playing: bool },
     #[serde(rename_all = "camelCase")]
-    LoadError { error: String },
+    LoadError {
+        playback_id: String,
+        error: String,
+    },
     #[serde(rename_all = "camelCase")]
     PlayError { error: String },
     #[serde(rename_all = "camelCase")]

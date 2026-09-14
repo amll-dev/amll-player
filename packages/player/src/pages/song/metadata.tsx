@@ -1,19 +1,19 @@
 import { Button, Callout, Flex, TextField } from "@radix-ui/themes";
-import { open } from "@tauri-apps/plugin-dialog";
 import {
 	type FC,
 	useCallback,
 	useContext,
 	useLayoutEffect,
+	useRef,
 	useState,
 } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { db } from "../../utils/db-client.ts";
 import {
+	pickAndSaveSongCover,
 	readLocalMusicMetadata,
-	saveCoverFromPath,
 } from "../../utils/player.ts";
-import { getLyricFormatFromExtension, Option } from "./common.tsx";
+import { Option } from "./common.tsx";
 import { SongContext } from "./song-ctx.ts";
 
 const MetaInput: FC<
@@ -31,6 +31,8 @@ export const MetadataTabContent: FC = () => {
 	const [songName, setSongName] = useState("");
 	const [songArtists, setSongArtists] = useState("");
 	const [songAlbum, setSongAlbum] = useState("");
+	const coverPickerBusyRef = useRef(false);
+	const [isPickingCover, setIsPickingCover] = useState(false);
 	const { t } = useTranslation();
 
 	useLayoutEffect(() => {
@@ -46,25 +48,25 @@ export const MetadataTabContent: FC = () => {
 	}, [song]);
 
 	const uploadCoverAsImage = useCallback(async () => {
-		if (song === undefined) return;
-		const selected = await open({
-			multiple: false,
-			filters: [
-				{
-					name: t("page.playlist.cover.mediaFiles", "媒体文件"),
-					extensions: ["jpg", "jpeg", "png", "gif", "mp4", "webm"],
-				},
-				{ name: "所有文件", extensions: ["*"] },
-			],
-		});
-		if (!selected) return;
+		if (song === undefined || coverPickerBusyRef.current) return;
+		coverPickerBusyRef.current = true;
+		setIsPickingCover(true);
 		try {
-			const coverPath = await saveCoverFromPath(song.id, selected);
+			const coverPath = await pickAndSaveSongCover(
+				song.id,
+				t("page.song.metadata.changeCoverToImageOrVideo"),
+				t("page.playlist.cover.mediaFiles", "媒体文件"),
+				t("page.playlist.addLocalMusic.allFiles", "所有文件"),
+			);
+			if (!coverPath) return;
 			await db.songs.update(song.id, { coverPath });
 		} catch (err) {
 			console.error("Failed to save cover:", err);
+		} finally {
+			coverPickerBusyRef.current = false;
+			setIsPickingCover(false);
 		}
-	}, [song]);
+	}, [song, t]);
 
 	const readMetadataFromFile = useCallback(async () => {
 		if (song === undefined) return;
@@ -77,26 +79,6 @@ export const MetadataTabContent: FC = () => {
 			...(newInfo.lyric ? { lyricFormat: "lrc", lyric: newInfo.lyric } : {}),
 			...(newInfo.coverPath ? { coverPath: newInfo.coverPath } : {}),
 		});
-	}, [song]);
-
-	const importLyricFromFile = useCallback(() => {
-		if (song === undefined) return;
-		const input = document.createElement("input");
-		input.type = "file";
-		input.accept = ".lrc,.eslrc,.yrc,.qrc,.lys,.ttml";
-		input.onchange = async () => {
-			const file = input.files?.[0];
-			if (!file) return;
-			const format = getLyricFormatFromExtension(file.name);
-			if (!format) return;
-			const content = await file.text();
-			await db.songs.update(song.id, {
-				lyricFormat: format,
-				lyric: content,
-				...(format === "ttml" ? { translatedLrc: "", romanLrc: "" } : {}),
-			});
-		};
-		input.click();
 	}, [song]);
 
 	const saveData = useCallback(async () => {
@@ -134,42 +116,23 @@ export const MetadataTabContent: FC = () => {
 					onChange={(v) => setSongAlbum(v.currentTarget.value)}
 				/>
 			</Flex>
-			<Button
-				mt="4"
-				style={{
-					display: "block",
-				}}
-				variant="soft"
-				onClick={uploadCoverAsImage}
-			>
-				<Trans i18nKey="page.song.metadata.changeCoverToImageOrVideo">
-					更换封面图为图片 / 视频
-				</Trans>
-			</Button>
-			<Button
-				mt="4"
-				style={{
-					display: "block",
-				}}
-				variant="soft"
-				onClick={readMetadataFromFile}
-			>
-				<Trans i18nKey="page.song.metadata.reloadMetadataFromFile">
-					重新从文件中读取元数据
-				</Trans>
-			</Button>
-			<Button
-				mt="4"
-				style={{
-					display: "block",
-				}}
-				variant="soft"
-				onClick={importLyricFromFile}
-			>
-				<Trans i18nKey="page.song.metadata.importLyricFromFile">
-					从本地文件导入歌词
-				</Trans>
-			</Button>
+			<Flex mt="4" gap="2" wrap="wrap">
+				<Button
+					variant="soft"
+					disabled={isPickingCover}
+					loading={isPickingCover}
+					onClick={uploadCoverAsImage}
+				>
+					<Trans i18nKey="page.song.metadata.changeCoverToImageOrVideo">
+						更换封面图为图片 / 视频
+					</Trans>
+				</Button>
+				<Button variant="soft" onClick={readMetadataFromFile}>
+					<Trans i18nKey="page.song.metadata.reloadMetadataFromFile">
+						重新从文件中读取元数据
+					</Trans>
+				</Button>
+			</Flex>
 			<Button
 				mt="4"
 				style={{

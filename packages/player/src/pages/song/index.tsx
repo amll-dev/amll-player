@@ -8,10 +8,12 @@ import {
 	Tabs,
 	Text,
 } from "@radix-ui/themes";
-import { type FC, useContext } from "react";
+import { useAtomValue } from "jotai";
+import { type FC, useContext, useEffect, useState } from "react";
 import { Trans } from "react-i18next";
 import { useParams } from "react-router-dom";
 import { ExtensionInjectPoint } from "../../components/ExtensionInjectPoint/index.tsx";
+import { enableExperimentalFeaturesAtom } from "../../states/appAtoms.ts";
 import { db } from "../../utils/db-client.ts";
 import { useDbQuery } from "../../utils/use-db-query.ts";
 import { useSongCover } from "../../utils/use-song-cover.ts";
@@ -19,6 +21,7 @@ import { BasicTabContent } from "./basic.tsx";
 import { LyricTabContent } from "./lyric.tsx";
 import { MetadataTabContent } from "./metadata.tsx";
 import { SongContext } from "./song-ctx.ts";
+import { SongVideoBackgroundEditor } from "./video-background.tsx";
 
 const SongPageHeader: FC = () => {
 	const song = useContext(SongContext);
@@ -48,6 +51,19 @@ const SongPageHeader: FC = () => {
 };
 
 export const Component: FC = () => {
+	const enableExperimentalFeatures = useAtomValue(
+		enableExperimentalFeaturesAtom,
+	);
+	const [activeTab, setActiveTab] = useState("basic");
+	const visibleTab =
+		!enableExperimentalFeatures && activeTab === "background"
+			? "basic"
+			: activeTab;
+	useEffect(() => {
+		if (!enableExperimentalFeatures) {
+			setActiveTab((tab) => (tab === "background" ? "basic" : tab));
+		}
+	}, [enableExperimentalFeatures]);
 	const { id: musicId } = useParams<{ id: string }>();
 	const { data: song } = useDbQuery(
 		() => db.songs.get(musicId || ""),
@@ -66,7 +82,7 @@ export const Component: FC = () => {
 		>
 			<SongContext.Provider value={song}>
 				<SongPageHeader />
-				<Tabs.Root defaultValue="basic">
+				<Tabs.Root value={visibleTab} onValueChange={setActiveTab}>
 					<Tabs.List>
 						<ExtensionInjectPoint injectPointName="page.song.tab.list.before" />
 						<Tabs.Trigger value="basic">
@@ -78,6 +94,11 @@ export const Component: FC = () => {
 						<Tabs.Trigger value="lyric">
 							<Trans i18nKey="page.song.basic.tabs.lyric">歌词</Trans>
 						</Tabs.Trigger>
+						{enableExperimentalFeatures && (
+							<Tabs.Trigger value="background">
+								<Trans i18nKey="page.song.basic.tabs.background">背景</Trans>
+							</Tabs.Trigger>
+						)}
 						<ExtensionInjectPoint injectPointName="page.song.tab.list.after" />
 					</Tabs.List>
 					<Box pt="3">
@@ -91,6 +112,11 @@ export const Component: FC = () => {
 						<Tabs.Content value="lyric">
 							<LyricTabContent />
 						</Tabs.Content>
+						{enableExperimentalFeatures && (
+							<Tabs.Content value="background">
+								<SongVideoBackgroundEditor key={song?.id ?? "missing-song"} />
+							</Tabs.Content>
+						)}
 						<ExtensionInjectPoint injectPointName="page.song.tab.content.after" />
 					</Box>
 				</Tabs.Root>

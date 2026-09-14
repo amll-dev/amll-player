@@ -415,6 +415,7 @@ export const Component: FC = () => {
 	return (
 		<div
 			id="mg-edit"
+			data-amll-contained-scroll=""
 			style={{
 				margin: "0",
 				padding: "0",

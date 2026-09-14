@@ -1,4 +1,5 @@
 import {
+	type CSSProperties,
 	useCallback,
 	useEffect,
 	useLayoutEffect,
@@ -6,6 +7,12 @@ import {
 	useState,
 } from "react";
 import styles from "./index.module.css";
+import {
+	getTimedWordProgress,
+	hasUsableWordTimings,
+	normalizeTaskbarWordFadeWidth,
+	type TimedLyricWord,
+} from "./word-progress.ts";
 
 interface LyricScrollProps {
 	text: string;
@@ -20,6 +27,10 @@ interface LyricScrollProps {
 	getCurrentPosition: () => number;
 	onProgress?: (progress: number) => void;
 	subscribeProgress?: (callback: (progress: number) => void) => () => void;
+	words?: readonly TimedLyricWord[];
+	wordProgressEnabled: boolean;
+	wordFadeWidth: number;
+	subscribePosition?: (callback: (position: number) => void) => () => void;
 }
 
 export const LyricScroll = ({
@@ -35,14 +46,64 @@ export const LyricScroll = ({
 	getCurrentPosition,
 	onProgress,
 	subscribeProgress,
+	words,
+	wordProgressEnabled,
+	wordFadeWidth,
+	subscribePosition,
 }: LyricScrollProps) => {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const contentRef = useRef<HTMLDivElement>(null);
+	const wordRefs = useRef<Array<HTMLSpanElement | null>>([]);
+	const wordProgressValuesRef = useRef<number[]>([]);
 	const [shouldScroll, setShouldScroll] = useState(false);
 	const [maxTranslate, setMaxTranslate] = useState(0);
 	const rafRef = useRef<number>(0);
 
 	const isVert = orientation === "vertical";
+	const safeWordFadeWidth = normalizeTaskbarWordFadeWidth(wordFadeWidth);
+	const showWordProgress =
+		wordProgressEnabled &&
+		status === "primary" &&
+		isActive &&
+		hasUsableWordTimings(words);
+
+	const updateWordProgress = useCallback(
+		(position: number) => {
+			if (!showWordProgress || !words) return;
+
+			words.forEach((word, index) => {
+				const element = wordRefs.current[index];
+				if (!element) return;
+				const progress = getTimedWordProgress(word, position);
+				const percentage = Math.round(progress * 1_000) / 10;
+				if (wordProgressValuesRef.current[index] === percentage) return;
+				wordProgressValuesRef.current[index] = percentage;
+				element.style.setProperty("--taskbar-word-progress", `${percentage}%`);
+				element.style.setProperty(
+					"--taskbar-word-fade-offset",
+					`${Math.round(progress * safeWordFadeWidth * 10_000) / 10_000}em`,
+				);
+			});
+		},
+		[safeWordFadeWidth, showWordProgress, words],
+	);
+
+	useLayoutEffect(() => {
+		if (!showWordProgress) {
+			wordRefs.current = [];
+			wordProgressValuesRef.current = [];
+			return;
+		}
+
+		wordProgressValuesRef.current = [];
+		updateWordProgress(getCurrentPosition());
+		return subscribePosition?.(updateWordProgress);
+	}, [
+		getCurrentPosition,
+		showWordProgress,
+		subscribePosition,
+		updateWordProgress,
+	]);
 
 	const measure = useCallback(() => {
 		if (!containerRef.current || !contentRef.current) return;
@@ -191,7 +252,24 @@ export const LyricScroll = ({
 				data-align={align}
 				data-orientation={orientation}
 			>
-				{text}
+				{showWordProgress
+					? words?.map((word, index) => (
+							<span
+								key={`${word.startTime}-${word.endTime}-${index}`}
+								ref={(element) => {
+									wordRefs.current[index] = element;
+								}}
+								className={styles.wordProgressWord}
+								style={
+									{
+										"--taskbar-word-fade-width": `${safeWordFadeWidth}em`,
+									} as CSSProperties
+								}
+							>
+								{word.word}
+							</span>
+						))
+					: text}
 			</div>
 		</div>
 	);

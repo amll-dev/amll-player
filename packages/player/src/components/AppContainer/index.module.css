@@ -1,7 +1,7 @@
 .appContainer {
 	display: grid;
 	grid-template-columns: 0fr 0fr 1fr;
-	grid-template-rows: 1fr 0fr;
+	grid-template-rows: minmax(0, 1fr) auto;
 	height: 100%;
 	width: 100%;
 	overflow: hidden;
@@ -16,7 +16,6 @@
 .sidebarDivider {
 	grid-row: 1 / 3;
 	grid-column: 2 / 3;
-	width: 1px;
 	height: 100%;
 	border-left: 1px solid var(--gray-6);
 	width: 4px;
@@ -37,12 +36,115 @@
 	grid-column: 3 / 4;
 	min-width: 0;
 	min-height: 0;
-	overflow: hidden auto;
+	clip-path: var(--amll-playlist-underlay-clip, none);
+}
+
+.mainContent {
+	height: 100%;
+}
+
+.main:has(> .mainContent > [data-amll-contained-scroll]) {
+	/* Nested route viewports already place their track in the page spacing. */
+	overflow: hidden;
+
+	> .mainContent {
+		width: 100%;
+	}
+}
+
+.main::-webkit-scrollbar-track {
+	margin-top: var(--system-titlebar-height, 0px);
+}
+
+.main[data-amll-route-scroll-locked]::-webkit-scrollbar-thumb,
+.main[data-amll-route-scroll-locked] ::-webkit-scrollbar-thumb {
+	/* Keep the native track geometry stable throughout the fullscreen sheet. */
+	box-shadow: none;
+}
+
+:global(html[data-amll-playlist-capturing]) .main {
+	/* A refresh must capture the complete page, without the previous hole. */
+	clip-path: none;
 }
 
 .playbar {
+	--amll-fullscreen-sheet-duration: 0.5s;
+	--amll-fullscreen-sheet-easing: cubic-bezier(0.25, 1, 0.5, 1);
+	--amll-player-separator-height: 1px;
+
 	grid-row: 2 / 3;
 	grid-column: 2 / 4;
+	position: relative;
+	z-index: 3;
+	box-sizing: border-box;
+	height: var(
+		--amll-player-playbar-height,
+		calc(100px + env(safe-area-inset-bottom))
+	);
+	isolation: isolate;
+	background-color: var(--color-panel-solid, rgb(17 17 17 / 0.78));
+	transition:
+		height var(--amll-fullscreen-sheet-duration)
+		var(--amll-fullscreen-sheet-easing),
+		background-color 0.18s 0.24s ease-out,
+		z-index 0s var(--amll-fullscreen-sheet-duration);
+	will-change: height, background-color;
 
-	border-top: solid 1px var(--gray-6);
+	&::before {
+		content: "";
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: 3;
+		height: var(--amll-player-separator-height);
+		background-color: var(--gray-6);
+		opacity: 1;
+		pointer-events: none;
+		transition: opacity 0.08s 0.42s ease-out;
+		will-change: opacity;
+	}
+}
+
+.playbarExpanded {
+	z-index: 9999;
+	height: 100dvh;
+	background-color: #111;
+	transition:
+		height var(--amll-fullscreen-sheet-duration)
+		var(--amll-fullscreen-sheet-easing),
+		background-color 0.16s ease-out,
+		z-index 0s;
+
+	&::before {
+		opacity: 0;
+	}
+}
+
+.playbar[data-amll-playbar-expanded][data-amll-viewport-resizing] {
+	transition: none;
+
+	:global(#amll-lyric-player-wrapper),
+	:global(#amll-lyric-player-wrapper *),
+	:global(#amll-lyric-player-wrapper *::before),
+	:global(#amll-lyric-player-wrapper *::after) {
+		/* biome-ignore lint/complexity/noImportantStyles: Resize must override dependency and inline transitions for one settle window. */
+		transition: none !important;
+		/* biome-ignore lint/complexity/noImportantStyles: Resize must override dependency and inline animations for one settle window. */
+		animation: none !important;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.playbar,
+	.playbarExpanded {
+		transition-duration: 1ms;
+		transition-delay: 0s;
+	}
+
+	.playbar::before,
+	.playbarExpanded::before {
+		transition-duration: 1ms;
+		transition-delay: 0s;
+	}
 }

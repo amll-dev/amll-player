@@ -2,6 +2,7 @@ import type { LyricLine } from "@applemusic-like-lyrics/core";
 import type { ArtistStateEntry } from "@applemusic-like-lyrics/react-full";
 
 export interface TaskbarLyricMetadataPayload {
+	musicId: string;
 	musicName: string;
 	musicArtists: ArtistStateEntry[];
 	musicAlbumName: string;
@@ -30,6 +31,8 @@ export interface TaskbarLyricAlignmentPayload {
 export interface TaskbarLayoutExtraPayload {
 	isCentered: boolean;
 	systemType: string;
+	contentOffsetX: number;
+	contentOffsetY: number;
 }
 
 export interface SystemThemeChangedPayload {
@@ -40,12 +43,18 @@ export interface TaskbarLyricModePayload {
 	mode: "auto" | "single" | "double";
 }
 
+export interface TaskbarLyricWordProgressPayload {
+	enabled: boolean;
+	fadeWidth: number;
+}
+
 export const METADATA_EVENT = "taskbar-lyric:metadata";
 export const PLAY_STATUS_EVENT = "taskbar-lyric:play-status";
 export const POSITION_EVENT = "taskbar-lyric:position";
 export const THEME_EVENT = "taskbar-lyric:theme";
 export const ALIGN_EVENT = "taskbar-lyric:alignment";
 export const MODE_EVENT = "taskbar-lyric:mode";
+export const WORD_PROGRESS_EVENT = "taskbar-lyric:word-progress";
 
 export const CTRL_PREV_EVENT = "taskbar-lyric:ctrl-prev";
 export const CTRL_PLAY_OR_RESUME_EVENT = "taskbar-lyric:ctrl-play-or-resume";
@@ -60,4 +69,6 @@ export const TASKBAR_LAYOUT_EXTRA_EVENT = "taskbar-layout-extra";
 export const SYSTEM_THEME_CHANGED_EVENT = "system-theme-changed";
 
 export const CMD_GET_SYSTEM_THEME = "get_system_theme";
+export const CMD_REFRESH_TASKBAR_LAYOUT = "refresh_taskbar_lyric_layout";
 export const CMD_SET_CLICK_INTERCEPTION = "set_click_interception";
+export const CMD_TASKBAR_LYRIC_PAGE_READY = "taskbar_lyric_page_ready";

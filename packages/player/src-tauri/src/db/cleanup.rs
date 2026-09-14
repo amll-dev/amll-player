@@ -9,6 +9,8 @@ use tracing::{info, warn};
 use crate::db::entity::{playlist, song};
 use crate::db::{DbConnection, utils};
 
+pub static COVER_STORAGE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CoverGcResult {
@@ -53,6 +55,8 @@ pub async fn run_cover_gc(
     db: &sea_orm::DatabaseConnection,
     app: &AppHandle,
 ) -> Result<CoverGcResult, String> {
+    // Keep the reference snapshot and file deletion atomic with new imports.
+    let _cover_storage_guard = COVER_STORAGE_LOCK.lock().await;
     let covers_dir = utils::get_covers_dir(app)?;
 
     if !covers_dir.exists() {

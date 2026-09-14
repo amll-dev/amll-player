@@ -10,6 +10,7 @@ import {
 	musicAlbumNameAtom,
 	musicArtistsAtom,
 	musicCoverAtom,
+	musicCoverIsVideoAtom,
 	musicDurationAtom,
 	musicIdAtom,
 	musicLyricLinesAtom,
@@ -36,6 +37,7 @@ import { type FC, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import {
+	emitMusicTimelineJumpAtom,
 	wsProtocolConnectedAddrsAtom,
 	wsProtocolListenAddrAtom,
 } from "../../states/appAtoms.ts";
@@ -127,6 +129,15 @@ export const WSProtocolMusicContext: FC<WSProtocolMusicContextProps> = ({
 	const store = useStore();
 	const { t } = useTranslation();
 	const fftPlayer = useRef<FFTPlayer | undefined>(undefined);
+	const lastProgressSampleRef = useRef<{
+		positionMs: number;
+		receivedAt: number;
+		playing: boolean;
+	} | null>(null);
+	const pendingOutboundSeekRef = useRef<{
+		targetMs: number;
+		sentAt: number;
+	} | null>(null);
 	const fftDataRange = useAtomValue(fftDataRangeAtom);
 
 	useEffect(() => {
@@ -169,6 +180,7 @@ export const WSProtocolMusicContext: FC<WSProtocolMusicContextProps> = ({
 			store.set(musicNameAtom, "等待连接中");
 			store.set(musicAlbumNameAtom, "");
 			store.set(musicCoverAtom, "");
+			store.set(musicCoverIsVideoAtom, false);
 			store.set(musicArtistsAtom, []);
 			store.set(isShuffleActiveAtom, false);
 			store.set(repeatModeAtom, RepeatMode.Off);
@@ -177,6 +189,23 @@ export const WSProtocolMusicContext: FC<WSProtocolMusicContextProps> = ({
 		function sendWSCommand(command: WSCommand) {
 			const payload: WSPayload = { type: "command", value: command };
 			invoke("ws_broadcast_payload", { payload });
+		}
+
+		function commitOutboundSeek(
+			positionMs: number,
+			reason: "seek" | "lyric-click",
+		) {
+			const targetMs = Math.max(0, positionMs | 0);
+			const sentAt = performance.now();
+			pendingOutboundSeekRef.current = { targetMs, sentAt };
+			lastProgressSampleRef.current = {
+				positionMs: targetMs,
+				receivedAt: sentAt,
+				playing: store.get(musicPlayingAtom),
+			};
+			store.set(musicPlayingPositionAtom, targetMs);
+			store.set(emitMusicTimelineJumpAtom, { positionMs: targetMs, reason });
+			return targetMs;
 		}
 
 		if (!isLyricOnly) {
@@ -222,18 +251,23 @@ export const WSProtocolMusicContext: FC<WSProtocolMusicContextProps> = ({
 			store.set(
 				onSeekPositionAtom,
 				toEmit((progress) => {
+					const targetMs = commitOutboundSeek(progress, "seek");
 					sendWSCommand({
 						command: "seekPlayProgress",
-						progress: progress | 0,
+						progress: targetMs,
 					});
 				}),
 			);
 			store.set(
 				onLyricLineClickAtom,
 				toEmit((evt, playerRef) => {
+					const targetMs = commitOutboundSeek(
+						evt.line.getLine().startTime,
+						"lyric-click",
+					);
 					sendWSCommand({
 						command: "seekPlayProgress",
-						progress: evt.line.getLine().startTime | 0,
+						progress: targetMs,
 					});
 					playerRef?.lyricPlayer?.resetScroll();
 				}),
@@ -285,6 +319,8 @@ export const WSProtocolMusicContext: FC<WSProtocolMusicContextProps> = ({
 			const state = payload.value;
 			switch (state.update) {
 				case "setMusic": {
+					lastProgressSampleRef.current = null;
+					pendingOutboundSeekRef.current = null;
 					store.set(musicIdAtom, state.musicId);
 					store.set(musicNameAtom, state.musicName);
 					store.set(musicAlbumNameAtom, state.albumName);
@@ -294,6 +330,10 @@ export const WSProtocolMusicContext: FC<WSProtocolMusicContextProps> = ({
 						state.artists.map((v) => ({ id: v.id, name: v.name })),
 					);
 					store.set(musicPlayingPositionAtom, 0);
+					store.set(emitMusicTimelineJumpAtom, {
+						positionMs: 0,
+						reason: "track-change",
+					});
 					break;
 				}
 				case "setCover": {
@@ -302,6 +342,7 @@ export const WSProtocolMusicContext: FC<WSProtocolMusicContextProps> = ({
 						curCoverBlobUrl = "";
 					}
 
+					store.set(musicCoverIsVideoAtom, false);
 					if (state.source === "uri") {
 						store.set(musicCoverAtom, state.url);
 					} else {
@@ -347,7 +388,39 @@ export const WSProtocolMusicContext: FC<WSProtocolMusicContextProps> = ({
 					break;
 				}
 				case "progress": {
+					const now = performance.now();
+					const pendingSeek = pendingOutboundSeekRef.current;
+					if (pendingSeek) {
+						const elapsedMs = now - pendingSeek.sentAt;
+						const expectedTarget =
+							pendingSeek.targetMs +
+							(store.get(musicPlayingAtom) ? Math.max(0, elapsedMs) : 0);
+						if (elapsedMs <= 1_500) {
+							if (Math.abs(state.progress - expectedTarget) > 750) {
+								break;
+							}
+							pendingOutboundSeekRef.current = null;
+						} else {
+							pendingOutboundSeekRef.current = null;
+						}
+					}
+					const previous = lastProgressSampleRef.current;
+					const expectedPosition = previous
+						? previous.positionMs +
+							(previous.playing ? now - previous.receivedAt : 0)
+						: state.progress;
 					store.set(musicPlayingPositionAtom, state.progress);
+					if (!previous || Math.abs(state.progress - expectedPosition) > 500) {
+						store.set(emitMusicTimelineJumpAtom, {
+							positionMs: state.progress,
+							reason: "remote-jump",
+						});
+					}
+					lastProgressSampleRef.current = {
+						positionMs: state.progress,
+						receivedAt: now,
+						playing: store.get(musicPlayingAtom),
+					};
 					break;
 				}
 				case "volume": {
@@ -355,10 +428,24 @@ export const WSProtocolMusicContext: FC<WSProtocolMusicContextProps> = ({
 					break;
 				}
 				case "paused": {
+					if (lastProgressSampleRef.current) {
+						lastProgressSampleRef.current = {
+							positionMs: store.get(musicPlayingPositionAtom),
+							receivedAt: performance.now(),
+							playing: false,
+						};
+					}
 					store.set(musicPlayingAtom, false);
 					break;
 				}
 				case "resumed": {
+					if (lastProgressSampleRef.current) {
+						lastProgressSampleRef.current = {
+							positionMs: store.get(musicPlayingPositionAtom),
+							receivedAt: performance.now(),
+							playing: true,
+						};
+					}
 					store.set(musicPlayingAtom, true);
 					break;
 				}
@@ -427,6 +514,7 @@ export const WSProtocolMusicContext: FC<WSProtocolMusicContextProps> = ({
 				store.set(musicNameAtom, "");
 				store.set(musicAlbumNameAtom, "");
 				store.set(musicCoverAtom, "");
+				store.set(musicCoverIsVideoAtom, false);
 				store.set(musicArtistsAtom, []);
 				store.set(musicIdAtom, "");
 				store.set(musicDurationAtom, 0);
@@ -435,6 +523,8 @@ export const WSProtocolMusicContext: FC<WSProtocolMusicContextProps> = ({
 				store.set(musicLyricLinesAtom, []);
 				store.set(musicVolumeAtom, 1);
 			}
+			pendingOutboundSeekRef.current = null;
+			lastProgressSampleRef.current = null;
 		};
 	}, [
 		wsProtocolListenAddr,

@@ -12,18 +12,21 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useAtomValue } from "jotai";
 import { type FC, useRef } from "react";
-import { Trans } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { ExtensionInjectPoint } from "../../components/ExtensionInjectPoint/index.tsx";
+import { MusicDropVisual } from "../../components/MusicDropVisual/index.tsx";
 import { NewPlaylistButton } from "../../components/NewPlaylistButton/index.tsx";
 import { PageContainer } from "../../components/PageContainer/index.tsx";
 import { PlaylistCard } from "../../components/PlaylistCard/index.tsx";
+import { ScrollViewport } from "../../components/ScrollViewport/index.tsx";
 import { router } from "../../router.tsx";
 import { updateInfoAtom } from "../../states/appAtoms.ts";
 import { db } from "../../utils/db-client.ts";
 import { useDbQuery } from "../../utils/use-db-query.ts";
 
 export const Component: FC = () => {
+	const { t } = useTranslation();
 	const { data: playlists } = useDbQuery(
 		() => db.playlists.getAll(),
 		[],
@@ -42,7 +45,15 @@ export const Component: FC = () => {
 
 	return (
 		<PageContainer>
-			<Flex direction="column" height="100%">
+			<Flex direction="column" height="100%" data-music-drop-create-playlist="">
+				<MusicDropVisual
+					variant="create-playlist"
+					title={t("musicDrop.createPlaylistHint", "拖入音乐文件夹创建歌单")}
+					detail={t(
+						"musicDrop.homeFolderOnlyHint",
+						"首页仅接受单个文件夹；音乐文件请拖到具体歌单",
+					)}
+				/>
 				<Flex direction="row" align="center" wrap="wrap" mt="5">
 					<Box asChild flexGrow="1">
 						<Heading wrap="nowrap" my="4">
@@ -124,13 +135,7 @@ export const Component: FC = () => {
 							</Trans>
 						</Text>
 					) : (
-						<div
-							style={{
-								overflowY: "auto",
-								minHeight: "0",
-							}}
-							ref={parentRef}
-						>
+						<ScrollViewport ref={parentRef} bleed>
 							<div
 								style={{
 									height: `${rowVirtualizer.getTotalSize()}px`,
@@ -159,7 +164,7 @@ export const Component: FC = () => {
 									);
 								})}
 							</div>
-						</div>
+						</ScrollViewport>
 					)
 				) : (
 					<Flex

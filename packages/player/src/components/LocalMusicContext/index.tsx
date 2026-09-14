@@ -32,22 +32,45 @@ import {
 	onToggleShuffleAtom,
 } from "@applemusic-like-lyrics/react-full";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import chalk from "chalk";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
-import { type FC, useEffect, useLayoutEffect, useRef } from "react";
+import {
+	type FC,
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { useLyricParser } from "../../hooks/useLyricParser.ts";
 import {
 	audioQualityDialogOpenedAtom,
 	currentLyricAuthorsAtom,
+	currentRhythmAnalysisAtom,
 	currentSongWritersAtom,
+	emitMusicTimelineJumpAtom,
+	enableGaplessPlaybackAtom,
+	enableLoudnessNormalizationAtom,
 	enableMediaControlsAtom,
 	queueManagerAtom,
+	rhythmVisualResetAtom,
 } from "../../states/appAtoms.ts";
-import { db } from "../../utils/db-client.ts";
+import {
+	db,
+	getCurrentTrackLoudness,
+	getRhythmPrecacheProgress,
+	type RhythmPrecacheProgress,
+	startRhythmPrecache,
+} from "../../utils/db-client.ts";
 import { SyncStatus, syncLyrics } from "../../utils/lyric-db-api.ts";
-import { PlayQueueManager } from "../../utils/play-queue-manager.ts";
+import {
+	PlayQueueManager,
+	queueCurrentSongAtom,
+	queueLoudnessUpdatePolicyAtom,
+	shouldSuppressAutomaticLoudnessUpdate,
+} from "../../utils/play-queue-manager.ts";
 import {
 	type AudioQuality,
 	type AudioThreadEvent,
@@ -56,6 +79,11 @@ import {
 	listenAudioThreadEvent,
 } from "../../utils/player.ts";
 import { useDbQuery } from "../../utils/use-db-query.ts";
+import {
+	type RhythmAnalysisRequestIdentity,
+	RhythmAnalysisRetryController,
+} from "./rhythm-analysis-retry.ts";
+import { LocalRhythmVisualContext } from "./rhythm-visual.tsx";
 
 export const FFTToLowPassContext: FC = () => {
 	const store = useStore();
@@ -136,6 +164,111 @@ export const FFTToLowPassContext: FC = () => {
 		};
 	}, [store]);
 	// }, [store, isLyricPageOpened]);
+
+	return null;
+};
+
+const RHYTHM_PRECACHE_TOAST_ID = "rhythm-precache-progress";
+
+/**
+ * 项目当前的 i18next 版本组合不会对 defaultValue 做变量插值,这里手动
+ * 替换 {{name}} 占位符;若未来 i18next 已完成插值,正则匹配不到即原样
+ * 返回,两种情况都安全。
+ */
+function formatPrecacheMessage(
+	template: string,
+	values: Record<string, string | number>,
+): string {
+	return template.replace(/\{\{(\w+)\}\}/g, (match, name: string) =>
+		name in values ? String(values[name]) : match,
+	);
+}
+
+/**
+ * 后台预建节奏缓存的全局进度提示。挂载时先补拉一次快照,再订阅后端的
+ * 进度事件,并触发一次启动扫描——分析器版本升级后的全库重建也由这次
+ * 扫描自动完成。
+ */
+const RhythmPrecacheProgressContext: FC = () => {
+	const { t } = useTranslation();
+
+	useEffect(() => {
+		let disposed = false;
+		const apply = (progress: RhythmPrecacheProgress | null | undefined) => {
+			if (disposed || !progress || progress.total === 0) return;
+			const finished = progress.done + progress.failed;
+			if (progress.active) {
+				const render = progress.currentSongName
+					? formatPrecacheMessage(
+							t("rhythmPrecache.progressWithSong", {
+								defaultValue:
+									"正在预建节奏缓存 {{finished}}/{{total}}：{{song}}",
+							}),
+							{
+								finished,
+								total: progress.total,
+								song: progress.currentSongName,
+							},
+						)
+					: formatPrecacheMessage(
+							t("rhythmPrecache.progress", {
+								defaultValue: "正在预建节奏缓存 {{finished}}/{{total}}",
+							}),
+							{ finished, total: progress.total },
+						);
+				if (toast.isActive(RHYTHM_PRECACHE_TOAST_ID)) {
+					toast.update(RHYTHM_PRECACHE_TOAST_ID, {
+						render,
+						autoClose: false,
+						type: "info",
+					});
+				} else {
+					toast.info(render, {
+						toastId: RHYTHM_PRECACHE_TOAST_ID,
+						autoClose: false,
+						closeOnClick: false,
+					});
+				}
+			} else if (toast.isActive(RHYTHM_PRECACHE_TOAST_ID)) {
+				const render =
+					progress.failed > 0
+						? formatPrecacheMessage(
+								t("rhythmPrecache.doneWithFailures", {
+									defaultValue:
+										"节奏缓存完成：成功 {{done}} 首，失败 {{failed}} 首",
+								}),
+								{ done: progress.done, failed: progress.failed },
+							)
+						: formatPrecacheMessage(
+								t("rhythmPrecache.done", {
+									defaultValue: "节奏缓存已就绪（{{done}} 首）",
+								}),
+								{ done: progress.done },
+							);
+				toast.update(RHYTHM_PRECACHE_TOAST_ID, {
+					render,
+					type: progress.failed > 0 ? "warning" : "success",
+					autoClose: 6000,
+				});
+			}
+		};
+
+		void getRhythmPrecacheProgress()
+			.then(apply)
+			.catch(() => {});
+		const unlistenPromise = listen<RhythmPrecacheProgress>(
+			"rhythm-precache-progress",
+			(event) => apply(event.payload),
+		);
+		void startRhythmPrecache().catch((error) => {
+			console.warn("[RhythmPrecache] Failed to start precache sweep", error);
+		});
+
+		return () => {
+			disposed = true;
+			void unlistenPromise.then((unlisten) => unlisten());
+		};
+	}, [t]);
 
 	return null;
 };
@@ -257,12 +390,189 @@ const LyricContext: FC = () => {
 export const LocalMusicContext: FC = () => {
 	const store = useStore();
 	const { t } = useTranslation();
+	const enableLoudnessNormalization = useAtomValue(
+		enableLoudnessNormalizationAtom,
+	);
+	const currentRhythmAnalysis = useAtomValue(currentRhythmAnalysisAtom);
 	const firstPlay = useRef(true);
 	const [musicPlaying, setMusicPlaying] = useAtom(musicPlayingAtom);
 	const lastSyncRef = useRef({
 		position: 0,
 		timestamp: performance.now(),
 	});
+	const rhythmGenerationRef = useRef(0);
+	const musicInfoGenerationRef = useRef(0);
+	const pendingSeekRef = useRef<{
+		targetPosition: number;
+		requestedAt: number;
+	} | null>(null);
+	const rhythmAnalysisRetryRef = useRef<RhythmAnalysisRetryController | null>(
+		null,
+	);
+	if (!rhythmAnalysisRetryRef.current) {
+		rhythmAnalysisRetryRef.current = new RhythmAnalysisRetryController();
+	}
+
+	const beginRhythmGeneration = useCallback(
+		(musicId: string | null): number => {
+			const generation = ++rhythmGenerationRef.current;
+			rhythmAnalysisRetryRef.current?.begin(
+				musicId ? { musicId, generation } : null,
+			);
+			store.set(
+				currentRhythmAnalysisAtom,
+				musicId ? { musicId, generation, analysis: null } : null,
+			);
+			return generation;
+		},
+		[store],
+	);
+
+	const requestRhythmAnalysis = useCallback(
+		async function requestCurrentRhythmAnalysis(
+			musicId: string,
+			generation: number,
+			requireLoudness = store.get(enableLoudnessNormalizationAtom),
+		) {
+			const identity: RhythmAnalysisRequestIdentity = { musicId, generation };
+			try {
+				const analysis = await db.songs.getOrAnalyzeRhythm(
+					musicId,
+					false,
+					requireLoudness,
+				);
+				const current = store.get(currentRhythmAnalysisAtom);
+				if (
+					generation !== rhythmGenerationRef.current ||
+					current?.generation !== generation ||
+					current.musicId !== musicId ||
+					store.get(musicIdAtom) !== musicId
+				) {
+					return;
+				}
+				rhythmAnalysisRetryRef.current?.succeed(identity);
+				store.set(currentRhythmAnalysisAtom, {
+					musicId,
+					generation,
+					analysis,
+				});
+			} catch (error) {
+				const current = store.get(currentRhythmAnalysisAtom);
+				if (
+					generation !== rhythmGenerationRef.current ||
+					current?.generation !== generation ||
+					current.musicId !== musicId ||
+					store.get(musicIdAtom) !== musicId
+				) {
+					return;
+				}
+
+				const schedule = rhythmAnalysisRetryRef.current?.scheduleFailure(
+					identity,
+					error,
+					(retryIdentity) => {
+						const retryState = store.get(currentRhythmAnalysisAtom);
+						if (
+							retryIdentity.generation !== rhythmGenerationRef.current ||
+							retryState?.generation !== retryIdentity.generation ||
+							retryState.musicId !== retryIdentity.musicId ||
+							store.get(musicIdAtom) !== retryIdentity.musicId
+						) {
+							return;
+						}
+						void requestCurrentRhythmAnalysis(
+							retryIdentity.musicId,
+							retryIdentity.generation,
+							requireLoudness || store.get(enableLoudnessNormalizationAtom),
+						);
+					},
+				);
+				console.warn(
+					"[RhythmAnalysis] Failed to analyze song",
+					musicId,
+					error,
+					schedule
+						? `Retry ${schedule.retryNumber} in ${schedule.delayMs} ms`
+						: "Retry limit reached",
+				);
+			}
+		},
+		[store],
+	);
+
+	useEffect(
+		() => () => {
+			rhythmAnalysisRetryRef.current?.cancel();
+		},
+		[],
+	);
+
+	useEffect(() => {
+		if (!currentRhythmAnalysis) return;
+		const loudnessUpdatePolicy = store.get(queueLoudnessUpdatePolicyAtom);
+		if (
+			!enableLoudnessNormalization &&
+			loudnessUpdatePolicy?.musicId === currentRhythmAnalysis.musicId
+		) {
+			store.set(queueLoudnessUpdatePolicyAtom, null);
+		}
+		const suppressAutomaticUpdate = shouldSuppressAutomaticLoudnessUpdate(
+			loudnessUpdatePolicy,
+			currentRhythmAnalysis.musicId,
+			enableLoudnessNormalization,
+		);
+		if (!currentRhythmAnalysis.analysis) {
+			if (!enableLoudnessNormalization) {
+				void emitAudioThread("setLoudnessNormalization", {
+					musicId: currentRhythmAnalysis.musicId,
+					enabled: false,
+					integratedLoudnessLufs: null,
+					samplePeak: null,
+				}).catch((error) => {
+					console.warn(
+						"[VolumeBalance] Failed to disable normalization",
+						error,
+					);
+				});
+			}
+			return;
+		}
+
+		if (suppressAutomaticUpdate) return;
+
+		const loudness = getCurrentTrackLoudness(currentRhythmAnalysis.analysis);
+		const hasCurrentLoudness = loudness !== null;
+
+		void emitAudioThread("setLoudnessNormalization", {
+			musicId: currentRhythmAnalysis.musicId,
+			enabled: enableLoudnessNormalization,
+			integratedLoudnessLufs: hasCurrentLoudness
+				? (loudness.integratedLoudnessLufs ?? null)
+				: null,
+			samplePeak: hasCurrentLoudness ? loudness.samplePeak : null,
+		}).catch((error) => {
+			console.warn(
+				"[VolumeBalance] Failed to update track normalization",
+				error,
+			);
+		});
+
+		if (
+			enableLoudnessNormalization &&
+			currentRhythmAnalysis.analysis &&
+			!hasCurrentLoudness
+		) {
+			void requestRhythmAnalysis(
+				currentRhythmAnalysis.musicId,
+				currentRhythmAnalysis.generation,
+				true,
+			);
+		}
+	}, [
+		currentRhythmAnalysis,
+		enableLoudnessNormalization,
+		requestRhythmAnalysis,
+	]);
 
 	const syncMusicInfo = async (
 		data: Extract<AudioThreadEvent, { type: "loadAudio" }>["data"],
@@ -273,11 +583,18 @@ export const LocalMusicContext: FC = () => {
 		}
 
 		const musicId = data.musicId;
+		const generation = ++musicInfoGenerationRef.current;
 
 		try {
 			store.set(musicIdAtom, musicId);
 
 			const songFromDb = await db.songs.get(musicId);
+			if (
+				generation !== musicInfoGenerationRef.current ||
+				store.get(musicIdAtom) !== musicId
+			) {
+				return;
+			}
 
 			if (songFromDb) {
 				store.set(musicNameAtom, songFromDb.songName);
@@ -292,14 +609,17 @@ export const LocalMusicContext: FC = () => {
 
 				if (songFromDb.coverPath) {
 					const coverPath = songFromDb.coverPath;
-					if (coverPath.startsWith("http://") || coverPath.startsWith("https://")) {
+					if (
+						coverPath.startsWith("http://") ||
+						coverPath.startsWith("https://")
+					) {
 						store.set(musicCoverAtom, coverPath);
 					} else {
 						store.set(musicCoverAtom, convertFileSrc(coverPath));
 					}
 					store.set(
 						musicCoverIsVideoAtom,
-						coverPath.endsWith(".mp4"),
+						/\.(?:mp4|webm)(?:$|[?#])/i.test(coverPath),
 					);
 				} else {
 					store.set(
@@ -331,6 +651,7 @@ export const LocalMusicContext: FC = () => {
 				store.set(musicDurationAtom, (songFromDb.duration * 1000) | 0);
 			}
 		} catch (error) {
+			if (generation !== musicInfoGenerationRef.current) return;
 			console.error(
 				"[syncMusicInfo] An error occurred during state update:",
 				error,
@@ -347,6 +668,20 @@ export const LocalMusicContext: FC = () => {
 			}
 		}
 	}, [musicPlaying, store]);
+
+	useEffect(() => {
+		let queuedMusicId = store.get(queueCurrentSongAtom)?.id ?? null;
+		const unsubscribe = store.sub(queueCurrentSongAtom, () => {
+			const nextMusicId = store.get(queueCurrentSongAtom)?.id ?? null;
+			if (nextMusicId === queuedMusicId) return;
+			queuedMusicId = nextMusicId;
+			beginRhythmGeneration(nextMusicId);
+		});
+		return () => {
+			unsubscribe();
+			beginRhythmGeneration(null);
+		};
+	}, [beginRhythmGeneration, store]);
 
 	useEffect(() => {
 		let rafId: number;
@@ -381,32 +716,50 @@ export const LocalMusicContext: FC = () => {
 
 		const queueManager = new PlayQueueManager(store);
 		store.set(queueManagerAtom, queueManager);
+		const unsubscribeGaplessPlayback = store.sub(
+			enableGaplessPlaybackAtom,
+			() => queueManager.refreshGaplessCandidate(),
+		);
+		const unsubscribeGaplessLoudness = store.sub(
+			enableLoudnessNormalizationAtom,
+			() => queueManager.refreshGaplessCandidate(),
+		);
 
 		// 恢复上次的队列信息
-		queueManager.restore().then(({ restored, position }) => {
-			if (restored) {
-				const currentSong = queueManager.getCurrentSong();
-				if (currentSong) {
-					// 恢复播放进度
-					emitAudioThread("playAudio", {
-						song: {
-							songId: currentSong.id,
-							filePath: currentSong.filePath,
-						},
-					});
-					emitAudioThread("pauseAudio");
+		void queueManager
+			.restore()
+			.then(async ({ restored, position }) => {
+				if (restored) {
+					const currentSong = queueManager.getCurrentSong();
+					if (currentSong) {
+						// 恢复播放进度
+						const started = await queueManager.playCurrentForRestore();
+						if (!started) return;
 
-					if (position > 0) {
-						lastSyncRef.current = {
-							position,
-							timestamp: performance.now(),
-						};
-						store.set(musicPlayingPositionAtom, (position * 1000) | 0);
-						emitAudioThread("seekAudio", { position });
+						if (position > 0) {
+							const requestedAt = performance.now();
+							pendingSeekRef.current = {
+								targetPosition: position,
+								requestedAt,
+							};
+							lastSyncRef.current = {
+								position,
+								timestamp: requestedAt,
+							};
+							const positionMs = Math.round(position * 1_000);
+							store.set(musicPlayingPositionAtom, positionMs);
+							store.set(emitMusicTimelineJumpAtom, {
+								positionMs,
+								reason: "seek",
+							});
+							await emitAudioThread("seekAudio", { position });
+						}
 					}
 				}
-			}
-		});
+			})
+			.catch((error) => {
+				console.error("[PlayQueueManager] Failed to restore queue", error);
+			});
 
 		const onBeforeUnload = () => {
 			queueManager.dispose();
@@ -423,7 +776,7 @@ export const LocalMusicContext: FC = () => {
 		store.set(
 			onPlayOrResumeAtom,
 			toEmit(() => {
-				emitAudioThread("resumeOrPauseAudio");
+				queueManager.togglePlayback();
 			}),
 		);
 
@@ -461,12 +814,21 @@ export const LocalMusicContext: FC = () => {
 		store.set(
 			onSeekPositionAtom,
 			toEmit((time: number) => {
+				store.set(rhythmVisualResetAtom, (value) => value + 1);
 				const targetPos = time / 1000;
+				pendingSeekRef.current = {
+					targetPosition: targetPos,
+					requestedAt: performance.now(),
+				};
 				lastSyncRef.current = {
 					position: targetPos,
 					timestamp: performance.now(),
 				};
 				store.set(musicPlayingPositionAtom, time);
+				store.set(emitMusicTimelineJumpAtom, {
+					positionMs: time,
+					reason: "seek",
+				});
 
 				emitAudioThread("seekAudio", {
 					position: targetPos,
@@ -476,14 +838,23 @@ export const LocalMusicContext: FC = () => {
 		store.set(
 			onLyricLineClickAtom,
 			toEmit((evt) => {
+				store.set(rhythmVisualResetAtom, (value) => value + 1);
 				const targetTimeMs = evt.line.getLine().startTime;
 				const targetPos = targetTimeMs / 1000;
+				pendingSeekRef.current = {
+					targetPosition: targetPos,
+					requestedAt: performance.now(),
+				};
 
 				lastSyncRef.current = {
 					position: targetPos,
 					timestamp: performance.now(),
 				};
 				store.set(musicPlayingPositionAtom, targetTimeMs);
+				store.set(emitMusicTimelineJumpAtom, {
+					positionMs: targetTimeMs,
+					reason: "lyric-click",
+				});
 
 				emitAudioThread("seekAudio", {
 					position: targetPos,
@@ -510,12 +881,39 @@ export const LocalMusicContext: FC = () => {
 		const unlistenPromise = listenAudioThreadEvent(async (evt) => {
 			const evtData = evt.payload.data;
 			switch (evtData?.type) {
+				case "loadingAudio": {
+					beginRhythmGeneration(evtData.data.musicId || null);
+					break;
+				}
+
 				case "playPosition": {
 					const now = performance.now();
+					const pendingSeek = pendingSeekRef.current;
+					if (pendingSeek) {
+						const elapsed = now - pendingSeek.requestedAt;
+						const expectedTarget =
+							pendingSeek.targetPosition +
+							(store.get(musicPlayingAtom) ? Math.max(0, elapsed) / 1000 : 0);
+						if (elapsed <= 1_500) {
+							if (Math.abs(evtData.data.position - expectedTarget) > 0.75) {
+								break;
+							}
+							pendingSeekRef.current = null;
+						} else {
+							pendingSeekRef.current = null;
+						}
+					}
 					const dt = (now - lastSyncRef.current.timestamp) / 1000;
 					const currentExtrapolated = lastSyncRef.current.position + dt;
+					const correction = evtData.data.position - currentExtrapolated;
 
-					if (Math.abs(currentExtrapolated - evtData.data.position) > 0.05) {
+					if (Math.abs(correction) > 0.05) {
+						if (Math.abs(correction) > 0.25) {
+							store.set(emitMusicTimelineJumpAtom, {
+								positionMs: Math.round(evtData.data.position * 1000),
+								reason: "remote-jump",
+							});
+						}
 						lastSyncRef.current = {
 							position: evtData.data.position,
 							timestamp: now,
@@ -530,6 +928,9 @@ export const LocalMusicContext: FC = () => {
 
 				case "loadAudio": {
 					const data = evtData.data;
+					const newMusicId = data.musicId || "";
+					const rhythmGeneration = beginRhythmGeneration(newMusicId || null);
+					pendingSeekRef.current = null;
 
 					if (data.quality) {
 						store.set(musicQualityAtom, processAudioQuality(data.quality));
@@ -543,12 +944,18 @@ export const LocalMusicContext: FC = () => {
 						timestamp: performance.now(),
 					};
 					store.set(musicPlayingPositionAtom, 0);
+					store.set(emitMusicTimelineJumpAtom, {
+						positionMs: 0,
+						reason: "track-change",
+					});
 
 					const currentMusicId = store.get(musicIdAtom);
-					const newMusicId = data.musicId || "";
 
 					if (newMusicId && newMusicId !== currentMusicId) {
 						await syncMusicInfo(data);
+					}
+					if (newMusicId && rhythmGeneration === rhythmGenerationRef.current) {
+						void requestRhythmAnalysis(newMusicId, rhythmGeneration);
 					}
 					break;
 				}
@@ -559,12 +966,26 @@ export const LocalMusicContext: FC = () => {
 				}
 
 				case "trackEnded": {
-					queueManager.advanceForAutoEnd();
+					queueManager.advanceForAutoEnd(
+						evtData.data.musicId,
+						evtData.data.playbackId,
+						{
+							gapless: evtData.data.gapless,
+							nextPlaybackId: evtData.data.nextPlaybackId,
+							nextMusicId: evtData.data.nextMusicId,
+						},
+					);
 					break;
 				}
 
 				case "hardwareMediaCommand": {
-					if (evtData.data.command === "next") {
+					if (evtData.data.command === "play") {
+						queueManager.setExternalPlaybackState(true);
+					} else if (evtData.data.command === "pause") {
+						queueManager.setExternalPlaybackState(false);
+					} else if (evtData.data.command === "stop") {
+						queueManager.setExternalStopped();
+					} else if (evtData.data.command === "next") {
 						queueManager.advanceForUser();
 					} else if (evtData.data.command === "prev") {
 						queueManager.retreatForUser();
@@ -577,6 +998,11 @@ export const LocalMusicContext: FC = () => {
 				}
 
 				case "loadError": {
+					if (
+						!queueManager.handlePlaybackLoadFailure(evtData.data.playbackId)
+					) {
+						break;
+					}
 					toast.error(
 						t("amll.loadAudioError", "播放后端加载音频失败\n{error}", {
 							error: evtData.data.error,
@@ -600,10 +1026,15 @@ export const LocalMusicContext: FC = () => {
 
 		return () => {
 			unlistenPromise.then((unlisten) => unlisten());
+			unsubscribeGaplessPlayback();
+			unsubscribeGaplessLoudness();
 
 			window.removeEventListener("beforeunload", onBeforeUnload);
 
 			queueManager.dispose();
+			musicInfoGenerationRef.current += 1;
+			pendingSeekRef.current = null;
+			store.set(musicCoverIsVideoAtom, false);
 			store.set(queueManagerAtom, null);
 
 			const doNothing = toEmit(() => {});
@@ -617,12 +1048,14 @@ export const LocalMusicContext: FC = () => {
 			store.set(onChangeVolumeAtom, doNothing);
 			store.set(onRequestOpenMenuAtom, doNothing);
 		};
-	}, [store, t]);
+	}, [beginRhythmGeneration, requestRhythmAnalysis, store, t]);
 
 	return (
 		<>
 			<LyricContext />
 			<FFTToLowPassContext />
+			<LocalRhythmVisualContext />
+			<RhythmPrecacheProgressContext />
 			<MusicQualityTagText />
 		</>
 	);

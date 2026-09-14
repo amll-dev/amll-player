@@ -1,3 +1,13 @@
+.loadingSurface {
+	display: grid;
+	place-items: center;
+	box-sizing: border-box;
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	background-color: transparent;
+}
+
 .title > button {
 	visibility: hidden;
 }
@@ -17,4 +27,17 @@
 	margin: 0 auto;
 	padding: 0 var(--space-4);
 	max-width: var(--container-4);
+}
+
+.dropListTarget {
+	position: relative;
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.songViewport {
+	flex-grow: 1;
+	padding-bottom: var(--space-4);
 }

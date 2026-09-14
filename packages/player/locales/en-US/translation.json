@@ -1,6 +1,7 @@
 {
 	"amll": {
 		"audioQuality": {
+			"bitDepth": "Bit depth",
 			"channels": "音频通道数量",
 			"codec": "Audio codec",
 			"sampleFormat": "Sample format",
@@ -8,6 +9,7 @@
 			"title": "Audio Quality Details"
 		},
 		"contextMenu": {
+			"addToQueue": "Add to End of Queue",
 			"editMusicOverrideMessage": "Edit Track Override Data",
 			"exitLyricPage": "Exit Lyrics Page",
 			"forwardSong": "Next Song",
@@ -15,10 +17,17 @@
 			"openScreenshotTool": "打开截图工具",
 			"pauseOrResume": "Pause / Resume",
 			"play": "播放",
+			"playNext": "Play Next",
 			"rewindSong": "Previous Song",
 			"toggleFullscreen": "Enter / Exit full screen",
 			"toggleLyrics": "Lyrics",
 			"windowAlwaysOnTop": "窗口置顶"
+		},
+		"tray": {
+			"exit": "Exit",
+			"pause": "Pause",
+			"showWindow": "Show window",
+			"taskbarLyric": "Taskbar lyrics"
 		},
 		"loadAudioError": "The player backend encountered an error when loading the audio file:\n{error}",
 		"migrationDialog": {
@@ -115,6 +124,13 @@
 			}
 		}
 	},
+	"musicDrop": {
+		"addToCurrentPlaylistHint": "Add to current playlist",
+		"addToPlaylistHint": "Add to “{name}”",
+		"createPlaylistHint": "Drop a music folder to create a playlist",
+		"homeFolderOnlyHint": "Home accepts one folder only; drop music files onto a playlist",
+		"playlistFilesAndFoldersHint": "Supports music files and folders"
+	},
 	"name": "",
 	"newPlaylist": {
 		"buttonLabel": "New Playlist",
@@ -192,7 +208,9 @@
 			},
 			"music": {
 				"dropdown": {
+					"addToQueue": "Add to End of Queue",
 					"editMusicOverrideData": "Edit Track Override Data",
+					"playNext": "Play Next",
 					"playMusic": "Play",
 					"removeFromPlaylist": "Delete from Playlist"
 				},
@@ -271,9 +289,27 @@
 					"label": "界面主题",
 					"light": "浅色"
 				},
+				"volumeBalance": {
+					"description": "Automatically adjusts playback gain based on each local track's perceived loudness to reduce volume jumps between songs.",
+					"label": "Volume normalization"
+				},
+				"gaplessPlayback": {
+					"description": "Prepares the next queued track, skips near-silent audio encoded at the end, and continues from the audible boundary.",
+					"label": "Gapless playback"
+				},
 				"windowAlwaysOnTop": {
 					"description": "将应用窗口设置为始终置顶",
 					"label": "启用窗口置顶"
+				},
+				"windowCloseBehavior": {
+					"description": "Choose whether the player minimizes to the system tray when closed.",
+					"label": "Close behavior",
+					"menu": {
+						"alwaysMinimize": "Always minimize to tray",
+						"alwaysTray": "Always show tray icon",
+						"exit": "Exit immediately",
+						"minimizeWhenPlaying": "Minimize while playing"
+					}
 				}
 			},
 			"lyricAppearance": {
@@ -314,15 +350,20 @@
 			},
 			"lyricBackground": {
 				"backgroundRenderer": {
-					"label": "PixiJS Renderer"
+					"label": "Background renderer"
 				},
 				"lyricBackgroundColor": {
-					"description": "等同于放入 background 样式的字符串值，默认为 #111111",
-					"label": "CSS 背景属性值"
+					"description": "Any value accepted by the CSS background property. The default is #111111.",
+					"label": "CSS background value",
+					"picker": "Choose a solid background color"
 				},
 				"lyricBackgroundFPS": {
 					"description": "High impact on performance, but the actual cost is not significant. If you encounter performance issues, try to reduce this value. The default value is 60.",
 					"label": "Maximum FPS for Background Renderer"
+				},
+				"lyricBackgroundAnimationIntensity": {
+					"description": "Adjusts how strongly the mesh gradient background breathes and rotates with the music beat. 1× keeps the current effect, 0× disables beat response, and the maximum is 2×.",
+					"label": "Beat animation intensity multiplier"
 				},
 				"lyricBackgroundRenderScale": {
 					"description": "High impact on performance, but the actual cost is not significant. If you encounter performance issues, try to reduce this value. The default value is 1 which means rendering pixel by pixel.",
@@ -333,11 +374,44 @@
 					"label": "Static Mode"
 				},
 				"menu": {
-					"cssBackground": "CSS 背景",
+					"cssBackground": "CSS background",
 					"meshGradientRenderer": "Mesh Gradient Renderer",
 					"pixiRenderer": "PixiJS Renderer"
 				},
-				"subtitle": "Lyrics Page Background Type"
+				"subtitle": "Lyrics Background"
+			},
+			"homeBackground": {
+				"asset": {
+					"chooseImage": "Choose background image",
+					"chooseVideo": "Choose background video",
+					"label": "Background asset",
+					"replace": "Replace asset"
+				},
+				"color": {
+					"description": "Use the selected solid color as the app background. A dark contrast layer is added automatically to keep the interface readable.",
+					"label": "Background color",
+					"picker": "Choose the home background color"
+				},
+				"description": "Keep the current system material by default, or use a custom image, video, or solid color with an automatic dark contrast layer.",
+				"error": {
+					"asset": "Unable to apply the home background: {message}",
+					"color": "Enter a color in #RRGGBB format",
+					"save": "Unable to save the home background setting: {message}"
+				},
+				"mode": {
+					"description": "Images and videos are copied into app data, so moving the original file will not break the background.",
+					"label": "Background type",
+					"menu": {
+						"color": "Solid color",
+						"default": "Default",
+						"image": "Image",
+						"video": "Video"
+					}
+				},
+				"subtitle": "Home Background",
+				"success": {
+					"asset": "Home background applied"
+				}
 			},
 			"lyricContent": {
 				"bottomLyricMode": {
@@ -430,7 +504,11 @@
 					"description": "Show fps, frame time, memory [Chromium only]. Less impact of performance.",
 					"label": "Show performance statics"
 				},
-				"subtitle": "Others"
+				"subtitle": "Others",
+				"enableExperimentalFeatures": {
+					"label": "Enable experimental features",
+					"description": "Show background type in General settings and the Background panel in the song editor. Turning this off disables custom backgrounds and keeps their settings for later."
+				}
 			},
 			"smtc": {
 				"enableMediaControls": {
@@ -456,6 +534,10 @@
 					"label": "Number of lines displayed",
 					"single": "Single Line"
 				},
+				"wordProgress": {
+					"description": "Show the current line's progress using word timing data. Lyrics without word timing remain unchanged.",
+					"label": "Word-by-word lyric progress"
+				},
 				"openDevtools": "Open DevTools",
 				"subtitle": "Taskbar Lyrics",
 				"theme": {
@@ -468,15 +550,65 @@
 			}
 		},
 		"song": {
+			"backgroundOverride": {
+				"baseCssBackground": {
+					"description": "Applied as the background CSS value; the default is black (#000000).",
+					"label": "Dual-background CSS value",
+					"picker": "Choose a solid dual-background color"
+				},
+				"baseRenderer": {
+					"description": "Choose the base background beneath the video; this affects this song only.",
+					"label": "Dual-background renderer"
+				},
+				"dualLayer": {
+					"description": "Keep an independent base background beneath the video and use opacity to reveal the video.",
+					"label": "Use dual backgrounds"
+				},
+				"enabled": {
+					"description": "Choose a different lyrics background for this song only; turn this off to keep using the global setting.",
+					"label": "Override global setting"
+				},
+				"error": "Unable to save this song's background override: {message}",
+				"loadError": "Unable to read this song's background override.",
+				"opacity": {
+					"label": "Video opacity"
+				},
+				"renderer": {
+					"css": "CSS background",
+					"label": "Background renderer",
+					"mesh": "Mesh Gradient Renderer",
+					"pixi": "PixiJS Renderer",
+					"video": "Song video background"
+				}
+			},
 			"basic": {
+				"album": "Album",
+				"albumArtist": "Album artist",
+				"composer": "Composer",
+				"copyFilePath": "Copy file path",
+				"copyright": "Copyright",
+				"discNumber": "Disc number",
+				"encoder": "Encoder",
+				"fileMetadataError": "Unable to read the original music file information: {message}",
+				"fileModifiedAt": "File modified",
+				"fileSize": "File size",
+				"genre": "Genre",
+				"loadingFileMetadata": "Reading original music file information…",
+				"lyricist": "Lyricist",
 				"musicDuration": "Duration",
 				"musicFilePath": "File Path",
 				"musicId": "Music ID",
+				"noFileMetadata": "The original music file has no metadata tags to display",
+				"originalFileMetadata": "Original file metadata",
+				"publisher": "Publisher",
+				"recordingDate": "Date",
 				"tabs": {
 					"basic": "Basics",
+					"background": "Background",
 					"lyric": "Lyrics",
 					"metadata": "Metadata"
-				}
+				},
+				"trackNumber": "Track number"
 			},
 			"lyric": {
 				"importFromFile": "Import lyrics from file",
@@ -498,12 +630,55 @@
 			},
 			"metadata": {
 				"changeCoverToImageOrVideo": "Change cover image as image / video",
-				"importLyricFromFile": "Import lyrics from file",
 				"overrideSafeTip": "Properties in this page will not override into source file.",
 				"reloadMetadataFromFile": "Reload Metadata from Audio File",
 				"songAlbum": "Album",
 				"songArtists": "Artists",
 				"songName": "Title"
+			},
+			"videoBackground": {
+				"apply": "Apply video background",
+				"change": "Change video",
+				"choose": "Choose video",
+				"description": "Overrides the full-screen lyric background for this song only; the song artwork is unchanged.",
+				"discard": "Discard selected video",
+				"discarded": "Selected video discarded",
+				"retry": "Retry",
+				"empty": "No video background set",
+				"error": {
+					"import": "Unable to import video background: {message}",
+					"load": "Unable to load this song's video background settings.",
+					"remove": "Unable to remove video background: {message}",
+					"save": "Unable to save video background: {message}"
+				},
+				"fit": {
+					"contain": "Contain (show entire video)",
+					"cover": "Cover (crop)",
+					"description": "Cover crops, Contain shows the whole video with unused space, and Stretch fills the frame. They look identical when the video and preview have the same aspect ratio.",
+					"fill": "Stretch",
+					"label": "Fit"
+				},
+				"loop": {
+					"description": "Return to the in point after reaching the out point; when disabled, hold on the final frame.",
+					"label": "Loop playback"
+				},
+				"pending": "This video has not been applied yet and will be deleted automatically when you leave this page.",
+				"preview": "Video background preview",
+				"range": {
+					"in": "In point",
+					"label": "Playback range",
+					"out": "Out point",
+					"reset": "Reset to song length"
+				},
+				"remove": "Remove background",
+				"removed": "Video background removed",
+				"saved": "Video background saved",
+				"syncOnSeek": {
+					"description": "When disabled, seeking in the song does not change the video's current position.",
+					"label": "Sync video when seeking"
+				},
+				"title": "Lyric video background",
+				"videoFiles": "Video files"
 			}
 		},
 		"ws": {
@@ -517,7 +692,27 @@
 	},
 	"playbar": {
 		"playlist": {
-			"title": "Current Playlist"
+			"clearUpcoming": "Clear upcoming",
+			"clearUpcomingLabel": "Clear {count, plural, one {# upcoming track} other {# upcoming tracks}}",
+			"close": "Close current playlist",
+			"closeShort": "Close",
+			"count": "{count, plural, one {# track} other {# tracks}}",
+			"current": "Playing",
+			"emptyHint": "Play a song or add tracks to the queue to see them here",
+			"emptyTitle": "The play queue is empty",
+			"moveDown": "Move {name} down",
+			"moveDownShort": "Move down",
+			"moveUp": "Move {name} up",
+			"moveUpShort": "Move up",
+			"open": "Open current playlist",
+			"playSong": "Play {name} - {artists}",
+			"queueLabel": "Play queue",
+			"removeShort": "Remove",
+			"removeSong": "Remove {name} from the play queue",
+			"replaySong": "Replay {name} - {artists}",
+			"title": "Current Playlist",
+			"unknownArtist": "Unknown Artist",
+			"unknownSong": "Unknown Track"
 		}
 	},
 	"settings": {

@@ -19,6 +19,7 @@ import {
 	EXTENSION_LOG_TAG,
 	runExtensionScript,
 } from "./components/ExtensionContext/runtime.ts";
+import { ScrollViewport } from "./components/ScrollViewport/index.tsx";
 import { db } from "./utils/db-client.ts";
 import "./i18n";
 import * as appAtoms from "./states/appAtoms.ts";
@@ -245,11 +246,8 @@ const cardStyle = {
 } satisfies CSSProperties;
 
 const codeStyle = {
-	display: "block",
 	marginTop: "14px",
-	padding: "14px",
 	maxHeight: "40vh",
-	overflow: "auto",
 	whiteSpace: "pre-wrap",
 	borderRadius: "12px",
 	background: "rgba(2, 6, 23, 0.72)",
@@ -266,18 +264,22 @@ function InfoPage({
 	error?: Error;
 }) {
 	return (
-		<div style={pageStyle}>
-			<section style={cardStyle}>
-				<h1 style={{ margin: 0, fontSize: 20 }}>{title}</h1>
-				{detail && <p style={{ color: "#cbd5e1" }}>{detail}</p>}
-				{error && (
-					<code style={codeStyle}>
-						{error.message}
-						{error.stack ? `\n\n${error.stack}` : ""}
-					</code>
-				)}
-			</section>
-		</div>
+		<Theme appearance="dark" hasBackground={false}>
+			<div style={pageStyle}>
+				<section style={cardStyle}>
+					<h1 style={{ margin: 0, fontSize: 20 }}>{title}</h1>
+					{detail && <p style={{ color: "#cbd5e1" }}>{detail}</p>}
+					{error && (
+						<ScrollViewport horizontal style={codeStyle}>
+							<code style={{ display: "block", padding: 14 }}>
+								{error.message}
+								{error.stack ? `\n\n${error.stack}` : ""}
+							</code>
+						</ScrollViewport>
+					)}
+				</section>
+			</div>
+		</Theme>
 	);
 }
 

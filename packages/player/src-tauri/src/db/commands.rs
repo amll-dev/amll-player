@@ -301,16 +301,9 @@ pub async fn remove_song_from_playlist(
                 .await
                 .map_err(|e| format!("Failed to remove song sources: {e}"))?;
 
-            match utils::cleanup_orphaned_songs(txn, &[song_id]).await {
-                Ok(deleted) if !deleted.is_empty() => {
-                    tracing::info!(
-                        "[remove_song_from_playlist] Cleaned up orphaned song: {deleted:?}"
-                    );
-                }
-                Err(e) => {
-                    warn!("[remove_song_from_playlist] Failed to cleanup orphaned song: {e}")
-                }
-                _ => {}
+            let deleted = utils::cleanup_orphaned_songs(txn, &[song_id]).await?;
+            if !deleted.is_empty() {
+                tracing::info!("[remove_song_from_playlist] Cleaned up orphaned song: {deleted:?}");
             }
 
             if let Some(p) = playlist::Entity::find_by_id(playlist_id)
@@ -918,18 +911,11 @@ pub async fn unlink_playlist_folder(
                             .await
                             .map_err(|e| format!("Failed to remove song from playlist: {e}"))?;
 
-                        match utils::cleanup_orphaned_songs(txn, std::slice::from_ref(song_id))
-                            .await
-                        {
-                            Ok(deleted) if !deleted.is_empty() => {
-                                tracing::info!(
-                                    "[unlink_folder] Cleaned up orphaned song: {deleted:?}"
-                                );
-                            }
-                            Err(e) => {
-                                warn!("[unlink_folder] Failed to cleanup orphaned song: {e}")
-                            }
-                            _ => {}
+                        let deleted =
+                            utils::cleanup_orphaned_songs(txn, std::slice::from_ref(song_id))
+                                .await?;
+                        if !deleted.is_empty() {
+                            tracing::info!("[unlink_folder] Cleaned up orphaned song: {deleted:?}");
                         }
                     }
                 }

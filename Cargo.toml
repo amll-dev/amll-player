@@ -5,6 +5,13 @@ members = [
 	"./packages/player-core",
 	"./packages/player/src-tauri",
 ]
+exclude = ["vendor/taskbar-lyric", "vendor/tauri-runtime-wry"]
+
+[patch.crates-io]
+tauri-runtime-wry = { path = "vendor/tauri-runtime-wry" }
+
+[patch."https://github.com/apoint123/taskbar-lyric.git"]
+taskbar-lyric = { path = "vendor/taskbar-lyric" }
 
 [profile.release]
 opt-level = 3

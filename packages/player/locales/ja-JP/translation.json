@@ -1,6 +1,7 @@
 {
 	"amll": {
 		"audioQuality": {
+			"bitDepth": "ビット深度",
 			"channels": "音频通道数量",
 			"codec": "音频解码器",
 			"sampleFormat": "采样格式",
@@ -8,6 +9,7 @@
 			"title": "音频解码信息"
 		},
 		"contextMenu": {
+			"addToQueue": "キューの末尾に追加",
 			"editMusicOverrideMessage": "曲のカバレッジ情報を編集する",
 			"exitLyricPage": "歌詞ページを出る",
 			"forwardSong": "次の曲",
@@ -15,10 +17,17 @@
 			"openScreenshotTool": "打开截图工具",
 			"pauseOrResume": "暂停 / 继续",
 			"play": "播放",
+			"playNext": "次に再生",
 			"rewindSong": "前の曲",
 			"toggleFullscreen": "全屏 / 取消全屏",
 			"toggleLyrics": "歌詞を表示",
 			"windowAlwaysOnTop": "窗口置顶"
+		},
+		"tray": {
+			"exit": "終了",
+			"pause": "一時停止",
+			"showWindow": "ウィンドウを表示",
+			"taskbarLyric": "タスクバー歌詞"
 		},
 		"loadAudioError": "播放后端加载音频失败\n{error}",
 		"migrationDialog": {
@@ -115,6 +124,13 @@
 			}
 		}
 	},
+	"musicDrop": {
+		"addToCurrentPlaylistHint": "現在のプレイリストに追加",
+		"addToPlaylistHint": "「{name}」に追加",
+		"createPlaylistHint": "音楽フォルダーをドロップしてプレイリストを作成",
+		"homeFolderOnlyHint": "ホームでは1つのフォルダーのみ使用できます。音楽ファイルはプレイリストにドロップしてください",
+		"playlistFilesAndFoldersHint": "音楽ファイルとフォルダーに対応"
+	},
 	"name": "",
 	"newPlaylist": {
 		"buttonLabel": "新しいプレイリスト",
@@ -190,7 +206,9 @@
 			},
 			"music": {
 				"dropdown": {
+					"addToQueue": "キューの末尾に追加",
 					"editMusicOverrideData": "曲のカバレッジ情報を編集する",
+					"playNext": "次に再生",
 					"playMusic": "曲を再生する",
 					"removeFromPlaylist": "プレイリストから削除"
 				},
@@ -269,9 +287,27 @@
 					"label": "界面主题",
 					"light": "浅色"
 				},
+				"volumeBalance": {
+					"description": "各ローカル楽曲の知覚ラウドネスに基づいて再生ゲインを自動調整し、曲を切り替えたときの音量差を抑えます。",
+					"label": "音量を均一化"
+				},
+				"gaplessPlayback": {
+					"description": "キューの次の曲を先に準備し、ファイル末尾に収録されたほぼ無音の部分を省いて、聴感上の終端から連続再生します。",
+					"label": "ギャップレス再生"
+				},
 				"windowAlwaysOnTop": {
 					"description": "将应用窗口设置为始终置顶",
 					"label": "启用窗口置顶"
+				},
+				"windowCloseBehavior": {
+					"description": "閉じるときにプレーヤーをタスクトレイへ最小化するか選択します。",
+					"label": "閉じるときの動作",
+					"menu": {
+						"alwaysMinimize": "常にタスクトレイへ最小化",
+						"alwaysTray": "トレイに常駐",
+						"exit": "すぐに終了",
+						"minimizeWhenPlaying": "再生中は最小化"
+					}
 				}
 			},
 			"lyricAppearance": {
@@ -316,11 +352,16 @@
 				},
 				"lyricBackgroundColor": {
 					"description": "等同于放入 background 样式的字符串值，默认为 #111111",
-					"label": "CSS 背景属性值"
+					"label": "CSS 背景属性值",
+					"picker": "単色の背景を選択"
 				},
 				"lyricBackgroundFPS": {
 					"description": "对性能影响较高，但是实际开销不大，如果遇到性能问题，可以尝试降低此值。默认值为 60。",
 					"label": "背景最高帧数"
+				},
+				"lyricBackgroundAnimationIntensity": {
+					"description": "メッシュグラデーション背景が音楽のビートに合わせて呼吸・回転する強さを調整します。1× は現在の効果を維持し、0× はビート反応を無効にします。最大は 2× です。",
+					"label": "ビートアニメーション強度倍率"
 				},
 				"lyricBackgroundRenderScale": {
 					"description": "对性能影响较高，但是实际开销不大，如果遇到性能问题，可以尝试降低此值。默认值为 1 即每像素点渲染。",
@@ -336,6 +377,39 @@
 					"pixiRenderer": "PixiJS 渲染器"
 				},
 				"subtitle": "歌词背景"
+			},
+			"homeBackground": {
+				"asset": {
+					"chooseImage": "背景画像を選択",
+					"chooseVideo": "背景動画を選択",
+					"label": "背景素材",
+					"replace": "素材を変更"
+				},
+				"color": {
+					"description": "選択した単色をアプリの背景に使用し、画面を読みやすくする暗いコントラストレイヤーを自動で重ねます。",
+					"label": "背景色",
+					"picker": "ホーム背景色を選択"
+				},
+				"description": "既定では現在のシステム素材を維持し、画像、動画、または単色を選ぶと暗いコントラストレイヤーを自動で重ねます。",
+				"error": {
+					"asset": "ホーム背景を適用できません：{message}",
+					"color": "#RRGGBB 形式で色を入力してください",
+					"save": "ホーム背景設定を保存できません：{message}"
+				},
+				"mode": {
+					"description": "画像と動画はアプリデータにコピーされるため、元のファイルを移動しても背景は維持されます。",
+					"label": "背景の種類",
+					"menu": {
+						"color": "単色",
+						"default": "デフォルト",
+						"image": "画像",
+						"video": "動画"
+					}
+				},
+				"subtitle": "ホーム背景",
+				"success": {
+					"asset": "ホーム背景を適用しました"
+				}
 			},
 			"lyricContent": {
 				"bottomLyricMode": {
@@ -428,7 +502,11 @@
 					"description": "可以看到帧率、帧时间、内存占用（仅 Chromuim 系）等信息，对性能影响较小。",
 					"label": "显示性能统计信息"
 				},
-				"subtitle": "杂项"
+				"subtitle": "杂项",
+				"enableExperimentalFeatures": {
+					"label": "実験的な機能を有効にする",
+					"description": "一般設定の背景タイプと曲編集の背景パネルを表示します。オフにするとカスタム背景は無効になり、設定は次回の有効化まで保持されます。"
+				}
 			},
 			"smtc": {
 				"enableMediaControls": {
@@ -454,6 +532,10 @@
 					"label": "歌词行数",
 					"single": "单行模式"
 				},
+				"wordProgress": {
+					"description": "歌詞の単語タイミングに合わせて現在行の進行を表示します。単語タイミングがない歌詞は行全体表示のままです。",
+					"label": "単語ごとの歌詞進行"
+				},
 				"openDevtools": "打开 DevTools",
 				"subtitle": "任务栏歌词",
 				"theme": {
@@ -466,15 +548,65 @@
 			}
 		},
 		"song": {
+			"backgroundOverride": {
+				"baseCssBackground": {
+					"description": "background の CSS 値として使用します。既定値は黒（#000000）です。",
+					"label": "二重背景の CSS 値",
+					"picker": "二重背景の単色を選択"
+				},
+				"baseRenderer": {
+					"description": "動画の下に表示する、この曲専用の基本背景を選択します。",
+					"label": "二重背景レンダラー"
+				},
+				"dualLayer": {
+					"description": "動画の下に独立した基本背景を残し、不透明度で動画の表示具合を調整します。",
+					"label": "二重背景を使用"
+				},
+				"enabled": {
+					"description": "この曲だけ別の歌詞背景を選択します。オフにするとグローバル設定を使用します。",
+					"label": "グローバル設定を上書き"
+				},
+				"error": "この曲の背景上書き設定を保存できません：{message}",
+				"loadError": "この曲の背景上書き設定を読み込めません。",
+				"opacity": {
+					"label": "動画の不透明度"
+				},
+				"renderer": {
+					"css": "CSS 背景",
+					"label": "背景レンダラー",
+					"mesh": "メッシュグラデーションレンダラー",
+					"pixi": "PixiJS レンダラー",
+					"video": "曲の動画背景"
+				}
+			},
 			"basic": {
+				"album": "アルバム",
+				"albumArtist": "アルバムアーティスト",
+				"composer": "作曲",
+				"copyFilePath": "ファイルパスをコピー",
+				"copyright": "著作権",
+				"discNumber": "ディスク番号",
+				"encoder": "エンコーダー",
+				"fileMetadataError": "元の音楽ファイル情報を読み取れません：{message}",
+				"fileModifiedAt": "ファイル更新日時",
+				"fileSize": "ファイルサイズ",
+				"genre": "ジャンル",
+				"loadingFileMetadata": "元の音楽ファイル情報を読み込み中…",
+				"lyricist": "作詞",
 				"musicDuration": "音乐时长",
 				"musicFilePath": "音乐文件路径",
 				"musicId": "音乐 ID",
+				"noFileMetadata": "元の音楽ファイルに表示可能なメタデータタグがありません",
+				"originalFileMetadata": "元ファイルのメタデータ",
+				"publisher": "発売元",
+				"recordingDate": "日付",
 				"tabs": {
 					"basic": "基本",
+					"background": "背景",
 					"lyric": "歌词",
 					"metadata": "元数据"
-				}
+				},
+				"trackNumber": "トラック番号"
 			},
 			"lyric": {
 				"importFromFile": "从本地文件导入歌词",
@@ -496,12 +628,55 @@
 			},
 			"metadata": {
 				"changeCoverToImageOrVideo": "更换封面图为图片 / 视频",
-				"importLyricFromFile": "从本地文件导入歌词",
 				"overrideSafeTip": "本页面的设置不会写入到原始音乐文件中",
 				"reloadMetadataFromFile": "重新从文件中读取元数据",
 				"songAlbum": "音乐专辑名",
 				"songArtists": "音乐作者",
 				"songName": "音乐名称"
+			},
+			"videoBackground": {
+				"apply": "動画背景を適用",
+				"change": "動画を変更",
+				"choose": "動画を選択",
+				"description": "この曲のフルスクリーン歌詞背景にのみ適用され、ジャケット画像は変更されません。",
+				"discard": "候補動画を破棄",
+				"discarded": "候補動画を破棄しました",
+				"retry": "再試行",
+				"empty": "動画背景が設定されていません",
+				"error": {
+					"import": "動画背景をインポートできませんでした：{message}",
+					"load": "この曲の動画背景設定を読み込めませんでした。",
+					"remove": "動画背景を削除できませんでした：{message}",
+					"save": "動画背景を保存できませんでした：{message}"
+				},
+				"fit": {
+					"contain": "全体表示",
+					"cover": "全面表示（トリミング）",
+					"description": "全面表示は切り抜き、全体表示は余白を残して全体を表示し、引き伸ばしは枠いっぱいに変形します。動画とプレビューの縦横比が同じ場合は同じように見えます。",
+					"fill": "引き伸ばす",
+					"label": "表示方法"
+				},
+				"loop": {
+					"description": "アウト点に達するとイン点へ戻ります。無効にすると最後のフレームで停止します。",
+					"label": "ループ再生"
+				},
+				"pending": "この動画はまだ適用されていません。ページを離れると自動的に削除されます。",
+				"preview": "動画背景のプレビュー",
+				"range": {
+					"in": "イン点",
+					"label": "再生範囲",
+					"out": "アウト点",
+					"reset": "曲の長さにリセット"
+				},
+				"remove": "背景を削除",
+				"removed": "動画背景を削除しました",
+				"saved": "動画背景を保存しました",
+				"syncOnSeek": {
+					"description": "無効にすると、曲をシークしても動画の現在位置は変わりません。",
+					"label": "曲のシーク時に動画を同期"
+				},
+				"title": "歌詞の動画背景",
+				"videoFiles": "動画ファイル"
 			}
 		},
 		"ws": {
@@ -515,7 +690,27 @@
 	},
 	"playbar": {
 		"playlist": {
-			"title": "当前播放列表"
+			"clearUpcoming": "待機中をクリア",
+			"clearUpcomingLabel": "待機中の {count, plural, other {# 曲}}をクリア",
+			"close": "現在のプレイリストを閉じる",
+			"closeShort": "閉じる",
+			"count": "{count, plural, other {# 曲}}",
+			"current": "再生中",
+			"emptyHint": "曲を再生するかキューに追加すると、ここに表示されます",
+			"emptyTitle": "再生キューは空です",
+			"moveDown": "{name} を下へ移動",
+			"moveDownShort": "下へ移動",
+			"moveUp": "{name} を上へ移動",
+			"moveUpShort": "上へ移動",
+			"open": "現在のプレイリストを開く",
+			"playSong": "{name} - {artists} を再生",
+			"queueLabel": "再生キュー",
+			"removeShort": "削除",
+			"removeSong": "{name} を再生キューから削除",
+			"replaySong": "{name} - {artists} をもう一度再生",
+			"title": "現在のプレイリスト",
+			"unknownArtist": "不明なアーティスト",
+			"unknownSong": "不明な曲"
 		}
 	},
 	"settings": {

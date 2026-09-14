@@ -77,25 +77,50 @@ import {
 	DarkMode,
 	darkModeAtom,
 	enableAlwaysOnTopAtom,
+	enableExperimentalFeaturesAtom,
+	enableGaplessPlaybackAtom,
+	enableLoudnessNormalizationAtom,
 	enableMediaControlsAtom,
 	enableTaskbarLyricAtom,
+	LYRIC_BACKGROUND_ANIMATION_INTENSITY_MAX,
+	LYRIC_BACKGROUND_ANIMATION_INTENSITY_MIN,
 	languageAtom,
+	lyricBackgroundAnimationIntensityAtom,
 	showStatJSFrameAtom,
 	taskbarLyricAlignSettingAtom,
 	taskbarLyricModeSettingAtom,
 	taskbarLyricThemeSettingAtom,
+	taskbarLyricWordProgressAtom,
 	updateInfoAtom,
+	windowCloseBehaviorAtom,
 } from "../../states/appAtoms.ts";
 import { restartApp } from "../../utils/player.ts";
+import {
+	WINDOW_CLOSE_BEHAVIOR_ALWAYS_MINIMIZE,
+	WINDOW_CLOSE_BEHAVIOR_ALWAYS_TRAY,
+	WINDOW_CLOSE_BEHAVIOR_EXIT,
+	WINDOW_CLOSE_BEHAVIOR_MINIMIZE_WHEN_PLAYING,
+	type WindowCloseBehaviorMode,
+} from "../../utils/window-lifecycle.ts";
+import { HomeBackgroundSettings } from "./home-background.tsx";
 import styles from "./index.module.css";
 
 const SettingEntry: FC<
-	PropsWithChildren<{ label: string; description?: string }>
-> = ({ label, description, children }) => {
+	PropsWithChildren<{
+		label: string;
+		description?: string;
+		keepControlInline?: boolean;
+	}>
+> = ({ label, description, keepControlInline = false, children }) => {
 	return (
 		<Card mt="2">
-			<Flex direction="row" align="center" gap="4" wrap="wrap">
-				<Flex direction="column" flexGrow="1">
+			<Flex
+				direction="row"
+				align="center"
+				gap="4"
+				wrap={keepControlInline ? "nowrap" : "wrap"}
+			>
+				<Flex direction="column" flexGrow="1" minWidth="0">
 					<Text as="div">{label}</Text>
 					<Text as="div" color="gray" size="2" className={styles.desc}>
 						{description}
@@ -134,8 +159,13 @@ const SwitchSettings: FC<
 > = ({ label, description, configAtom }) => {
 	const [value, setValue] = useAtom(configAtom);
 	return (
-		<SettingEntry label={label} description={description}>
-			<Switch checked={value} onCheckedChange={setValue} />
+		<SettingEntry label={label} description={description} keepControlInline>
+			<Switch
+				aria-label={label}
+				checked={value}
+				onCheckedChange={setValue}
+				style={{ flexShrink: 0 }}
+			/>
 		</SettingEntry>
 	);
 };
@@ -283,29 +313,78 @@ function SliderSettings<T extends number | number[]>({
 	description,
 	configAtom,
 	children,
+	inlineValue = false,
 	...rest
 }: PropsWithChildren<{ configAtom: WritableAtom<T, [T], void> }> &
 	React.ComponentProps<typeof SettingEntry> &
-	Omit<SliderProps, "value" | "onValueChange">): ReactNode {
+	Omit<SliderProps, "value" | "onValueChange"> & {
+		inlineValue?: boolean;
+	}): ReactNode {
 	const [value, setValue] = useAtom(configAtom);
+	const sliderRef = React.useRef<React.ElementRef<typeof Slider>>(null);
+	const sliderValue = (typeof value === "number" ? [value] : value) as number[];
+	const sliderAriaLabel = rest["aria-label"];
+	useLayoutEffect(() => {
+		const thumbs =
+			sliderRef.current?.querySelectorAll<HTMLElement>('[role="slider"]');
+		thumbs?.forEach((thumb, index) => {
+			if (typeof sliderAriaLabel === "string" && sliderAriaLabel) {
+				thumb.setAttribute(
+					"aria-label",
+					thumbs.length > 1
+						? `${sliderAriaLabel} ${index + 1}`
+						: sliderAriaLabel,
+				);
+			}
+		});
+	}, [sliderAriaLabel]);
+	const slider = (
+		<Slider
+			ref={sliderRef}
+			value={sliderValue}
+			onValueChange={(v: number[]) =>
+				typeof value === "number" ? setValue(v[0] as T) : setValue(v as T)
+			}
+			{...rest}
+			style={
+				inlineValue
+					? {
+							width: "auto",
+							minWidth: 0,
+							flex: "1 1 0",
+							...rest.style,
+						}
+					: rest.style
+			}
+		/>
+	);
 	return (
 		<SettingEntry label={label} description={description}>
-			<Slider
-				value={typeof value === "number" ? [value] : value}
-				onValueChange={(v: number[]) =>
-					typeof value === "number" ? setValue(v[0] as T) : setValue(v as T)
-				}
-				{...rest}
-			/>
-			{children}
+			{inlineValue ? (
+				<Flex width="100%" minWidth="0" align="center" gap="2" wrap="nowrap">
+					{slider}
+					{children}
+				</Flex>
+			) : (
+				<>
+					{slider}
+					{children}
+				</>
+			)}
 		</SettingEntry>
 	);
 }
 
 const GeneralSettings = () => {
 	const { t } = useTranslation();
+	const enableExperimentalFeatures = useAtomValue(
+		enableExperimentalFeaturesAtom,
+	);
 	const [mode, setMode] = useAtom(darkModeAtom);
 	const [language, setLanguage] = useAtom(languageAtom);
+	const [windowCloseBehavior, setWindowCloseBehavior] = useAtom(
+		windowCloseBehaviorAtom,
+	);
 	const supportedLanguages = useAtomValue(availableLanguagesAtom);
 	const [os, setOs] = useState<string | null>(null);
 
@@ -325,6 +404,39 @@ const GeneralSettings = () => {
 			{
 				label: t("page.settings.general.theme.dark", "深色"),
 				value: DarkMode.Dark,
+			},
+		],
+		[t],
+	);
+	const windowCloseBehaviorMenu = useMemo(
+		() => [
+			{
+				label: t(
+					"page.settings.general.windowCloseBehavior.menu.alwaysTray",
+					"常驻托盘",
+				),
+				value: WINDOW_CLOSE_BEHAVIOR_ALWAYS_TRAY,
+			},
+			{
+				label: t(
+					"page.settings.general.windowCloseBehavior.menu.alwaysMinimize",
+					"始终最小化",
+				),
+				value: WINDOW_CLOSE_BEHAVIOR_ALWAYS_MINIMIZE,
+			},
+			{
+				label: t(
+					"page.settings.general.windowCloseBehavior.menu.minimizeWhenPlaying",
+					"播放时最小化",
+				),
+				value: WINDOW_CLOSE_BEHAVIOR_MINIMIZE_WHEN_PLAYING,
+			},
+			{
+				label: t(
+					"page.settings.general.windowCloseBehavior.menu.exit",
+					"直接退出",
+				),
+				value: WINDOW_CLOSE_BEHAVIOR_EXIT,
 			},
 		],
 		[t],
@@ -367,6 +479,50 @@ const GeneralSettings = () => {
 					</Select.Content>
 				</Select.Root>
 			</SettingEntry>
+			<SwitchSettings
+				label={t("page.settings.general.volumeBalance.label", "音量平衡")}
+				description={t(
+					"page.settings.general.volumeBalance.description",
+					"根据每首本地歌曲的感知响度自动调整播放增益，减少切歌时音量忽大忽小的情况。",
+				)}
+				configAtom={enableLoudnessNormalizationAtom}
+			/>
+			<SwitchSettings
+				label={t("page.settings.general.gaplessPlayback.label", "无缝播放")}
+				description={t(
+					"page.settings.general.gaplessPlayback.description",
+					"提前准备队列中的下一首歌曲，跳过文件末尾的近静音，并在听感结束处连续播放。",
+				)}
+				configAtom={enableGaplessPlaybackAtom}
+			/>
+			{os === "windows" && (
+				<SettingEntry
+					label={t(
+						"page.settings.general.windowCloseBehavior.label",
+						"关闭选项",
+					)}
+					description={t(
+						"page.settings.general.windowCloseBehavior.description",
+						"选择关闭时播放器是否最小化到任务栏托盘",
+					)}
+				>
+					<Select.Root
+						value={windowCloseBehavior}
+						onValueChange={(value) =>
+							setWindowCloseBehavior(value as WindowCloseBehaviorMode)
+						}
+					>
+						<Select.Trigger />
+						<Select.Content>
+							{windowCloseBehaviorMenu.map((item) => (
+								<Select.Item key={item.value} value={item.value}>
+									{item.label}
+								</Select.Item>
+							))}
+						</Select.Content>
+					</Select.Root>
+				</SettingEntry>
+			)}
 			{os === "windows" && (
 				<SwitchSettings
 					label={t(
@@ -380,6 +536,7 @@ const GeneralSettings = () => {
 					configAtom={enableAlwaysOnTopAtom}
 				/>
 			)}
+			{enableExperimentalFeatures && <HomeBackgroundSettings />}
 		</>
 	);
 };
@@ -834,6 +991,26 @@ const MusicInfoAppearanceSettings = () => {
 	);
 };
 
+function getColorPickerValue(value: string): string {
+	const normalized = value.trim().toLowerCase();
+	if (/^#[0-9a-f]{6}$/.test(normalized)) return normalized;
+	if (/^#[0-9a-f]{3}$/.test(normalized)) {
+		return `#${normalized
+			.slice(1)
+			.split("")
+			.map((part) => part.repeat(2))
+			.join("")}`;
+	}
+	const rgb = normalized.match(
+		/^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/,
+	);
+	if (!rgb) return "#111111";
+	return `#${rgb
+		.slice(1)
+		.map((part) => Math.min(255, Number(part)).toString(16).padStart(2, "0"))
+		.join("")}`;
+}
+
 const LyricBackgroundSettings = () => {
 	const { t } = useTranslation();
 	const [backgroundRendererValue, setBackgroundRendererValue] = useAtom(
@@ -841,6 +1018,35 @@ const LyricBackgroundSettings = () => {
 	);
 	const [cssBackgroundProperty, setCssBackgroundProperty] = useAtom(
 		cssBackgroundPropertyAtom,
+	);
+	const [backgroundAnimationIntensity, setBackgroundAnimationIntensity] =
+		useAtom(lyricBackgroundAnimationIntensityAtom);
+	const [
+		backgroundAnimationIntensityInput,
+		setBackgroundAnimationIntensityInput,
+	] = useState(() => String(backgroundAnimationIntensity));
+	useEffect(() => {
+		setBackgroundAnimationIntensityInput(String(backgroundAnimationIntensity));
+	}, [backgroundAnimationIntensity]);
+	const commitBackgroundAnimationIntensity = () => {
+		const input = backgroundAnimationIntensityInput.trim();
+		const parsed = Number(input);
+		if (!input || !Number.isFinite(parsed)) {
+			setBackgroundAnimationIntensityInput(
+				String(backgroundAnimationIntensity),
+			);
+			return;
+		}
+		const normalized = Math.min(
+			LYRIC_BACKGROUND_ANIMATION_INTENSITY_MAX,
+			Math.max(LYRIC_BACKGROUND_ANIMATION_INTENSITY_MIN, parsed),
+		);
+		setBackgroundAnimationIntensity(normalized);
+		setBackgroundAnimationIntensityInput(String(normalized));
+	};
+	const backgroundAnimationIntensityLabel = t(
+		"page.settings.lyricBackground.lyricBackgroundAnimationIntensity.label",
+		"节拍动画强度倍率",
 	);
 	const backgroundRendererMenu = useMemo(
 		() => [
@@ -879,7 +1085,7 @@ const LyricBackgroundSettings = () => {
 		return "mesh";
 	};
 
-	const handleBackgroundRendererChange = (selectedString: string) => {
+	const handleBaseRendererChange = (selectedString: string) => {
 		let rendererObject: LyricBackgroundRenderer;
 		switch (selectedString) {
 			case "mesh":
@@ -902,6 +1108,9 @@ const LyricBackgroundSettings = () => {
 			selectedString,
 		);
 	};
+	const baseRendererString = getBackgroundRendererString(
+		backgroundRendererValue,
+	);
 
 	return (
 		<>
@@ -915,8 +1124,8 @@ const LyricBackgroundSettings = () => {
 				)}
 			>
 				<Select.Root
-					value={getBackgroundRendererString(backgroundRendererValue)}
-					onValueChange={handleBackgroundRendererChange}
+					value={baseRendererString}
+					onValueChange={handleBaseRendererChange}
 				>
 					<Select.Trigger />
 					<Select.Content>
@@ -928,8 +1137,7 @@ const LyricBackgroundSettings = () => {
 					</Select.Content>
 				</Select.Root>
 			</SettingEntry>
-
-			{getBackgroundRendererString(backgroundRendererValue) === "css-bg" ? (
+			{baseRendererString === "css-bg" ? (
 				<SettingEntry
 					label={t(
 						"page.settings.lyricBackground.lyricBackgroundColor.label",
@@ -940,10 +1148,24 @@ const LyricBackgroundSettings = () => {
 						"等同于放入 background 样式的字符串值，默认为 #111111",
 					)}
 				>
-					<TextField.Root
-						value={cssBackgroundProperty}
-						onChange={(e) => setCssBackgroundProperty(e.currentTarget.value)}
-					/>
+					<Flex gap="2" align="center" wrap="wrap">
+						<input
+							type="color"
+							value={getColorPickerValue(cssBackgroundProperty)}
+							aria-label={t(
+								"page.settings.lyricBackground.lyricBackgroundColor.picker",
+								"选择纯色背景",
+							)}
+							onInput={(event) =>
+								setCssBackgroundProperty(event.currentTarget.value)
+							}
+							style={{ width: 42, height: 34, padding: 0, border: 0 }}
+						/>
+						<TextField.Root
+							value={cssBackgroundProperty}
+							onChange={(e) => setCssBackgroundProperty(e.currentTarget.value)}
+						/>
+					</Flex>
 				</SettingEntry>
 			) : (
 				<>
@@ -963,6 +1185,51 @@ const LyricBackgroundSettings = () => {
 						)}
 						configAtom={lyricBackgroundFPSAtom}
 					/>
+					{baseRendererString === "mesh" && (
+						<SliderSettings
+							label={backgroundAnimationIntensityLabel}
+							description={t(
+								"page.settings.lyricBackground.lyricBackgroundAnimationIntensity.description",
+								"调节网格渐变背景跟随音乐节拍的呼吸与旋转幅度。1× 保持当前效果，0× 关闭节拍响应，最高可调至 2×。",
+							)}
+							configAtom={lyricBackgroundAnimationIntensityAtom}
+							min={LYRIC_BACKGROUND_ANIMATION_INTENSITY_MIN}
+							max={LYRIC_BACKGROUND_ANIMATION_INTENSITY_MAX}
+							step={0.05}
+							inlineValue
+							aria-label={backgroundAnimationIntensityLabel}
+						>
+							<Flex
+								align="center"
+								gap="1"
+								wrap="nowrap"
+								style={{ flex: "0 0 auto", marginInlineStart: "auto" }}
+							>
+								<TextField.Root
+									type="number"
+									min={LYRIC_BACKGROUND_ANIMATION_INTENSITY_MIN}
+									max={LYRIC_BACKGROUND_ANIMATION_INTENSITY_MAX}
+									step={0.05}
+									value={backgroundAnimationIntensityInput}
+									aria-label={backgroundAnimationIntensityLabel}
+									onChange={(event) =>
+										setBackgroundAnimationIntensityInput(
+											event.currentTarget.value,
+										)
+									}
+									onBlur={commitBackgroundAnimationIntensity}
+									onKeyDown={(event) => {
+										if (event.key === "Enter") {
+											event.preventDefault();
+											event.currentTarget.blur();
+										}
+									}}
+									style={{ width: "5.5em" }}
+								/>
+								<Text wrap="nowrap">×</Text>
+							</Flex>
+						</SliderSettings>
+					)}
 					<NumberSettings
 						placeholder="1.0"
 						type="number"
@@ -1003,6 +1270,17 @@ const OthersSettings = () => {
 			<SubTitle>
 				<Trans i18nKey="page.settings.others.subtitle">杂项</Trans>
 			</SubTitle>
+			<SwitchSettings
+				label={t(
+					"page.settings.others.enableExperimentalFeatures.label",
+					"启用实验性功能",
+				)}
+				description={t(
+					"page.settings.others.enableExperimentalFeatures.description",
+					"显示常规设置中的背景类型和歌曲编辑中的背景面板。关闭后停用自定义背景，保留配置以便再次启用。",
+				)}
+				configAtom={enableExperimentalFeaturesAtom}
+			/>
 			<SwitchSettings
 				label={t(
 					"page.settings.others.showStatJSFrame.label",
@@ -1140,6 +1418,18 @@ const TaskbarLyricSettings = () => {
 					</Select.Content>
 				</Select.Root>
 			</SettingEntry>
+
+			<SwitchSettings
+				configAtom={taskbarLyricWordProgressAtom}
+				label={t(
+					"page.settings.taskbarLyric.wordProgress.label",
+					"逐字歌词进度",
+				)}
+				description={t(
+					"page.settings.taskbarLyric.wordProgress.description",
+					"根据歌词中的逐字时间显示当前行播放进度；没有逐字时间时保持整行显示",
+				)}
+			/>
 
 			{import.meta.env.DEV && (
 				<Button

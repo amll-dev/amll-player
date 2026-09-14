@@ -141,6 +141,7 @@ dependencies = [
  "urlencoding",
  "webpki-roots 0.26.11",
  "webview2-com",
+ "windows 0.61.3",
  "windows 0.62.2",
  "ws-protocol",
  "zip 8.6.0",
@@ -152,6 +153,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arrayvec",
+ "bs1770",
  "cpal",
  "crossbeam-channel",
  "crossbeam-utils",
@@ -694,6 +696,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bs1770"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6332c61c205ff066246fff2cb876cdf9009557200f96e15d88d156193b16775b"
+
+[[package]]
 name = "bs58"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1162,7 +1170,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "windows 0.62.2",
+ "windows 0.61.3",
 ]
 
 [[package]]
@@ -2659,7 +2667,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
@@ -3610,7 +3618,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "680998035259dcfcafe653688bf2aa6d3e2dc05e98be6ab46afb089dc84f1df8"
 dependencies = [
- "proc-macro-crate 3.5.0",
+ "proc-macro-crate 2.0.2",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -6289,7 +6297,6 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 [[package]]
 name = "taskbar-lyric"
 version = "0.1.0"
-source = "git+https://github.com/apoint123/taskbar-lyric.git#bd7ee3a66d28af8a857d2ce2b26a3c78fa0058fa"
 dependencies = [
  "anyhow",
  "tracing",
@@ -6659,8 +6666,6 @@ dependencies = [
 [[package]]
 name = "tauri-runtime-wry"
 version = "2.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b83849ee63ecb27a8e8d0fe51915ca215076914aca43f96db1179f0f415f6cd9"
 dependencies = [
  "gtk",
  "http",
@@ -6713,7 +6718,7 @@ dependencies = [
  "serde_with",
  "swift-rs",
  "thiserror 2.0.18",
- "toml 1.1.2+spec-1.1.0",
+ "toml 0.9.12+spec-1.1.0",
  "url",
  "urlpattern",
  "uuid 1.23.3",
@@ -6738,7 +6743,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.2",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",

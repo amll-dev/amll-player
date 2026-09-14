@@ -27,11 +27,6 @@ const ErrorRender = (props: FallbackProps) => {
 	);
 };
 
-addEventListener("on-system-titlebar-click-close", async () => {
-	const win = getCurrentWindow();
-	await win.close();
-});
-
 addEventListener("on-system-titlebar-click-resize", async () => {
 	const win = getCurrentWindow();
 	if (await win.isMaximizable()) {
