@@ -456,6 +456,10 @@
 					"label": "Number of lines displayed",
 					"single": "Single Line"
 				},
+				"wordProgress": {
+					"description": "Show the current line's progress using word timing data. Lyrics without word timing remain unchanged.",
+					"label": "Word-by-word lyric progress"
+				},
 				"openDevtools": "Open DevTools",
 				"subtitle": "Taskbar Lyrics",
 				"theme": {

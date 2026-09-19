@@ -454,6 +454,10 @@
 					"label": "歌词行数",
 					"single": "单行模式"
 				},
+				"wordProgress": {
+					"description": "Hiển thị tiến trình của dòng hiện tại theo thời gian từng từ. Lời không có thời gian từng từ vẫn hiển thị theo cả dòng.",
+					"label": "Tiến trình lời theo từng từ"
+				},
 				"openDevtools": "打开 DevTools",
 				"subtitle": "任务栏歌词",
 				"theme": {

@@ -84,6 +84,7 @@ import {
 	taskbarLyricAlignSettingAtom,
 	taskbarLyricModeSettingAtom,
 	taskbarLyricThemeSettingAtom,
+	taskbarLyricWordProgressAtom,
 	updateInfoAtom,
 } from "../../states/appAtoms.ts";
 import { restartApp } from "../../utils/player.ts";
@@ -1140,6 +1141,18 @@ const TaskbarLyricSettings = () => {
 					</Select.Content>
 				</Select.Root>
 			</SettingEntry>
+
+			<SwitchSettings
+				configAtom={taskbarLyricWordProgressAtom}
+				label={t(
+					"page.settings.taskbarLyric.wordProgress.label",
+					"逐字歌词进度",
+				)}
+				description={t(
+					"page.settings.taskbarLyric.wordProgress.description",
+					"根据歌词中的逐字时间显示当前行播放进度；没有逐字时间时保持整行显示",
+				)}
+			/>
 
 			{import.meta.env.DEV && (
 				<Button

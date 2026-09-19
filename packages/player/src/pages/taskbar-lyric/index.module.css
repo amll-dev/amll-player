@@ -36,6 +36,7 @@
 .container {
 	--text-primary: #ffffff;
 	--text-secondary: rgba(255, 255, 255, 0.7);
+	--taskbar-word-pending-alpha: 0.7;
 
 	--container-bg: rgba(146, 146, 146, 0.445);
 	--cover-placeholder-bg: linear-gradient(135deg, #444, #222);
@@ -99,6 +100,7 @@
 .container[data-theme="light"] {
 	--text-primary: #1a1a1a;
 	--text-secondary: rgba(0, 0, 0, 0.6);
+	--taskbar-word-pending-alpha: 0.6;
 
 	--container-bg: rgba(255, 255, 255, 0.4);
 	--cover-placeholder-bg: linear-gradient(135deg, #e0e0e0, #c0c0c0);
@@ -385,4 +387,74 @@
 
 .container[data-orientation="vertical"] .scrollContent {
 	writing-mode: vertical-rl;
+}
+
+.wordProgressWord {
+	--taskbar-word-progress: 0%;
+	--taskbar-word-fade-width: 0.5em;
+	--taskbar-word-fade-offset: 0em;
+
+	position: relative;
+	display: inline-block;
+	color: var(--text-primary);
+	white-space: pre;
+	-webkit-mask-image: linear-gradient(
+		to right,
+		#000 0,
+		#000
+			calc(
+				var(--taskbar-word-progress) +
+				var(--taskbar-word-fade-offset) -
+				var(--taskbar-word-fade-width)
+			),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha))
+			calc(var(--taskbar-word-progress) + var(--taskbar-word-fade-offset)),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha)) 100%
+	);
+	mask-image: linear-gradient(
+		to right,
+		#000 0,
+		#000
+			calc(
+				var(--taskbar-word-progress) +
+				var(--taskbar-word-fade-offset) -
+				var(--taskbar-word-fade-width)
+			),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha))
+			calc(var(--taskbar-word-progress) + var(--taskbar-word-fade-offset)),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha)) 100%
+	);
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+	-webkit-mask-size: 100% 100%;
+	mask-size: 100% 100%;
+}
+
+.container[data-orientation="vertical"] .wordProgressWord {
+	-webkit-mask-image: linear-gradient(
+		to bottom,
+		#000 0,
+		#000
+			calc(
+				var(--taskbar-word-progress) +
+				var(--taskbar-word-fade-offset) -
+				var(--taskbar-word-fade-width)
+			),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha))
+			calc(var(--taskbar-word-progress) + var(--taskbar-word-fade-offset)),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha)) 100%
+	);
+	mask-image: linear-gradient(
+		to bottom,
+		#000 0,
+		#000
+			calc(
+				var(--taskbar-word-progress) +
+				var(--taskbar-word-fade-offset) -
+				var(--taskbar-word-fade-width)
+			),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha))
+			calc(var(--taskbar-word-progress) + var(--taskbar-word-fade-offset)),
+		rgb(0 0 0 / var(--taskbar-word-pending-alpha)) 100%
+	);
 }

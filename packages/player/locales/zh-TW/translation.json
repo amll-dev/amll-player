@@ -454,6 +454,10 @@
 					"label": "歌词行数",
 					"single": "单行模式"
 				},
+				"wordProgress": {
+					"description": "根據歌詞中的逐字時間顯示目前行的播放進度；沒有逐字時間時維持整行顯示",
+					"label": "逐字歌詞進度"
+				},
 				"openDevtools": "打开 DevTools",
 				"subtitle": "任务栏歌词",
 				"theme": {

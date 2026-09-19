@@ -2,6 +2,7 @@ import type { LyricLine } from "@applemusic-like-lyrics/core";
 import type { ArtistStateEntry } from "@applemusic-like-lyrics/react-full";
 
 export interface TaskbarLyricMetadataPayload {
+	musicId: string;
 	musicName: string;
 	musicArtists: ArtistStateEntry[];
 	musicAlbumName: string;
@@ -40,12 +41,18 @@ export interface TaskbarLyricModePayload {
 	mode: "auto" | "single" | "double";
 }
 
+export interface TaskbarLyricWordProgressPayload {
+	enabled: boolean;
+	fadeWidth: number;
+}
+
 export const METADATA_EVENT = "taskbar-lyric:metadata";
 export const PLAY_STATUS_EVENT = "taskbar-lyric:play-status";
 export const POSITION_EVENT = "taskbar-lyric:position";
 export const THEME_EVENT = "taskbar-lyric:theme";
 export const ALIGN_EVENT = "taskbar-lyric:alignment";
 export const MODE_EVENT = "taskbar-lyric:mode";
+export const WORD_PROGRESS_EVENT = "taskbar-lyric:word-progress";
 
 export const CTRL_PREV_EVENT = "taskbar-lyric:ctrl-prev";
 export const CTRL_PLAY_OR_RESUME_EVENT = "taskbar-lyric:ctrl-play-or-resume";
