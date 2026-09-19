@@ -26,6 +26,10 @@
 	}
 }
 
+.lyricPage[data-pointer-input] :global(:focus) {
+	outline: none;
+}
+
 .cursorHiddenOverlay {
 	position: absolute;
 	inset: 0;
