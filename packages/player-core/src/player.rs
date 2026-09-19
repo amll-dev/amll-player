@@ -286,6 +286,7 @@ impl AudioPlayer {
                             .store(false, Ordering::Release);
 
                         let _ = self.is_playing_tx.send(false);
+                        self.media_manager.update_play_state(false);
 
                         if let Err(e) = self.emitter().emit(AudioThreadEvent::TrackEnded).await {
                             warn!("发送 TrackEnded 事件失败：{e:?}");
@@ -370,6 +371,9 @@ impl AudioPlayer {
                             }
 
                             self.media_manager.update_play_state(is_playing);
+
+                            let duration = self.current_audio_info.read().await.duration;
+                            self.media_manager.notify_seeked(*position, duration);
                         }
                     } else {
                         warn!("找不到解码器句柄, 无法执行跳转");
@@ -384,6 +388,8 @@ impl AudioPlayer {
                     self.cpal_state
                         .volume_bits
                         .store(self.volume.to_bits(), Ordering::Relaxed);
+
+                    self.media_manager.update_volume(self.volume as f64);
 
                     let _ = emitter
                         .emit(AudioThreadEvent::VolumeChanged {
@@ -401,6 +407,14 @@ impl AudioPlayer {
                 }
                 AudioThreadMessage::SetMediaControlsEnabled { enabled } => {
                     self.media_manager.set_enabled(*enabled);
+
+                    // 关闭时元数据会被清空，重新打开要补推一次，否则得等下一首歌
+                    if *enabled {
+                        self.media_manager
+                            .update_metadata(&*self.current_audio_info.read().await);
+                        self.media_manager
+                            .update_play_state(*self.is_playing_rx.borrow());
+                    }
                 }
                 AudioThreadMessage::StopAudio => {
                     self.current_stream = None;

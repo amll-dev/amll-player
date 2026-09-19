@@ -111,6 +111,7 @@ fn get_media_controls_options<R: Runtime>(_app: &AppHandle<R>) -> NowPlayingOpti
     NowPlayingOptions {
         hwnd,
         discord: None,
-        app_name: Some("AMLL Player".into()),
+        // 会被拼进 MPRIS 的 D-Bus 名，只能用 [A-Za-z0-9_-]，不能带空格
+        app_name: Some("AMLLPlayer".into()),
     }
 }

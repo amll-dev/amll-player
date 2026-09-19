@@ -432,8 +432,8 @@
 			},
 			"smtc": {
 				"enableMediaControls": {
-					"description": "目前只支持 Windows 的 SMTC",
-					"label": "启用内置播放器的媒体控件"
+					"description": "システムのメディアコントロールに再生中の曲を表示し、再生を操作できるようにします。現在は Windows の SMTC と Linux の MPRIS に対応しています。",
+					"label": "内蔵プレイヤーのメディアコントロールを有効にする"
 				}
 			},
 			"taskbarLyric": {

@@ -85,11 +85,19 @@ impl SystemMediaManager {
     }
 
     pub fn update_timeline(&self, current_time_sec: f64, total_time_sec: f64) {
+        self.send_timeline(current_time_sec, total_time_sec, false);
+    }
+
+    pub fn notify_seeked(&self, current_time_sec: f64, total_time_sec: f64) {
+        self.send_timeline(current_time_sec, total_time_sec, true);
+    }
+
+    fn send_timeline(&self, current_time_sec: f64, total_time_sec: f64, seeked: bool) {
         if let Some(session) = &self.session {
             session.update_timeline(TimelinePayload {
                 current_time: Duration::from_secs_f64(current_time_sec),
                 total_time: Duration::from_secs_f64(total_time_sec),
-                seeked: None,
+                seeked: Some(seeked),
             });
         }
     }
@@ -97,6 +105,12 @@ impl SystemMediaManager {
     pub fn update_playback_rate(&self, rate: f64) {
         if let Some(session) = &self.session {
             session.update_playback_rate(rate);
+        }
+    }
+
+    pub fn update_volume(&self, volume: f64) {
+        if let Some(session) = &self.session {
+            session.update_volume(volume);
         }
     }
 

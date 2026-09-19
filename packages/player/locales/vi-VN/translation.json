@@ -432,8 +432,8 @@
 			},
 			"smtc": {
 				"enableMediaControls": {
-					"description": "目前只支持 Windows 的 SMTC",
-					"label": "启用内置播放器的媒体控件"
+					"description": "Cho phép điều khiển phương tiện của hệ thống hiển thị bài hát đang phát và điều khiển phát lại. Hiện hỗ trợ SMTC trên Windows và MPRIS trên Linux.",
+					"label": "Bật điều khiển phương tiện cho trình phát tích hợp"
 				}
 			},
 			"taskbarLyric": {

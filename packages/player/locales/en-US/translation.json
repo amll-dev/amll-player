@@ -434,8 +434,8 @@
 			},
 			"smtc": {
 				"enableMediaControls": {
-					"description": "目前只支持 Windows 的 SMTC",
-					"label": "启用内置播放器的媒体控件"
+					"description": "Let the system media controls show the current track and control playback. Supports SMTC on Windows and MPRIS on Linux.",
+					"label": "Enable media controls for the built-in player"
 				}
 			},
 			"taskbarLyric": {

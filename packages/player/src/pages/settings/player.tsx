@@ -1021,7 +1021,7 @@ const OthersSettings = () => {
 				)}
 				description={t(
 					"page.settings.smtc.enableMediaControls.description",
-					"目前只支持 Windows 的 SMTC",
+					"允许系统媒体控件显示正在播放的歌曲并控制播放。目前支持 Windows 的 SMTC 和 Linux 的 MPRIS。",
 				)}
 				configAtom={enableMediaControlsAtom}
 			/>
