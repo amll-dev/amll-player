@@ -11,11 +11,9 @@ import {
 	TextAlignJustifyIcon,
 } from "@radix-ui/react-icons";
 import {
-	Box,
 	Button,
 	Dialog,
 	Flex,
-	Heading,
 	Separator,
 	Text,
 	Tooltip,
@@ -33,6 +31,7 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { ScrollViewport } from "../../components/ScrollViewport/index.tsx";
 import { loadedExtensionAtom } from "../../states/extensionsAtoms.ts";
 import { ExtensionTab } from "./extension.tsx";
 import styles from "./index.module.css";
@@ -267,6 +266,7 @@ export const Component: FC = () => {
 
 	return (
 		<div
+			data-amll-contained-scroll=""
 			style={{
 				position: "fixed",
 				top: "var(--space-8)",
@@ -290,8 +290,12 @@ export const Component: FC = () => {
 
 			<Dialog.Root open={isMenuOpen} onOpenChange={setMenuOpen}>
 				<Dialog.Content className={styles.dialogContent}>
-					<Heading mb="4">{t("common.settings", "设置")}</Heading>
-					<SidebarContent onNavigate={handleNavigate} />
+					<ScrollViewport className={styles.dialogViewport}>
+						<div className={styles.dialogInner} data-amll-scroll-content="">
+							<Dialog.Title mb="4">{t("common.settings", "设置")}</Dialog.Title>
+							<SidebarContent onNavigate={handleNavigate} />
+						</div>
+					</ScrollViewport>
 				</Dialog.Content>
 			</Dialog.Root>
 
@@ -333,13 +337,13 @@ export const Component: FC = () => {
 					minHeight: 0,
 				}}
 			>
-				<Box className={styles.sidebarDesktop}>
+				<ScrollViewport className={styles.sidebarDesktop}>
 					<SidebarContent onNavigate={handleNavigate} />
-				</Box>
-				<Box className={styles.contentArea}>
+				</ScrollViewport>
+				<ScrollViewport className={styles.contentArea}>
 					<div style={{ height: "var(--space-4)" }} />
 					{renderContent()}
-				</Box>
+				</ScrollViewport>
 			</Flex>
 		</div>
 	);

@@ -18,6 +18,7 @@ import { ExtensionInjectPoint } from "../../components/ExtensionInjectPoint/inde
 import { NewPlaylistButton } from "../../components/NewPlaylistButton/index.tsx";
 import { PageContainer } from "../../components/PageContainer/index.tsx";
 import { PlaylistCard } from "../../components/PlaylistCard/index.tsx";
+import { ScrollViewport } from "../../components/ScrollViewport/index.tsx";
 import { router } from "../../router.tsx";
 import { updateInfoAtom } from "../../states/appAtoms.ts";
 import { db } from "../../utils/db-client.ts";
@@ -124,13 +125,7 @@ export const Component: FC = () => {
 							</Trans>
 						</Text>
 					) : (
-						<div
-							style={{
-								overflowY: "auto",
-								minHeight: "0",
-							}}
-							ref={parentRef}
-						>
+						<ScrollViewport ref={parentRef} bleed>
 							<div
 								style={{
 									height: `${rowVirtualizer.getTotalSize()}px`,
@@ -159,7 +154,7 @@ export const Component: FC = () => {
 									);
 								})}
 							</div>
-						</div>
+						</ScrollViewport>
 					)
 				) : (
 					<Flex

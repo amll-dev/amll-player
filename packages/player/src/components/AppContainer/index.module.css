@@ -37,7 +37,23 @@
 	grid-column: 3 / 4;
 	min-width: 0;
 	min-height: 0;
-	overflow: hidden auto;
+}
+
+.mainContent {
+	height: 100%;
+}
+
+.main:has(> .mainContent > [data-amll-contained-scroll]) {
+	/* Nested route viewports already place their track in the page spacing. */
+	overflow: hidden;
+
+	> .mainContent {
+		width: 100%;
+	}
+}
+
+.main::-webkit-scrollbar-track {
+	margin-top: var(--system-titlebar-height, 0px);
 }
 
 .playbar {

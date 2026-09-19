@@ -7,6 +7,7 @@ import {
 	type ReactNode,
 	useState,
 } from "react";
+import { ScrollViewport } from "../ScrollViewport/index.tsx";
 import styles from "./index.module.css";
 
 const sidebarWidthAtom = atomWithStorage("sidebarWidth", 256);
@@ -36,7 +37,7 @@ export const AppContainer: FC<
 	};
 
 	return (
-		<div className={styles.appContainer}>
+		<div className={styles.appContainer} data-amll-contained-scroll="">
 			<div className={styles.sidebar} style={{ width: `${sidebarWidth}px` }}>
 				{sidebar}
 			</div>
@@ -55,7 +56,11 @@ export const AppContainer: FC<
 				}}
 				onMouseDown={onSidebarDraggerMouseDown}
 			/>
-			<div className={styles.main}>{children}</div>
+			<ScrollViewport className={styles.main}>
+				<div className={styles.mainContent} data-amll-scroll-content="">
+					{children}
+				</div>
+			</ScrollViewport>
 			<div className={styles.playbar}>{playbar}</div>
 		</div>
 	);

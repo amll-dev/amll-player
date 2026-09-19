@@ -18,3 +18,8 @@
 	padding: 0 var(--space-4);
 	max-width: var(--container-4);
 }
+
+.songViewport {
+	flex-grow: 1;
+	padding-bottom: var(--space-4);
+}
