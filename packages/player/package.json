@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
+		"test:interlude-dots-animation": "node --test ./tests/interlude-dots-animation.test.mjs",
 		"build:dev": "vite build --mode dev",
 		"fmt": "biome format --write ./src",
 		"preview": "vite preview",
