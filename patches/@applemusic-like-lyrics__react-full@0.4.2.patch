@@ -1,0 +1,220 @@
+diff --git a/dist/amll-react-framework.cjs b/dist/amll-react-framework.cjs
+index a79ba6b897823fb33cb69b68a398524300c7cf46..5528fb8b13e17725134f3c903a296e9a868dea39 100644
+--- a/dist/amll-react-framework.cjs
++++ b/dist/amll-react-framework.cjs
+@@ -760,6 +760,39 @@ globalThis.jotaiAtomCache = globalThis.jotaiAtomCache || {
+ /**
+ * 一个专辑图组件
+ */
++// Keep the displayed bitmap until its replacement can be painted. Layout cleanup
++// invalidates late load/decode callbacks before a newer cover is committed.
++function useDecodedCoverUrl(coverUrl, coverIsVideo) {
++	const [loadedCoverUrl, setLoadedCoverUrl] = (0, react.useState)(coverIsVideo ? "" : coverUrl);
++	(0, react.useLayoutEffect)(() => {
++		if (coverIsVideo || !coverUrl) {
++			setLoadedCoverUrl("");
++			return;
++		}
++		let active = true;
++		const image = new Image();
++		image.decoding = "async";
++		image.onload = async () => {
++			try {
++				await image.decode?.();
++			} catch {
++				// A loaded image can still be usable when decode is unsupported.
++			}
++			if (active) setLoadedCoverUrl(image.naturalWidth > 0 ? coverUrl : "");
++		};
++		image.onerror = () => {
++			if (active) setLoadedCoverUrl("");
++		};
++		image.src = coverUrl;
++		return () => {
++			active = false;
++			image.onload = null;
++			image.onerror = null;
++			image.src = "";
++		};
++	}, [coverUrl, coverIsVideo]);
++	return coverIsVideo ? coverUrl : loadedCoverUrl;
++}
+ const Cover = (0, react.forwardRef)((t0, ref) => {
+ 	const $ = (0, react_compiler_runtime.c)(33);
+ 	let className;
+@@ -788,6 +821,7 @@ const Cover = (0, react.forwardRef)((t0, ref) => {
+ 		pauseShrinkAspect = $[6];
+ 		rest = $[7];
+ 	}
++	const displayedCoverUrl = useDecodedCoverUrl(coverUrl, coverIsVideo);
+ 	const frameRef = (0, react.useRef)(null);
+ 	const t1 = musicPaused && index_module_default$7.musicPaused;
+ 	let t2;
+@@ -862,10 +896,10 @@ const Cover = (0, react.forwardRef)((t0, ref) => {
+ 		$[19] = t10;
+ 	} else t10 = $[19];
+ 	let t11;
+-	if ($[20] !== coverIsVideo || $[21] !== coverUrl || $[22] !== pauseShrinkAspect) {
++	if ($[20] !== coverIsVideo || $[21] !== displayedCoverUrl || $[22] !== pauseShrinkAspect) {
+ 		t11 = coverIsVideo ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("video", {
+ 			className: index_module_default$7.coverInner,
+-			src: coverUrl,
++			src: displayedCoverUrl,
+ 			autoPlay: true,
+ 			loop: true,
+ 			muted: true,
+@@ -875,12 +909,12 @@ const Cover = (0, react.forwardRef)((t0, ref) => {
+ 		}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+ 			className: index_module_default$7.coverInner,
+ 			style: {
+-				backgroundImage: `url(${coverUrl})`,
++				backgroundImage: displayedCoverUrl ? `url(${JSON.stringify(displayedCoverUrl)})` : "none",
+ 				"--scale-level": pauseShrinkAspect ?? .75
+ 			}
+ 		});
+ 		$[20] = coverIsVideo;
+-		$[21] = coverUrl;
++		$[21] = displayedCoverUrl;
+ 		$[22] = pauseShrinkAspect;
+ 		$[23] = t11;
+ 	} else t11 = $[23];
+@@ -3102,7 +3136,28 @@ const PrebuiltMediaButtons = (t0) => {
+ 	} else t5 = $[9];
+ 	let t6;
+ 	if ($[10] !== musicIsPlaying) {
+-		t6 = musicIsPlaying ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ForwardRef$7, { color: "#FFFFFF" }) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ForwardRef$6, { color: "#FFFFFF" });
++		t6 = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
++			color: "#FFFFFF",
++			viewBox: "0 0 38 38",
++			"data-play-pause-icon": "",
++			"data-playing": musicIsPlaying ? "true" : "false",
++			"aria-hidden": "true",
++			focusable: "false",
++			width: 38,
++			height: 38,
++			children: [
++				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
++					"data-play-icon": "",
++					d: "M7.5776,36C5.619,36 4.1567,34.6943 4,32.5008L4,5.4992C4.1567,3.3057 5.619,2 7.5776,2C8.5438,2 9.2227,2.2873 10.3195,2.8618L35.1536,15.5269C36.9293,16.4409 38,17.3287 38,19C38,20.6713 36.9293,21.5591 35.1536,22.4731L10.3195,35.1382C9.2227,35.7127 8.5438,36 7.5776,36Z",
++					fill: "currentColor"
++				}),
++				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", {
++					"data-pause-icon": "",
++					d: "M8.7384,36C6.3594,36 5,34.5857 5,32.4261L5,5.593C5,3.4143 6.3594,2 8.7384,2L12.911,2C15.2711,2 16.6305,3.4143 16.6305,5.593L16.6305,32.4261C16.6305,34.6048 15.2711,36 12.911,36L8.7384,36ZM25.089,36C22.7289,36 21.3695,34.6048 21.3695,32.4261L21.3695,5.593C21.3695,3.4143 22.7289,2 25.089,2L29.2616,2C31.6406,2 33,3.4143 33,5.593L33,32.4261C33,34.5857 31.6406,36 29.2616,36L25.089,36Z",
++					fill: "currentColor"
++				})
++			]
++		});
+ 		$[10] = musicIsPlaying;
+ 		$[11] = t6;
+ 	} else t6 = $[11];
+diff --git a/dist/amll-react-framework.mjs b/dist/amll-react-framework.mjs
+index 9bc62b458417259c4acabbc1d007e0ed581db6ae..d947d3646cacf1771bba72e7404fae1584ec0245 100644
+--- a/dist/amll-react-framework.mjs
++++ b/dist/amll-react-framework.mjs
+@@ -734,6 +734,39 @@ globalThis.jotaiAtomCache = globalThis.jotaiAtomCache || {
+ /**
+ * 一个专辑图组件
+ */
++// Keep the displayed bitmap until its replacement can be painted. Layout cleanup
++// invalidates late load/decode callbacks before a newer cover is committed.
++function useDecodedCoverUrl(coverUrl, coverIsVideo) {
++	const [loadedCoverUrl, setLoadedCoverUrl] = useState(coverIsVideo ? "" : coverUrl);
++	useLayoutEffect(() => {
++		if (coverIsVideo || !coverUrl) {
++			setLoadedCoverUrl("");
++			return;
++		}
++		let active = true;
++		const image = new Image();
++		image.decoding = "async";
++		image.onload = async () => {
++			try {
++				await image.decode?.();
++			} catch {
++				// A loaded image can still be usable when decode is unsupported.
++			}
++			if (active) setLoadedCoverUrl(image.naturalWidth > 0 ? coverUrl : "");
++		};
++		image.onerror = () => {
++			if (active) setLoadedCoverUrl("");
++		};
++		image.src = coverUrl;
++		return () => {
++			active = false;
++			image.onload = null;
++			image.onerror = null;
++			image.src = "";
++		};
++	}, [coverUrl, coverIsVideo]);
++	return coverIsVideo ? coverUrl : loadedCoverUrl;
++}
+ const Cover = forwardRef((t0, ref) => {
+ 	const $ = c(33);
+ 	let className;
+@@ -762,6 +795,7 @@ const Cover = forwardRef((t0, ref) => {
+ 		pauseShrinkAspect = $[6];
+ 		rest = $[7];
+ 	}
++	const displayedCoverUrl = useDecodedCoverUrl(coverUrl, coverIsVideo);
+ 	const frameRef = useRef(null);
+ 	const t1 = musicPaused && index_module_default$7.musicPaused;
+ 	let t2;
+@@ -836,10 +870,10 @@ const Cover = forwardRef((t0, ref) => {
+ 		$[19] = t10;
+ 	} else t10 = $[19];
+ 	let t11;
+-	if ($[20] !== coverIsVideo || $[21] !== coverUrl || $[22] !== pauseShrinkAspect) {
++	if ($[20] !== coverIsVideo || $[21] !== displayedCoverUrl || $[22] !== pauseShrinkAspect) {
+ 		t11 = coverIsVideo ? /* @__PURE__ */ jsx("video", {
+ 			className: index_module_default$7.coverInner,
+-			src: coverUrl,
++			src: displayedCoverUrl,
+ 			autoPlay: true,
+ 			loop: true,
+ 			muted: true,
+@@ -849,12 +883,12 @@ const Cover = forwardRef((t0, ref) => {
+ 		}) : /* @__PURE__ */ jsx("div", {
+ 			className: index_module_default$7.coverInner,
+ 			style: {
+-				backgroundImage: `url(${coverUrl})`,
++				backgroundImage: displayedCoverUrl ? `url(${JSON.stringify(displayedCoverUrl)})` : "none",
+ 				"--scale-level": pauseShrinkAspect ?? .75
+ 			}
+ 		});
+ 		$[20] = coverIsVideo;
+-		$[21] = coverUrl;
++		$[21] = displayedCoverUrl;
+ 		$[22] = pauseShrinkAspect;
+ 		$[23] = t11;
+ 	} else t11 = $[23];
+@@ -3076,7 +3110,28 @@ const PrebuiltMediaButtons = (t0) => {
+ 	} else t5 = $[9];
+ 	let t6;
+ 	if ($[10] !== musicIsPlaying) {
+-		t6 = musicIsPlaying ? /* @__PURE__ */ jsx(ForwardRef$7, { color: "#FFFFFF" }) : /* @__PURE__ */ jsx(ForwardRef$6, { color: "#FFFFFF" });
++		t6 = /* @__PURE__ */ jsxs("svg", {
++			color: "#FFFFFF",
++			viewBox: "0 0 38 38",
++			"data-play-pause-icon": "",
++			"data-playing": musicIsPlaying ? "true" : "false",
++			"aria-hidden": "true",
++			focusable: "false",
++			width: 38,
++			height: 38,
++			children: [
++				/* @__PURE__ */ jsx("path", {
++					"data-play-icon": "",
++					d: "M7.5776,36C5.619,36 4.1567,34.6943 4,32.5008L4,5.4992C4.1567,3.3057 5.619,2 7.5776,2C8.5438,2 9.2227,2.2873 10.3195,2.8618L35.1536,15.5269C36.9293,16.4409 38,17.3287 38,19C38,20.6713 36.9293,21.5591 35.1536,22.4731L10.3195,35.1382C9.2227,35.7127 8.5438,36 7.5776,36Z",
++					fill: "currentColor"
++				}),
++				/* @__PURE__ */ jsx("path", {
++					"data-pause-icon": "",
++					d: "M8.7384,36C6.3594,36 5,34.5857 5,32.4261L5,5.593C5,3.4143 6.3594,2 8.7384,2L12.911,2C15.2711,2 16.6305,3.4143 16.6305,5.593L16.6305,32.4261C16.6305,34.6048 15.2711,36 12.911,36L8.7384,36ZM25.089,36C22.7289,36 21.3695,34.6048 21.3695,32.4261L21.3695,5.593C21.3695,3.4143 22.7289,2 25.089,2L29.2616,2C31.6406,2 33,3.4143 33,5.593L33,32.4261C33,34.5857 31.6406,36 29.2616,36L25.089,36Z",
++					fill: "currentColor"
++				})
++			]
++		});
+ 		$[10] = musicIsPlaying;
+ 		$[11] = t6;
+ 	} else t6 = $[11];
