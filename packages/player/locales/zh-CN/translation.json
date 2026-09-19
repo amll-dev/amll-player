@@ -498,7 +498,6 @@
 			},
 			"metadata": {
 				"changeCoverToImageOrVideo": "更换封面图为图片 / 视频",
-				"importLyricFromFile": "从本地文件导入歌词",
 				"overrideSafeTip": "本页面的设置不会写入到原始音乐文件中",
 				"reloadMetadataFromFile": "重新从文件中读取元数据",
 				"songAlbum": "音乐专辑名",

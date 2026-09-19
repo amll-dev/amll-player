@@ -8,11 +8,11 @@ import {
 	TextField,
 } from "@radix-ui/themes";
 import { listen } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-dialog";
 import { type FC, useMemo, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { db } from "../../utils/db-client.ts";
+import { openFileDialog } from "../../utils/file-dialog.ts";
 
 type CreateMode = "empty" | "folder";
 
@@ -30,7 +30,7 @@ export const NewPlaylistButton: FC = () => {
 	};
 
 	const onScanFolder = async () => {
-		const folder = await open({
+		const folder = await openFileDialog({
 			directory: true,
 			multiple: false,
 			title: t("newPlaylist.dialog.selectFolder", "选择要扫描的文件夹"),

@@ -1,5 +1,4 @@
 import { Button, Callout, Flex, TextField } from "@radix-ui/themes";
-import { open } from "@tauri-apps/plugin-dialog";
 import {
 	type FC,
 	useCallback,
@@ -9,11 +8,12 @@ import {
 } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { db } from "../../utils/db-client.ts";
+import { openFileDialog } from "../../utils/file-dialog.ts";
 import {
 	readLocalMusicMetadata,
 	saveCoverFromPath,
 } from "../../utils/player.ts";
-import { getLyricFormatFromExtension, Option } from "./common.tsx";
+import { Option } from "./common.tsx";
 import { SongContext } from "./song-ctx.ts";
 
 const MetaInput: FC<
@@ -47,7 +47,7 @@ export const MetadataTabContent: FC = () => {
 
 	const uploadCoverAsImage = useCallback(async () => {
 		if (song === undefined) return;
-		const selected = await open({
+		const selected = await openFileDialog({
 			multiple: false,
 			filters: [
 				{
@@ -77,26 +77,6 @@ export const MetadataTabContent: FC = () => {
 			...(newInfo.lyric ? { lyricFormat: "lrc", lyric: newInfo.lyric } : {}),
 			...(newInfo.coverPath ? { coverPath: newInfo.coverPath } : {}),
 		});
-	}, [song]);
-
-	const importLyricFromFile = useCallback(() => {
-		if (song === undefined) return;
-		const input = document.createElement("input");
-		input.type = "file";
-		input.accept = ".lrc,.eslrc,.yrc,.qrc,.lys,.ttml";
-		input.onchange = async () => {
-			const file = input.files?.[0];
-			if (!file) return;
-			const format = getLyricFormatFromExtension(file.name);
-			if (!format) return;
-			const content = await file.text();
-			await db.songs.update(song.id, {
-				lyricFormat: format,
-				lyric: content,
-				...(format === "ttml" ? { translatedLrc: "", romanLrc: "" } : {}),
-			});
-		};
-		input.click();
 	}, [song]);
 
 	const saveData = useCallback(async () => {
@@ -156,18 +136,6 @@ export const MetadataTabContent: FC = () => {
 			>
 				<Trans i18nKey="page.song.metadata.reloadMetadataFromFile">
 					重新从文件中读取元数据
-				</Trans>
-			</Button>
-			<Button
-				mt="4"
-				style={{
-					display: "block",
-				}}
-				variant="soft"
-				onClick={importLyricFromFile}
-			>
-				<Trans i18nKey="page.song.metadata.importLyricFromFile">
-					从本地文件导入歌词
 				</Trans>
 			</Button>
 			<Button

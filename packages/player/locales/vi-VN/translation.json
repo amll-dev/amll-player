@@ -496,7 +496,6 @@
 			},
 			"metadata": {
 				"changeCoverToImageOrVideo": "Thay đổi bìa thành bìa hình ảnh/ bìa video",
-				"importLyricFromFile": "从本地文件导入歌词",
 				"overrideSafeTip": "Cài đặt trên trang này sẽ không ảnh hưởng đến tệp âm thanh gốc",
 				"reloadMetadataFromFile": "Tải lại siêu dữ liệu từ tệp",
 				"songAlbum": "Tên album",

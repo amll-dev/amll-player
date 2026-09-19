@@ -498,7 +498,6 @@
 			},
 			"metadata": {
 				"changeCoverToImageOrVideo": "Change cover image as image / video",
-				"importLyricFromFile": "Import lyrics from file",
 				"overrideSafeTip": "Properties in this page will not override into source file.",
 				"reloadMetadataFromFile": "Reload Metadata from Audio File",
 				"songAlbum": "Album",

@@ -25,7 +25,6 @@ import {
 } from "@radix-ui/themes";
 import { path } from "@tauri-apps/api";
 import { listen } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { platform } from "@tauri-apps/plugin-os";
 import { motion, useMotionTemplate, useScroll } from "framer-motion";
@@ -48,6 +47,7 @@ import { PlaylistCover } from "../../components/PlaylistCover/index.tsx";
 import { PlaylistSongCard } from "../../components/PlaylistSongCard/index.tsx";
 import { queueManagerAtom } from "../../states/appAtoms.ts";
 import { db, type Song } from "../../utils/db-client.ts";
+import { openFileDialog } from "../../utils/file-dialog.ts";
 import { queuePlaylistIdAtom } from "../../utils/play-queue-manager.ts";
 import {
 	readLocalMusicMetadata,
@@ -174,7 +174,7 @@ export const Component: FC = () => {
 	}, [param.id, playlist, settingsPlaylistName]);
 
 	const onUploadPlaylistCover = useCallback(async () => {
-		const selected = await open({
+		const selected = await openFileDialog({
 			multiple: false,
 			filters: [
 				{
@@ -212,7 +212,7 @@ export const Component: FC = () => {
 	);
 
 	const onAddFolder = useCallback(async () => {
-		const selected = await open({
+		const selected = await openFileDialog({
 			directory: true,
 			multiple: false,
 			title: t("page.playlist.settings.selectFolder", "选择要关联的文件夹"),
@@ -356,7 +356,7 @@ export const Component: FC = () => {
 		if (platform() === "ios") {
 			filters.length = 0;
 		}
-		const results = await open({
+		const results = await openFileDialog({
 			multiple: true,
 			title: "选择本地音乐",
 			filters,
@@ -552,33 +552,7 @@ export const Component: FC = () => {
 										</Trans>
 									</ContextMenu.Item>
 									<ContextMenu.Item
-										onClick={async () => {
-											const selected = await open({
-												multiple: false,
-												filters: [
-													{
-														name: t(
-															"page.playlist.cover.mediaFiles",
-															"媒体文件",
-														),
-														extensions: [
-															"jpg",
-															"jpeg",
-															"png",
-															"gif",
-															"webp",
-															"mp4",
-														],
-													},
-												],
-											});
-											if (selected) {
-												await db.playlists.saveCover(
-													Number(param.id),
-													selected,
-												);
-											}
-										}}
+										onClick={() => void onUploadPlaylistCover()}
 									>
 										<Trans i18nKey="page.playlist.cover.uploadCoverImage">
 											上传封面图片
