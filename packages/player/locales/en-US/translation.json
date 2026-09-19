@@ -8,6 +8,7 @@
 			"title": "Audio Quality Details"
 		},
 		"contextMenu": {
+			"addToQueue": "Add to End of Queue",
 			"editMusicOverrideMessage": "Edit Track Override Data",
 			"exitLyricPage": "Exit Lyrics Page",
 			"forwardSong": "Next Song",
@@ -15,6 +16,7 @@
 			"openScreenshotTool": "打开截图工具",
 			"pauseOrResume": "Pause / Resume",
 			"play": "播放",
+			"playNext": "Play Next",
 			"rewindSong": "Previous Song",
 			"toggleFullscreen": "Enter / Exit full screen",
 			"toggleLyrics": "Lyrics",
@@ -192,7 +194,10 @@
 			},
 			"music": {
 				"dropdown": {
+					"songActions": "Song actions",
+					"addToQueue": "Add to End of Queue",
 					"editMusicOverrideData": "Edit Track Override Data",
+					"playNext": "Play Next",
 					"playMusic": "Play",
 					"removeFromPlaylist": "Delete from Playlist"
 				},
