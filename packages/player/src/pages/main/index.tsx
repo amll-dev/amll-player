@@ -10,7 +10,7 @@ import {
 	Text,
 } from "@radix-ui/themes";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { type FC, useRef } from "react";
 import { Trans } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -20,6 +20,7 @@ import { PageContainer } from "../../components/PageContainer/index.tsx";
 import { PlaylistCard } from "../../components/PlaylistCard/index.tsx";
 import { router } from "../../router.tsx";
 import { updateInfoAtom } from "../../states/appAtoms.ts";
+import { settingsPageAtom } from "../../states/settingsAtoms.ts";
 import { db } from "../../utils/db-client.ts";
 import { useDbQuery } from "../../utils/use-db-query.ts";
 
@@ -31,6 +32,7 @@ export const Component: FC = () => {
 		["playlists", "playlist_songs"],
 	);
 	const updateInfo = useAtomValue(updateInfoAtom);
+	const setSettingsPage = useSetAtom(settingsPageAtom);
 	const parentRef = useRef<HTMLDivElement>(null);
 
 	const rowVirtualizer = useVirtualizer({
@@ -49,7 +51,11 @@ export const Component: FC = () => {
 							AMLL Player
 							{updateInfo && (
 								<Badge
-									onClick={() => router.navigate("/settings#updater")}
+									onClick={() => {
+										// 更新区块在设置页的「关于」标签里，用 hash 指定落点
+										setSettingsPage("player.about");
+										router.navigate("/settings#updater");
+									}}
 									radius="full"
 									style={{
 										cursor: "pointer",
