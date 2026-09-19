@@ -1,14 +1,15 @@
 import { Button, Callout, Flex, TextField } from "@radix-ui/themes";
-import { open } from "@tauri-apps/plugin-dialog";
 import {
 	type FC,
 	useCallback,
 	useContext,
 	useLayoutEffect,
+	useRef,
 	useState,
 } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { db } from "../../utils/db-client.ts";
+import { openFileDialog } from "../../utils/file-dialog.ts";
 import {
 	readLocalMusicMetadata,
 	saveCoverFromPath,
@@ -31,6 +32,8 @@ export const MetadataTabContent: FC = () => {
 	const [songName, setSongName] = useState("");
 	const [songArtists, setSongArtists] = useState("");
 	const [songAlbum, setSongAlbum] = useState("");
+	const coverPickerBusyRef = useRef(false);
+	const [isPickingCover, setIsPickingCover] = useState(false);
 	const { t } = useTranslation();
 
 	useLayoutEffect(() => {
@@ -46,25 +49,30 @@ export const MetadataTabContent: FC = () => {
 	}, [song]);
 
 	const uploadCoverAsImage = useCallback(async () => {
-		if (song === undefined) return;
-		const selected = await open({
-			multiple: false,
-			filters: [
-				{
-					name: t("page.playlist.cover.mediaFiles", "媒体文件"),
-					extensions: ["jpg", "jpeg", "png", "gif", "mp4", "webm"],
-				},
-				{ name: "所有文件", extensions: ["*"] },
-			],
-		});
-		if (!selected) return;
+		if (song === undefined || coverPickerBusyRef.current) return;
+		coverPickerBusyRef.current = true;
+		setIsPickingCover(true);
 		try {
+			const selected = await openFileDialog({
+				multiple: false,
+				filters: [
+					{
+						name: t("page.playlist.cover.mediaFiles", "媒体文件"),
+						extensions: ["jpg", "jpeg", "png", "gif", "mp4", "webm"],
+					},
+					{ name: "所有文件", extensions: ["*"] },
+				],
+			});
+			if (!selected) return;
 			const coverPath = await saveCoverFromPath(song.id, selected);
 			await db.songs.update(song.id, { coverPath });
 		} catch (err) {
 			console.error("Failed to save cover:", err);
+		} finally {
+			coverPickerBusyRef.current = false;
+			setIsPickingCover(false);
 		}
-	}, [song]);
+	}, [song, t]);
 
 	const readMetadataFromFile = useCallback(async () => {
 		if (song === undefined) return;
@@ -140,6 +148,8 @@ export const MetadataTabContent: FC = () => {
 					display: "block",
 				}}
 				variant="soft"
+				disabled={isPickingCover}
+				loading={isPickingCover}
 				onClick={uploadCoverAsImage}
 			>
 				<Trans i18nKey="page.song.metadata.changeCoverToImageOrVideo">

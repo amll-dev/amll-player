@@ -179,21 +179,33 @@ pub async fn read_local_music_metadata(
     Ok(music_info)
 }
 
+async fn copy_cover_from_path(
+    song_id: String,
+    source_path: String,
+    app: AppHandle,
+) -> Result<String, String> {
+    let covers_dir = db::utils::get_covers_dir(&app)?;
+    tokio::task::spawn_blocking(move || {
+        std::fs::create_dir_all(&covers_dir)
+            .map_err(|e| format!("Failed to create covers dir: {e}"))?;
+
+        let source = std::path::PathBuf::from(source_path);
+        let ext = crate::utils::cover_ext_for_path(&source);
+        let cover_file = covers_dir.join(format!("{song_id}.{ext}"));
+
+        std::fs::copy(&source, &cover_file).map_err(|e| format!("Failed to copy cover: {e}"))?;
+
+        Ok(cover_file.to_string_lossy().into_owned())
+    })
+    .await
+    .map_err(|e| format!("Cover copy task failed: {e}"))?
+}
+
 #[tauri::command]
 pub async fn save_cover_from_path(
     song_id: String,
     source_path: String,
     app: AppHandle,
 ) -> Result<String, String> {
-    let covers_dir = db::utils::get_covers_dir(&app)?;
-    std::fs::create_dir_all(&covers_dir)
-        .map_err(|e| format!("Failed to create covers dir: {e}"))?;
-
-    let source = std::path::Path::new(&source_path);
-    let ext = crate::utils::cover_ext_for_path(source);
-    let cover_file = covers_dir.join(format!("{song_id}.{ext}"));
-
-    std::fs::copy(source, &cover_file).map_err(|e| format!("Failed to copy cover: {e}"))?;
-
-    Ok(cover_file.to_string_lossy().to_string())
+    copy_cover_from_path(song_id, source_path, app).await
 }

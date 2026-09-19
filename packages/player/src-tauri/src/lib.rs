@@ -17,6 +17,8 @@ use crate::server::AMLLWebSocketServerWrapper;
 
 mod db;
 mod db_events;
+#[cfg(target_os = "windows")]
+mod file_dialog;
 #[cfg(target_os = "linux")]
 mod linux_graphics;
 mod logging;
@@ -256,6 +258,8 @@ pub fn run() {
             music_info::resolve_content_uri,
             music_info::read_local_music_metadata,
             music_info::save_cover_from_path,
+            #[cfg(target_os = "windows")]
+            file_dialog::pick_files_ownerless,
             restart_app,
             ttml_db::sync_lyrics,
             ttml_db::search_lyrics,
