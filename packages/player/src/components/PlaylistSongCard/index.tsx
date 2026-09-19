@@ -10,11 +10,12 @@ import {
 	Skeleton,
 	Text,
 } from "@radix-ui/themes";
+import { useAtomValue } from "jotai";
 import type { Loadable } from "jotai/vanilla/utils/loadable";
 import { type CSSProperties, forwardRef, useMemo } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { router } from "../../router.tsx";
+import { queueManagerAtom } from "../../states/appAtoms.ts";
 import { db, type Song } from "../../utils/db-client.ts";
 import { useDbQuery } from "../../utils/use-db-query.ts";
 import { useSongCover } from "../../utils/use-song-cover.ts";
@@ -46,6 +47,7 @@ export const PlaylistSongCard = forwardRef<
 	);
 	const { t } = useTranslation();
 	const navigate = useNavigate();
+	const queueManager = useAtomValue(queueManagerAtom);
 
 	return (
 		<Skeleton
@@ -87,7 +89,10 @@ export const PlaylistSongCard = forwardRef<
 							<DropdownMenu.Trigger>
 								<IconButton
 									variant="ghost"
-									onClick={() => router.navigate(`/song/${songId}`)}
+									aria-label={t(
+										"page.playlist.music.dropdown.songActions",
+										"歌曲操作",
+									)}
 								>
 									<HamburgerMenuIcon />
 								</IconButton>
@@ -98,6 +103,31 @@ export const PlaylistSongCard = forwardRef<
 										播放音乐
 									</Trans>
 								</DropdownMenu.Item>
+								<DropdownMenu.Item
+									disabled={song.state !== "hasData" || !queueManager}
+									onClick={() => {
+										if (song.state === "hasData") {
+											queueManager?.enqueueNext(song.data);
+										}
+									}}
+								>
+									<Trans i18nKey="page.playlist.music.dropdown.playNext">
+										下一首播放
+									</Trans>
+								</DropdownMenu.Item>
+								<DropdownMenu.Item
+									disabled={song.state !== "hasData" || !queueManager}
+									onClick={() => {
+										if (song.state === "hasData") {
+											queueManager?.enqueueTail(song.data);
+										}
+									}}
+								>
+									<Trans i18nKey="page.playlist.music.dropdown.addToQueue">
+										添加到播放队列末尾
+									</Trans>
+								</DropdownMenu.Item>
+								<DropdownMenu.Separator />
 								<DropdownMenu.Item onClick={() => navigate(`/song/${songId}`)}>
 									<Trans i18nKey="page.playlist.music.dropdown.editMusicOverrideData">
 										编辑歌曲覆盖信息

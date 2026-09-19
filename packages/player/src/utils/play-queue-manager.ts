@@ -1,5 +1,6 @@
 import {
 	isShuffleActiveAtom,
+	musicPlayingAtom,
 	musicPlayingPositionAtom,
 	RepeatMode,
 	repeatModeAtom,
@@ -19,6 +20,8 @@ interface PersistedQueueState {
 	/** originalList 中的 songId 序列（用于 shuffle 恢复） */
 	originalSongIds: string[];
 	currentIndex: number;
+	/** 当前歌曲 ID，避免库中删歌后数字索引错位。 */
+	currentSongId?: string | null;
 	repeatMode: RepeatMode;
 	shuffleActive: boolean;
 	playlistId: number | null;
@@ -85,6 +88,17 @@ export class PlayQueueManager {
 	private repeatMode: RepeatMode = RepeatMode.Off;
 	private shuffleActive = false;
 	private playlistId: number | null = null;
+	private currentPlaybackId = "";
+	private queueRevision = 0;
+	private queueEditRevision = 0;
+	private disposed = false;
+	private hasQueueState = false;
+	private playModeRevision = 0;
+	private pendingRestore: {
+		revision: number;
+		songId: string;
+		position: number;
+	} | null = null;
 
 	constructor(store: JotaiStore) {
 		this.store = store;
@@ -92,23 +106,41 @@ export class PlayQueueManager {
 
 	//#region 辅助方法
 	private syncToAtoms(): void {
+		this.hasQueueState = true;
 		this.store.set(queuePlaylistAtom, [...this.playList]);
 		this.store.set(queueCurrentIndexAtom, this.currentIndex);
+		this.syncPlayModeToAtoms();
+		this.store.set(queuePlaylistIdAtom, this.playlistId);
+		this.persistState();
+	}
+
+	private syncPlayModeToAtoms(): void {
 		this.store.set(queueRepeatModeAtom, this.repeatMode);
 		this.store.set(queueShuffleActiveAtom, this.shuffleActive);
-		this.store.set(queuePlaylistIdAtom, this.playlistId);
 		this.store.set(repeatModeAtom, this.repeatMode);
 		this.store.set(isShuffleActiveAtom, this.shuffleActive);
-		this.persistState();
+	}
+
+	/** 尚未读回歌曲时，只保存模式，不用空列表覆盖原队列。 */
+	private persistInitialPlayMode(): void {
+		this.store.set(persistedQueueStateAtom, {
+			...this.store.get(persistedQueueStateAtom),
+			repeatMode: this.repeatMode,
+			shuffleActive: this.shuffleActive,
+		});
+		this.syncPlayModeToAtoms();
+		this.syncPlayModeToMediaControls();
 	}
 
 	/** 将当前队列状态写入 localStorage */
 	private persistState(): void {
+		if (!this.hasQueueState) return;
 		const positionMs = this.store.get(musicPlayingPositionAtom);
 		this.store.set(persistedQueueStateAtom, {
 			songIds: this.playList.map((s) => s.id),
 			originalSongIds: this.originalList.map((s) => s.id),
 			currentIndex: this.currentIndex,
+			currentSongId: this.getCurrentSong()?.id ?? null,
 			repeatMode: this.repeatMode,
 			shuffleActive: this.shuffleActive,
 			playlistId: this.playlistId,
@@ -118,7 +150,41 @@ export class PlayQueueManager {
 
 	/** 组件卸载时调用，把最新状态写入 localStorage */
 	dispose(): void {
+		this.disposed = true;
+		this.cancelRestore();
 		this.persistState();
+	}
+
+	/** 播放、跳转等用户操作优先于尚未完成的启动恢复。 */
+	cancelRestore(position?: number): void {
+		const pending = this.pendingRestore;
+		const preservePosition =
+			position !== undefined &&
+			pending &&
+			pending.songId === this.getCurrentSong()?.id &&
+			this.isCurrentRevision(pending.revision);
+		this.queueRevision++;
+		// 手动跳转也要交给晚到的 LoadAudio，避免它再把进度清零。
+		this.pendingRestore = preservePosition
+			? { ...pending, revision: this.queueRevision, position }
+			: null;
+	}
+
+	isCurrentRevision(revision: number): boolean {
+		return !this.disposed && revision === this.queueRevision;
+	}
+
+	/** LoadAudio 晚于 IPC 返回时，也保留恢复进度；每次加载只取一次。 */
+	takeRestorePosition(songId: string): number | undefined {
+		const restore = this.pendingRestore;
+		if (
+			!restore ||
+			restore.songId !== songId ||
+			!this.isCurrentRevision(restore.revision)
+		)
+			return;
+		this.pendingRestore = null;
+		return restore.position;
 	}
 
 	private syncPlayModeToMediaControls(): void {
@@ -134,17 +200,54 @@ export class PlayQueueManager {
 		});
 	}
 
-	private playSongAt(index: number): void {
-		if (index < 0 || index >= this.playList.length) return;
+	private async playSongAt(
+		index: number,
+		startPaused = false,
+	): Promise<boolean> {
+		if (this.disposed || index < 0 || index >= this.playList.length)
+			return false;
+		this.cancelRestore();
+		const revision = this.queueRevision;
 		this.currentIndex = index;
 		this.syncToAtoms();
 		const song = this.playList[index];
-		emitAudioThread("playAudio", {
+		this.currentPlaybackId = crypto.randomUUID();
+		await emitAudioThread("playAudio", {
 			song: {
 				songId: song.id,
 				filePath: song.filePath,
 			},
+			playbackId: this.currentPlaybackId,
+			startPaused,
 		});
+		return !this.disposed && revision === this.queueRevision;
+	}
+
+	/** 恢复请求与跳转共用修订号，切歌后不再给新歌曲跳转旧进度。 */
+	async restoreCurrentPaused(
+		revision: number,
+		position: number,
+	): Promise<number | null> {
+		const currentSong = this.getCurrentSong();
+		if (!this.isCurrentRevision(revision) || !currentSong) return null;
+		const started = this.playSongAt(this.currentIndex, true);
+		const playbackRevision = this.queueRevision;
+		this.pendingRestore = {
+			revision: playbackRevision,
+			songId: currentSong.id,
+			position,
+		};
+		try {
+			if (!(await started) || !this.isCurrentRevision(playbackRevision))
+				return null;
+			if (position > 0) {
+				await emitAudioThread("seekAudio", { position });
+			}
+			return this.isCurrentRevision(playbackRevision) ? playbackRevision : null;
+		} catch (error) {
+			if (this.isCurrentRevision(playbackRevision)) this.cancelRestore();
+			throw error;
+		}
 	}
 
 	/** 在 playList 中查找 songId 的索引 */
@@ -188,6 +291,7 @@ export class PlayQueueManager {
 	 */
 	addToQueue(song: Song): void {
 		if (this.originalList.some((s) => s.id === song.id)) return;
+		this.cancelRestore();
 
 		this.originalList.push(song);
 
@@ -199,6 +303,49 @@ export class PlayQueueManager {
 			this.playList.push(song);
 		}
 
+		this.syncToAtoms();
+	}
+
+	/** 添加到实际队尾；随机播放时也不插到当前歌曲之后。 */
+	enqueueTail(song: Song): void {
+		if (this.disposed || this.originalList.some((s) => s.id === song.id))
+			return;
+		if (this.playList.length === 0) {
+			this.replaceQueueAndPlay(song);
+			return;
+		}
+		// 队列编辑只使旧读库结果失效，不取消当前歌曲的暂停恢复。
+		this.queueEditRevision++;
+		this.originalList.push(song);
+		this.playList.push(song);
+		this.syncToAtoms();
+	}
+
+	/** 放到当前歌曲之后；已在队列中时移动原有项，不替换其元数据。 */
+	enqueueNext(song: Song): void {
+		if (this.disposed) return;
+		if (this.playList.length === 0 || this.currentIndex < 0) {
+			this.replaceQueueAndPlay(song);
+			return;
+		}
+		const currentSongId = this.getCurrentSong()?.id;
+		if (!currentSongId || currentSongId === song.id) return;
+
+		this.queueEditRevision++;
+		const existingIndex = this.findInPlayList(song.id);
+		let queuedSong = song;
+		if (existingIndex >= 0) {
+			const [existingSong] = this.playList.splice(existingIndex, 1);
+			queuedSong = existingSong;
+			// 旧队列可能含重复 ID，按位置保留正在播放的那一项。
+			if (existingIndex < this.currentIndex) this.currentIndex--;
+		} else {
+			this.originalList.push(song);
+		}
+		this.playList.splice(this.currentIndex + 1, 0, queuedSong);
+		if (!this.shuffleActive) {
+			this.originalList = [...this.playList];
+		}
 		this.syncToAtoms();
 	}
 	//#endregion
@@ -232,8 +379,13 @@ export class PlayQueueManager {
 	 * - 顺序/随机：播放下一首
 	 * - 列表播放完毕（非循环）：停止
 	 */
-	advanceForAutoEnd(): void {
+	advanceForAutoEnd(endedSongId: string, endedPlaybackId: string): void {
 		if (this.playList.length === 0) return;
+		if (!this.currentPlaybackId || endedPlaybackId !== this.currentPlaybackId)
+			return;
+		if (endedSongId !== this.getCurrentSong()?.id) return;
+		// 一个播放请求的结束事件只消费一次，包括列表末尾。
+		this.currentPlaybackId = "";
 
 		if (this.repeatMode === RepeatMode.One) {
 			this.playSongAt(this.currentIndex);
@@ -255,11 +407,24 @@ export class PlayQueueManager {
 
 		this.playSongAt(nextIndex);
 	}
+
+	/** 系统停止后，迟到的结束事件不再触发下一首。 */
+	setExternalStopped(): void {
+		this.cancelRestore();
+		this.currentPlaybackId = "";
+		this.store.set(musicPlayingAtom, false);
+		this.store.set(musicPlayingPositionAtom, 0);
+	}
 	//#endregion
 
 	//#region 模式切换
 	setRepeatMode(mode: RepeatMode): void {
+		this.playModeRevision++;
 		this.repeatMode = mode;
+		if (!this.hasQueueState) {
+			this.persistInitialPlayMode();
+			return;
+		}
 		this.syncToAtoms();
 		this.syncPlayModeToMediaControls();
 	}
@@ -275,10 +440,15 @@ export class PlayQueueManager {
 	}
 
 	toggleShuffle(): void {
+		this.playModeRevision++;
 		const currentSongId =
 			this.currentIndex >= 0 ? this.playList[this.currentIndex]?.id : undefined;
 
 		this.shuffleActive = !this.shuffleActive;
+		if (!this.hasQueueState) {
+			this.persistInitialPlayMode();
+			return;
+		}
 
 		if (this.shuffleActive) {
 			this.playList = shuffleArray(this.originalList);
@@ -315,6 +485,7 @@ export class PlayQueueManager {
 	removeSong(songId: string): void {
 		const removeIndex = this.playList.findIndex((s) => s.id === songId);
 		if (removeIndex === -1) return;
+		this.cancelRestore();
 
 		this.originalList = this.originalList.filter((s) => s.id !== songId);
 		this.playList.splice(removeIndex, 1);
@@ -324,6 +495,8 @@ export class PlayQueueManager {
 		} else if (removeIndex === this.currentIndex) {
 			if (this.playList.length === 0) {
 				this.currentIndex = -1;
+				this.setExternalStopped();
+				emitAudioThread("stopAudio");
 			} else if (this.currentIndex >= this.playList.length) {
 				this.currentIndex = 0;
 			}
@@ -344,16 +517,35 @@ export class PlayQueueManager {
 	 * 需要从后端 DB 批量查询 songId → Song 映射
 	 * @returns 恢复结果，包含是否成功及持久化的播放位置（秒）
 	 */
-	async restore(): Promise<{ restored: boolean; position: number }> {
+	async restore(): Promise<
+		| { restored: false; position: number }
+		| { restored: true; position: number; revision: number }
+	> {
+		if (this.disposed) return { restored: false, position: 0 };
+		const revision = ++this.queueRevision;
+		const editRevision = this.queueEditRevision;
 		const persisted = this.store.get(persistedQueueStateAtom);
 		if (!persisted || persisted.songIds.length === 0)
 			return { restored: false, position: 0 };
+		const modeRevision = this.playModeRevision;
+		if (!this.hasQueueState) {
+			this.repeatMode = persisted.repeatMode;
+			this.shuffleActive = persisted.shuffleActive;
+			this.syncPlayModeToAtoms();
+		}
 
 		try {
 			const allSongIds = [
 				...new Set([...persisted.songIds, ...persisted.originalSongIds]),
 			];
 			const songs = await db.songs.getByIds(allSongIds);
+			if (
+				this.disposed ||
+				revision !== this.queueRevision ||
+				editRevision !== this.queueEditRevision
+			) {
+				return { restored: false, position: 0 };
+			}
 			const songMap = new Map(songs.map((s) => [s.id, s]));
 
 			// 恢复 playList
@@ -374,19 +566,45 @@ export class PlayQueueManager {
 			if (this.playList.length === 0) return { restored: false, position: 0 };
 
 			// 恢复状态
-			this.repeatMode = persisted.repeatMode;
-			this.shuffleActive = persisted.shuffleActive;
+			if (modeRevision === this.playModeRevision) {
+				this.repeatMode = persisted.repeatMode;
+				this.shuffleActive = persisted.shuffleActive;
+			} else if (this.shuffleActive !== persisted.shuffleActive) {
+				this.playList = this.shuffleActive
+					? shuffleArray(this.originalList)
+					: [...this.originalList];
+			}
 			this.playlistId = persisted.playlistId;
 
-			// 恢复 currentIndex，做边界检查
-			this.currentIndex = Math.min(
-				persisted.currentIndex,
-				this.playList.length - 1,
-			);
-			if (this.currentIndex < 0) this.currentIndex = 0;
+			// 旧数据只有数字索引时，也先在未过滤的旧列表中找回歌曲 ID。
+			const savedSongId =
+				persisted.currentSongId ?? persisted.songIds[persisted.currentIndex];
+			let currentIndex = savedSongId ? this.findInPlayList(savedSongId) : -1;
+			if (currentIndex < 0 && savedSongId) {
+				const anchor = persisted.songIds.indexOf(savedSongId);
+				if (anchor >= 0) {
+					// 缺失当前歌曲时，先找最近的后继，再找前驱。
+					const neighbors = [
+						...persisted.songIds.slice(anchor + 1),
+						...persisted.songIds.slice(0, anchor).reverse(),
+					];
+					for (const id of neighbors) {
+						currentIndex = this.findInPlayList(id);
+						if (currentIndex >= 0) break;
+					}
+				}
+			}
+			this.currentIndex = currentIndex >= 0 ? currentIndex : 0;
+			const position =
+				this.getCurrentSong()?.id === savedSongId &&
+				Number.isFinite(persisted.position)
+					? Math.max(0, persisted.position)
+					: 0;
+			this.store.set(musicPlayingPositionAtom, position * 1000);
 
 			this.syncToAtoms();
-			return { restored: true, position: persisted.position ?? 0 };
+			this.syncPlayModeToMediaControls();
+			return { restored: true, position, revision };
 		} catch (err) {
 			console.error("[PlayQueueManager] 恢复队列失败:", err);
 			return { restored: false, position: 0 };
