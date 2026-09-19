@@ -23,7 +23,11 @@ export const SongCard = forwardRef<
 		<Box py="1" style={style} ref={ref}>
 			<ContextMenu.Root>
 				<ContextMenu.Trigger>
-					<Card onClick={() => {}}>
+					<Card
+						onDoubleClick={() => {
+							queueManager?.replaceQueueAndPlay(song);
+						}}
+					>
 						<Flex p="1" align="center" gap="4">
 							<Avatar size="5" fallback={<div />} src={songImgUrl} />
 							<Flex
@@ -62,6 +66,25 @@ export const SongCard = forwardRef<
 					>
 						<Trans i18nKey="amll.contextMenu.play">播放</Trans>
 					</ContextMenu.Item>
+					<ContextMenu.Item
+						disabled={!queueManager}
+						onClick={() => {
+							queueManager?.enqueueNext(song);
+						}}
+					>
+						<Trans i18nKey="amll.contextMenu.playNext">下一首播放</Trans>
+					</ContextMenu.Item>
+					<ContextMenu.Item
+						disabled={!queueManager}
+						onClick={() => {
+							queueManager?.enqueueTail(song);
+						}}
+					>
+						<Trans i18nKey="amll.contextMenu.addToQueue">
+							添加到播放队列末尾
+						</Trans>
+					</ContextMenu.Item>
+					<ContextMenu.Separator />
 					<ContextMenu.Item
 						onClick={() => {
 							router.navigate(`/song/${song.id}`);

@@ -8,6 +8,7 @@
 			"title": "音频解码信息"
 		},
 		"contextMenu": {
+			"addToQueue": "キューの末尾に追加",
 			"editMusicOverrideMessage": "曲のカバレッジ情報を編集する",
 			"exitLyricPage": "歌詞ページを出る",
 			"forwardSong": "次の曲",
@@ -15,6 +16,7 @@
 			"openScreenshotTool": "打开截图工具",
 			"pauseOrResume": "暂停 / 继续",
 			"play": "播放",
+			"playNext": "次に再生",
 			"rewindSong": "前の曲",
 			"toggleFullscreen": "全屏 / 取消全屏",
 			"toggleLyrics": "歌詞を表示",
@@ -190,7 +192,10 @@
 			},
 			"music": {
 				"dropdown": {
+					"songActions": "曲の操作",
+					"addToQueue": "キューの末尾に追加",
 					"editMusicOverrideData": "曲のカバレッジ情報を編集する",
+					"playNext": "次に再生",
 					"playMusic": "曲を再生する",
 					"removeFromPlaylist": "プレイリストから削除"
 				},

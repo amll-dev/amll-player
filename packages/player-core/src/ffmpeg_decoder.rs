@@ -63,6 +63,7 @@ impl<C: Consumer<Item = f32>> Iterator for AudioSource<C> {
         if self.shared_state.flush_req.load(Ordering::Acquire) {
             self.consumer.clear();
             self.shared_state.flush_ack.store(true, Ordering::Release);
+            self.unparker.unpark();
             return Some(0.0);
         }
 
@@ -101,6 +102,18 @@ pub struct SpawnedDecoder<C, FC> {
 pub struct FFmpegDecoder {
     cmd_tx: Sender<DecoderCommand>,
     unparker: Unparker,
+}
+
+fn wait_for_flush_ack(shared_state: &DecoderSharedState, parker: &Parker) -> bool {
+    loop {
+        if shared_state.is_shutdown.load(Ordering::Acquire) {
+            return false;
+        }
+        if shared_state.flush_ack.load(Ordering::Acquire) {
+            return true;
+        }
+        parker.park();
+    }
 }
 
 impl FFmpegDecoder {
@@ -183,11 +196,8 @@ impl FFmpegDecoder {
                     match cmd {
                         DecoderCommand::Seek(target) => {
                             shared_state.flush_req.store(true, Ordering::Release);
-                            while !shared_state.flush_ack.load(Ordering::Acquire) {
-                                if shared_state.is_shutdown.load(Ordering::Acquire) {
-                                    return;
-                                }
-                                thread::yield_now();
+                            if !wait_for_flush_ack(&shared_state, &parker) {
+                                return;
                             }
 
                             let _ = reader.seek(target, ffmpeg_audio::SeekMode::Accurate);
@@ -250,5 +260,71 @@ impl FFmpegDecoder {
             handle,
             samples_counter,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flush_clears_old_samples_and_wakes_the_waiting_decoder() {
+        let ring = HeapRb::<f32>::new(8);
+        let (mut producer, consumer) = ring.split();
+        assert_eq!(producer.push_slice(&[0.25, 0.5]), 2);
+
+        let parker = Parker::new();
+        let shared_state = DecoderSharedState::default();
+        shared_state.flush_req.store(true, Ordering::Release);
+        let samples_counter = Arc::new(AtomicU64::new(0));
+        let mut source = AudioSource {
+            consumer,
+            unparker: parker.unparker().clone(),
+            shared_state: shared_state.clone(),
+            watermark: 4,
+            samples_counter: samples_counter.clone(),
+        };
+
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let waiter_state = shared_state.clone();
+        let waiter = thread::spawn(move || {
+            let _ = done_tx.send(wait_for_flush_ack(&waiter_state, &parker));
+        });
+
+        assert_eq!(source.next(), Some(0.0));
+        assert!(done_rx.recv_timeout(Duration::from_secs(1)).unwrap());
+        waiter.join().unwrap();
+        assert_eq!(samples_counter.load(Ordering::Acquire), 0);
+
+        shared_state.flush_req.store(false, Ordering::Release);
+        shared_state.flush_ack.store(false, Ordering::Release);
+        assert_eq!(producer.push_slice(&[0.75]), 1);
+        assert_eq!(source.next(), Some(0.75));
+    }
+
+    #[test]
+    fn dropping_source_wakes_a_parked_flush_waiter() {
+        let ring = HeapRb::<f32>::new(4);
+        let (_, consumer) = ring.split();
+        let parker = Parker::new();
+        let shared_state = DecoderSharedState::default();
+        shared_state.flush_req.store(true, Ordering::Release);
+        let source = AudioSource {
+            consumer,
+            unparker: parker.unparker().clone(),
+            shared_state: shared_state.clone(),
+            watermark: 2,
+            samples_counter: Arc::new(AtomicU64::new(0)),
+        };
+
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let waiter_state = shared_state.clone();
+        let waiter = thread::spawn(move || {
+            let _ = done_tx.send(wait_for_flush_ack(&waiter_state, &parker));
+        });
+
+        drop(source);
+        assert!(!done_rx.recv_timeout(Duration::from_secs(1)).unwrap());
+        waiter.join().unwrap();
     }
 }

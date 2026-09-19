@@ -1,7 +1,9 @@
 import { Card, ContextMenu, Flex, Text } from "@radix-ui/themes";
+import { useAtomValue } from "jotai";
 import { forwardRef, type PropsWithChildren, useMemo } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { queueManagerAtom } from "../../states/appAtoms.ts";
 import { db, type Playlist } from "../../utils/db-client.ts";
 import { PlaylistCover } from "../PlaylistCover/index.tsx";
 
@@ -12,6 +14,7 @@ export const PlaylistCard = forwardRef<
 	}>
 >(({ playlist, children }, ref) => {
 	const { t } = useTranslation();
+	const queueManager = useAtomValue(queueManagerAtom);
 	const songAmount = playlist.songIds.length;
 	const createTime = useMemo(() => {
 		const today = new Date();
@@ -21,6 +24,18 @@ export const PlaylistCard = forwardRef<
 
 		return createTime.toLocaleDateString();
 	}, [playlist.createTime]);
+	const playPlaylist = async (shuffle: boolean) => {
+		if (!queueManager) return;
+		const songs = await db.playlists.getSongs(playlist.id);
+		if (songs.length === 0) return;
+		if (shuffle) {
+			queueManager.toggleShuffleOn();
+		} else {
+			queueManager.toggleShuffleOff();
+		}
+		queueManager.setQueue(songs, playlist.id);
+	};
+
 	return (
 		<ContextMenu.Root>
 			<ContextMenu.Trigger>
@@ -56,10 +71,20 @@ export const PlaylistCard = forwardRef<
 				</Card>
 			</ContextMenu.Trigger>
 			<ContextMenu.Content>
-				<ContextMenu.Item onSelect={() => {}}>
+				<ContextMenu.Item
+					disabled={!queueManager || songAmount === 0}
+					onSelect={() => {
+						void playPlaylist(false);
+					}}
+				>
 					<Trans i18nKey="page.main.playlistMenu.play">播放此列表</Trans>
 				</ContextMenu.Item>
-				<ContextMenu.Item onSelect={() => {}}>
+				<ContextMenu.Item
+					disabled={!queueManager || songAmount === 0}
+					onSelect={() => {
+						void playPlaylist(true);
+					}}
+				>
 					<Trans i18nKey="page.main.playlistMenu.playShuffled">
 						以乱序播放此列表
 					</Trans>
