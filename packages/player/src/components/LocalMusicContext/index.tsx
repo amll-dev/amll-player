@@ -394,12 +394,7 @@ export const LocalMusicContext: FC = () => {
 				const currentSong = queueManager.getCurrentSong();
 				if (currentSong) {
 					// 恢复播放进度
-					emitAudioThread("playAudio", {
-						song: {
-							songId: currentSong.id,
-							filePath: currentSong.filePath,
-						},
-					});
+					queueManager.playAt(queueManager.getCurrentIndex());
 					emitAudioThread("pauseAudio");
 
 					if (position > 0) {
@@ -565,7 +560,10 @@ export const LocalMusicContext: FC = () => {
 				}
 
 				case "trackEnded": {
-					queueManager.advanceForAutoEnd();
+					queueManager.advanceForAutoEnd(
+						evtData.data.musicId,
+						evtData.data.playbackId,
+					);
 					break;
 				}
 
@@ -578,6 +576,9 @@ export const LocalMusicContext: FC = () => {
 						queueManager.toggleShuffle();
 					} else if (evtData.data.command === "toggleRepeat") {
 						queueManager.cycleRepeatMode();
+					} else if (evtData.data.command === "stop") {
+						queueManager.setExternalStopped();
+						lastSyncRef.current = { position: 0, timestamp: performance.now() };
 					}
 					break;
 				}

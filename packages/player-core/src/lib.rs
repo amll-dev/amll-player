@@ -51,7 +51,11 @@ pub enum AudioThreadMessage {
     #[serde(rename_all = "camelCase")]
     SeekAudio { position: f64 },
     #[serde(rename_all = "camelCase")]
-    PlayAudio { song: SongData },
+    PlayAudio {
+        song: SongData,
+        #[serde(default)]
+        playback_id: Option<String>,
+    },
     #[serde(rename_all = "camelCase")]
     SetVolume { volume: f64 },
     #[serde(rename_all = "camelCase")]
@@ -109,7 +113,10 @@ pub enum AudioThreadEvent {
     #[serde(rename_all = "camelCase")]
     AudioPlayFinished { music_id: String },
     #[serde(rename_all = "camelCase")]
-    TrackEnded,
+    TrackEnded {
+        music_id: String,
+        playback_id: String,
+    },
     #[serde(rename_all = "camelCase")]
     HardwareMediaCommand { command: String },
     #[serde(rename_all = "camelCase")]
@@ -123,6 +130,56 @@ pub enum AudioThreadEvent {
     #[serde(rename = "fftData")]
     #[serde(rename_all = "camelCase")]
     FFTData { data: Vec<f32> },
+}
+
+#[cfg(test)]
+mod protocol_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn accepts_legacy_play_request_without_identity() {
+        let message: AudioThreadMessage = serde_json::from_value(json!({
+            "type": "playAudio", "song": { "filePath": "test.flac" }
+        }))
+        .unwrap();
+        assert!(matches!(
+            message,
+            AudioThreadMessage::PlayAudio {
+                playback_id: None,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn play_request_reads_camel_case_identity() {
+        let message: AudioThreadMessage = serde_json::from_value(json!({
+            "type": "playAudio", "song": { "filePath": "test.flac", "songId": "song" },
+            "playbackId": "request"
+        }))
+        .unwrap();
+        match message {
+            AudioThreadMessage::PlayAudio { playback_id, .. } => {
+                assert_eq!(playback_id.as_deref(), Some("request"))
+            }
+            _ => panic!("expected play request"),
+        }
+    }
+
+    #[test]
+    fn track_ended_carries_song_and_request_identity() {
+        let event = AudioThreadEvent::TrackEnded {
+            music_id: "song".into(),
+            playback_id: "request".into(),
+        };
+        assert_eq!(
+            serde_json::to_value(event).unwrap(),
+            json!({
+                "type": "trackEnded", "data": { "musicId": "song", "playbackId": "request" }
+            })
+        );
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]

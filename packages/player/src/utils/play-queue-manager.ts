@@ -1,5 +1,6 @@
 import {
 	isShuffleActiveAtom,
+	musicPlayingAtom,
 	musicPlayingPositionAtom,
 	RepeatMode,
 	repeatModeAtom,
@@ -85,6 +86,7 @@ export class PlayQueueManager {
 	private repeatMode: RepeatMode = RepeatMode.Off;
 	private shuffleActive = false;
 	private playlistId: number | null = null;
+	private currentPlaybackId = "";
 
 	constructor(store: JotaiStore) {
 		this.store = store;
@@ -139,11 +141,13 @@ export class PlayQueueManager {
 		this.currentIndex = index;
 		this.syncToAtoms();
 		const song = this.playList[index];
+		this.currentPlaybackId = crypto.randomUUID();
 		emitAudioThread("playAudio", {
 			song: {
 				songId: song.id,
 				filePath: song.filePath,
 			},
+			playbackId: this.currentPlaybackId,
 		});
 	}
 
@@ -232,8 +236,13 @@ export class PlayQueueManager {
 	 * - 顺序/随机：播放下一首
 	 * - 列表播放完毕（非循环）：停止
 	 */
-	advanceForAutoEnd(): void {
+	advanceForAutoEnd(endedSongId: string, endedPlaybackId: string): void {
 		if (this.playList.length === 0) return;
+		if (!this.currentPlaybackId || endedPlaybackId !== this.currentPlaybackId)
+			return;
+		if (endedSongId !== this.getCurrentSong()?.id) return;
+		// 一个播放请求的结束事件只消费一次，包括列表末尾。
+		this.currentPlaybackId = "";
 
 		if (this.repeatMode === RepeatMode.One) {
 			this.playSongAt(this.currentIndex);
@@ -254,6 +263,13 @@ export class PlayQueueManager {
 		}
 
 		this.playSongAt(nextIndex);
+	}
+
+	/** 系统停止后，迟到的结束事件不再触发下一首。 */
+	setExternalStopped(): void {
+		this.currentPlaybackId = "";
+		this.store.set(musicPlayingAtom, false);
+		this.store.set(musicPlayingPositionAtom, 0);
 	}
 	//#endregion
 
@@ -324,6 +340,8 @@ export class PlayQueueManager {
 		} else if (removeIndex === this.currentIndex) {
 			if (this.playList.length === 0) {
 				this.currentIndex = -1;
+				this.setExternalStopped();
+				emitAudioThread("stopAudio");
 			} else if (this.currentIndex >= this.playList.length) {
 				this.currentIndex = 0;
 			}

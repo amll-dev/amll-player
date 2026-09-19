@@ -89,6 +89,7 @@ async fn main() -> anyhow::Result<()> {
                 file_path,
                 song_id: None,
             },
+            playback_id: None,
         })
         .await?;
 
@@ -103,7 +104,7 @@ async fn main() -> anyhow::Result<()> {
                     AudioThreadEvent::FFTData { .. } => {
                         // 数据量太多就不输出了
                     }
-                    AudioThreadEvent::TrackEnded => {
+                    AudioThreadEvent::TrackEnded { .. } => {
                         println!("播放完成，结束播放");
                         let _ = handler_clone
                             .send_anonymous(AudioThreadMessage::Close)
