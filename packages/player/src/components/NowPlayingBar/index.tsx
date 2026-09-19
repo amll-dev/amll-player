@@ -14,8 +14,6 @@ import lyricIcon from "@iconify/icons-ic/round-lyrics";
 import { Icon } from "@iconify/react";
 import {
 	ListBulletIcon,
-	PauseIcon,
-	PlayIcon,
 	TrackNextIcon,
 	TrackPreviousIcon,
 } from "@radix-ui/react-icons";
@@ -24,13 +22,12 @@ import classNames from "classnames";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { type FC, useLayoutEffect, useRef } from "react";
 import IconForward from "../../assets/icon_forward.svg?react";
-import IconPause from "../../assets/icon_pause.svg?react";
-import IconPlay from "../../assets/icon_play.svg?react";
 import IconRewind from "../../assets/icon_rewind.svg?react";
 import {
 	hideNowPlayingBarAtom,
 	playlistCardOpenedAtom,
 } from "../../states/appAtoms.ts";
+import { AnimatedPlayPauseIcon } from "../AnimatedPlayPauseIcon/index.tsx";
 import { NowPlaylistCard } from "../NowPlaylistCard/index.tsx";
 import styles from "./index.module.css";
 
@@ -163,19 +160,12 @@ export const NowPlayingBar: FC = () => {
 						}}
 						onClick={onPlayOrResume}
 					>
-						{musicPlaying ? (
-							<IconPause
-								style={{
-									scale: "0.75",
-								}}
-							/>
-						) : (
-							<IconPlay
-								style={{
-									scale: "0.75",
-								}}
-							/>
-						)}
+						<AnimatedPlayPauseIcon
+							playing={musicPlaying}
+							style={{
+								scale: "0.75",
+							}}
+						/>
 					</MediaButton>
 					<MediaButton
 						style={{
@@ -218,7 +208,7 @@ export const NowPlayingBar: FC = () => {
 							<TrackPreviousIcon />
 						</IconButton>
 						<IconButton onClick={onPlayOrResume} variant="soft">
-							{musicPlaying ? <PauseIcon /> : <PlayIcon />}
+							<AnimatedPlayPauseIcon playing={musicPlaying} />
 						</IconButton>
 						<IconButton onClick={onRequestNextSong} variant="soft">
 							<TrackNextIcon />
