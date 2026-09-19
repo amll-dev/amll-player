@@ -19,6 +19,31 @@ pub struct SystemMediaManager {
     _dummy_tx: Option<tokio::sync::mpsc::UnboundedSender<SystemMediaEvent>>,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn hardware_play_also_notifies_the_frontend_to_retry_a_failed_load() {
+        let (manager, _) = SystemMediaManager::spawn(None);
+        let (messages, mut received_messages) = tokio::sync::mpsc::unbounded_channel();
+        let (events, mut received_events) = tokio::sync::mpsc::unbounded_channel();
+        manager
+            .handle_event(
+                SystemMediaEvent::new(SystemMediaEventType::Play),
+                &AudioPlayerHandle::new(messages),
+                &events,
+            )
+            .await;
+        assert!(matches!(
+            received_messages.try_recv().unwrap().data(),
+            Some(AudioThreadMessage::ResumeAudio)
+        ));
+        assert!(matches!(received_events.try_recv().unwrap().data(),
+            Some(AudioThreadEvent::HardwareMediaCommand { command }) if command == "play"));
+    }
+}
+
 impl SystemMediaManager {
     pub fn spawn(
         options: Option<NowPlayingOptions>,
@@ -131,11 +156,19 @@ impl SystemMediaManager {
         event_sender: &AudioPlayerEventSender,
     ) {
         let result = match event.type_ {
-            SystemMediaEventType::Play => {
-                player_handler
-                    .send_anonymous(AudioThreadMessage::ResumeAudio)
-                    .await
-            }
+            SystemMediaEventType::Play => player_handler
+                .send_anonymous(AudioThreadMessage::ResumeAudio)
+                .await
+                .and_then(|_| {
+                    event_sender
+                        .send(AudioThreadEventMessage::new(
+                            "".into(),
+                            Some(AudioThreadEvent::HardwareMediaCommand {
+                                command: "play".into(),
+                            }),
+                        ))
+                        .map_err(anyhow::Error::from)
+                }),
             SystemMediaEventType::Pause => {
                 player_handler
                     .send_anonymous(AudioThreadMessage::PauseAudio)
@@ -170,11 +203,19 @@ impl SystemMediaManager {
                     Ok(())
                 }
             }
-            SystemMediaEventType::Stop => {
-                player_handler
-                    .send_anonymous(AudioThreadMessage::StopAudio)
-                    .await
-            }
+            SystemMediaEventType::Stop => player_handler
+                .send_anonymous(AudioThreadMessage::StopAudio)
+                .await
+                .and_then(|_| {
+                    event_sender
+                        .send(AudioThreadEventMessage::new(
+                            "".into(),
+                            Some(AudioThreadEvent::HardwareMediaCommand {
+                                command: "stop".into(),
+                            }),
+                        ))
+                        .map_err(anyhow::Error::from)
+                }),
             SystemMediaEventType::ToggleShuffle => {
                 player_handler
                     .send_anonymous(AudioThreadMessage::ToggleShuffle)

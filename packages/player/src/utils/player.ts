@@ -40,7 +40,10 @@ export type AudioThreadMessageMap = {
 	};
 	playAudio: {
 		song: SongData;
+		playbackId?: string;
+		startPaused?: boolean;
 	};
+	stopAudio: undefined;
 	setVolume: {
 		volume: number;
 	};
@@ -102,6 +105,7 @@ export type AudioThreadEvent =
 	  }
 	| {
 			type: "trackEnded";
+			data: { musicId: string; playbackId: string };
 	  }
 	| {
 			type: "hardwareMediaCommand";
@@ -113,7 +117,7 @@ export type AudioThreadEvent =
 	  }
 	| {
 			type: "loadError";
-			data: { error: string };
+			data: { playbackId: string; error: string };
 	  }
 	| {
 			type: "playError";
@@ -133,41 +137,47 @@ const eventListeners = new Set<
 	EventCallback<AudioThreadEventMessage<AudioThreadEvent>>
 >();
 
-let isInitialized = false;
+let initializationPromise: Promise<void> | undefined;
 
-export async function initAudioThread() {
-	if (isInitialized) {
-		return;
+export function initAudioThread(): Promise<void> {
+	if (initializationPromise) {
+		return initializationPromise;
 	}
-	isInitialized = true;
 
-	console.log(
-		chalk.bgHex("#FF7700").hex("#FFFFFF")(" BACKEND  "),
-		"后台线程连接初始化中",
-	);
+	initializationPromise = (async () => {
+		console.log(
+			chalk.bgHex("#FF7700").hex("#FFFFFF")(" BACKEND  "),
+			"后台线程连接初始化中",
+		);
 
-	await listen<AudioThreadEventMessage<AudioThreadEvent>>(
-		"plugin:player-core-event",
-		(evt) => {
-			const resolve = msgTasks.get(evt.payload.callbackId);
-			if (resolve) {
-				msgTasks.delete(evt.payload.callbackId);
-				resolve(evt.payload.data);
-			}
-
-			eventListeners.forEach((listener) => {
-				try {
-					listener(evt);
-				} catch (e) {
-					console.error("Error in audio event listener callback:", e);
+		await listen<AudioThreadEventMessage<AudioThreadEvent>>(
+			"plugin:player-core-event",
+			(evt) => {
+				const resolve = msgTasks.get(evt.payload.callbackId);
+				if (resolve) {
+					msgTasks.delete(evt.payload.callbackId);
+					resolve(evt.payload.data);
 				}
-			});
-		},
-	);
-	console.log(
-		chalk.bgHex("#FF7700").hex("#FFFFFF")(" BACKEND "),
-		"后台线程连接初始化完成",
-	);
+
+				eventListeners.forEach((listener) => {
+					try {
+						listener(evt);
+					} catch (e) {
+						console.error("Error in audio event listener callback:", e);
+					}
+				});
+			},
+		);
+		console.log(
+			chalk.bgHex("#FF7700").hex("#FFFFFF")(" BACKEND "),
+			"后台线程连接初始化完成",
+		);
+	})().catch((error) => {
+		initializationPromise = undefined;
+		throw error;
+	});
+
+	return initializationPromise;
 }
 
 export const listenAudioThreadEvent = (
@@ -213,6 +223,8 @@ export async function emitAudioThread<T extends keyof AudioThreadMessageMap>(
 		? []
 		: [data: AudioThreadMessageMap[T]]
 ): Promise<void> {
+	await initAudioThread();
+
 	const id = uid(32) + Date.now();
 
 	const payloadData = args[0]
@@ -227,12 +239,14 @@ export async function emitAudioThread<T extends keyof AudioThreadMessageMap>(
 	});
 }
 
-export function emitAudioThreadRet<T extends keyof AudioThreadMessageMap>(
+export async function emitAudioThreadRet<T extends keyof AudioThreadMessageMap>(
 	msgType: T,
 	...args: AudioThreadMessageMap[T] extends undefined
 		? []
 		: [data: AudioThreadMessageMap[T]]
 ): Promise<AudioThreadEvent> {
+	await initAudioThread();
+
 	const id = `${uid(32)}-${Date.now()}`;
 	return new Promise((resolve, reject) => {
 		const timeout = setTimeout(() => {

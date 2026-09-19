@@ -46,6 +46,7 @@ pub struct AudioPlayer {
     current_decoder_handle: Option<FFmpegDecoder>,
     volume: f32,
     current_song: Option<SongData>,
+    current_playback_id: String,
     current_audio_info: Arc<TokioRwLock<AudioInfo>>,
     current_audio_quality: Arc<TokioRwLock<AudioQuality>>,
     playback_state: Arc<ParkingLotRwLock<PlaybackState>>,
@@ -228,6 +229,7 @@ impl AudioPlayer {
             current_decoder_handle: None,
             volume: 1.0,
             current_song: None,
+            current_playback_id: String::new(),
             current_audio_info,
             current_audio_quality,
             playback_state,
@@ -272,6 +274,8 @@ impl AudioPlayer {
                 },
                 _ = check_end_interval.tick() => {
                     if self.cpal_state.track_finished.load(Ordering::Acquire) && self.current_song.is_some() {
+                        let music_id = self.current_song.as_ref().map(SongData::get_id).unwrap_or_default();
+                        let playback_id = std::mem::take(&mut self.current_playback_id);
                         self.current_stream = None;
 
                         {
@@ -287,7 +291,7 @@ impl AudioPlayer {
 
                         let _ = self.is_playing_tx.send(false);
 
-                        if let Err(e) = self.emitter().emit(AudioThreadEvent::TrackEnded).await {
+                        if let Err(e) = self.emitter().emit(AudioThreadEvent::TrackEnded { music_id, playback_id }).await {
                             warn!("发送 TrackEnded 事件失败：{e:?}");
                         }
                     }
@@ -306,12 +310,12 @@ impl AudioPlayer {
                 AudioThreadMessage::ResumeAudio => {
                     if let Some(stream) = &self.current_stream {
                         let _ = stream.play();
+                        let _ = self.is_playing_tx.send(true);
+                        self.media_manager.update_play_state(true);
+                        let _ = emitter
+                            .emit(AudioThreadEvent::PlayStatus { is_playing: true })
+                            .await;
                     }
-                    let _ = self.is_playing_tx.send(true);
-                    self.media_manager.update_play_state(true);
-                    let _ = emitter
-                        .emit(AudioThreadEvent::PlayStatus { is_playing: true })
-                        .await;
                 }
                 AudioThreadMessage::PauseAudio => {
                     if let Some(stream) = &self.current_stream {
@@ -375,9 +379,17 @@ impl AudioPlayer {
                         warn!("找不到解码器句柄, 无法执行跳转");
                     }
                 }
-                AudioThreadMessage::PlayAudio { song } => {
+                AudioThreadMessage::PlayAudio {
+                    song,
+                    playback_id,
+                    start_paused,
+                } => {
+                    self.current_playback_id = playback_id.clone().unwrap_or_default();
                     self.current_song = Some(song.clone());
-                    self.start_playing_song(true).await?;
+                    if let Err(error) = self.start_playing_song(true, *start_paused).await {
+                        self.fail_playback_start(&emitter, &error, !start_paused)
+                            .await;
+                    }
                 }
                 AudioThreadMessage::SetVolume { volume } => {
                     self.volume = (*volume as f32).clamp(0.0, 1.0);
@@ -404,6 +416,11 @@ impl AudioPlayer {
                 }
                 AudioThreadMessage::StopAudio => {
                     self.current_stream = None;
+                    self.current_song = None;
+                    self.current_playback_id.clear();
+                    self.cpal_state
+                        .track_finished
+                        .store(false, Ordering::Release);
 
                     {
                         let mut state = self.playback_state.write();
@@ -446,7 +463,55 @@ impl AudioPlayer {
         Ok(())
     }
 
-    async fn start_playing_song(&mut self, clear_sink: bool) -> anyhow::Result<()> {
+    async fn fail_playback_start(
+        &mut self,
+        emitter: &AudioPlayerEventEmitter,
+        error: &anyhow::Error,
+        should_publish_stopped: bool,
+    ) {
+        warn!("启动音频播放失败：{error:#}");
+        let playback_id = std::mem::take(&mut self.current_playback_id);
+        if let Some(token) = self.current_song_token.take() {
+            token.cancel();
+        }
+        self.current_stream = None;
+        self.current_decoder_handle = None;
+        self.current_song = None;
+        self.cpal_state
+            .track_finished
+            .store(false, Ordering::Release);
+        self.cpal_state.consumed_frames.store(0, Ordering::Release);
+        {
+            let mut state = self.playback_state.write();
+            state.base_time_sec = 0.0;
+            state.samples_counter = None;
+        }
+        let _ = self.is_playing_tx.send(false);
+        self.media_manager.update_play_state(false);
+        if should_publish_stopped {
+            if let Err(error) = emitter
+                .emit(AudioThreadEvent::PlayStatus { is_playing: false })
+                .await
+            {
+                warn!("发送加载失败后的播放停止状态失败：{error:?}");
+            }
+        }
+        if let Err(error) = emitter
+            .emit(AudioThreadEvent::LoadError {
+                playback_id,
+                error: format!("{error:#}"),
+            })
+            .await
+        {
+            warn!("发送音频加载失败事件失败：{error:?}");
+        }
+    }
+
+    async fn start_playing_song(
+        &mut self,
+        clear_sink: bool,
+        start_paused: bool,
+    ) -> anyhow::Result<()> {
         if clear_sink {
             self.current_stream = None;
             self.current_decoder_handle = None;
@@ -543,15 +608,17 @@ impl AudioPlayer {
             None,
         )?;
 
-        stream.play()?;
+        if !start_paused {
+            stream.play()?;
+        }
 
         self.current_stream = Some(stream);
 
         self.spawn_fft_pacemaker(spawned.fft_consumer, target_sample_rate);
 
         self.media_manager.update_metadata(&info);
-        self.media_manager.update_play_state(true);
-        let _ = self.is_playing_tx.send(true);
+        self.media_manager.update_play_state(!start_paused);
+        let _ = self.is_playing_tx.send(!start_paused);
 
         self.emitter()
             .emit(AudioThreadEvent::LoadAudio {
@@ -561,7 +628,9 @@ impl AudioPlayer {
             })
             .await?;
         self.emitter()
-            .emit(AudioThreadEvent::PlayStatus { is_playing: true })
+            .emit(AudioThreadEvent::PlayStatus {
+                is_playing: !start_paused,
+            })
             .await?;
 
         Ok(())
