@@ -1,0 +1,16 @@
+diff --git a/dist/style.css b/dist/style.css
+index 70b5c0350240b7d82347f0f527659683f7b0b9e9..fd9d9f95d25ed275ad5e4568b02e33354a469aa9 100644
+--- a/dist/style.css
++++ b/dist/style.css
+@@ -140,6 +140,11 @@
+   }
+ }
+ 
++.FmKaba_lyricMainLine span.FmKaba_emphasizeWrapper > span:not(.FmKaba_emphasize) {
++  margin: -.1em;
++  padding: .1em;
++}
++
+ .FmKaba_lyricBgLine {
+   opacity: .4;
+   font-size: max(calc(1em * var(--amll-lp-bg-line-scale, .7)), 10px);

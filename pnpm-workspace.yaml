@@ -25,3 +25,5 @@ minimumReleaseAgeExclude:
   - '@applemusic-like-lyrics/lyric@1.0.2'
   - '@applemusic-like-lyrics/react-full@0.4.2'
   - '@applemusic-like-lyrics/react@0.5.2'
+patchedDependencies:
+  '@applemusic-like-lyrics/core@0.5.2': patches/@applemusic-like-lyrics__core@0.5.2.patch
