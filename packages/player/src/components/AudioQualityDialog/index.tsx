@@ -10,6 +10,9 @@ export const AudioQualityDialog: FC = () => {
 		audioQualityDialogOpenedAtom,
 	);
 	const musicQuality = useAtomValue(musicQualityAtom);
+	const bitDepth = (
+		musicQuality as typeof musicQuality & { bitsPerSample?: number }
+	).bitsPerSample;
 
 	return (
 		<Dialog.Root
@@ -29,16 +32,30 @@ export const AudioQualityDialog: FC = () => {
 						<DataList.Value>{musicQuality.codec}</DataList.Value>
 					</DataList.Item>
 					<DataList.Item>
-						<Trans i18nKey="amll.audioQuality.channels">音频通道数量</Trans>
+						<DataList.Label>
+							<Trans i18nKey="amll.audioQuality.channels">音频通道数量</Trans>
+						</DataList.Label>
 						<DataList.Value>{musicQuality.channels}</DataList.Value>
 					</DataList.Item>
 					<DataList.Item>
-						<Trans i18nKey="amll.audioQuality.sampleRate">采样率</Trans>
+						<DataList.Label>
+							<Trans i18nKey="amll.audioQuality.sampleRate">采样率</Trans>
+						</DataList.Label>
 						<DataList.Value>{musicQuality.sampleRate} hz</DataList.Value>
 					</DataList.Item>
 					<DataList.Item>
-						<Trans i18nKey="amll.audioQuality.sampleFormat">采样格式</Trans>
+						<DataList.Label>
+							<Trans i18nKey="amll.audioQuality.sampleFormat">采样格式</Trans>
+						</DataList.Label>
 						<DataList.Value>{musicQuality.sampleFormat}</DataList.Value>
+					</DataList.Item>
+					<DataList.Item>
+						<DataList.Label>
+							<Trans i18nKey="amll.audioQuality.bitDepth">位深</Trans>
+						</DataList.Label>
+						<DataList.Value>
+							{bitDepth && bitDepth > 0 ? `${bitDepth} bit` : "-"}
+						</DataList.Value>
 					</DataList.Item>
 				</DataList.Root>
 				<Separator size="4" my="3" />

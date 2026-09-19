@@ -1,6 +1,7 @@
 {
 	"amll": {
 		"audioQuality": {
+			"bitDepth": "ビット深度",
 			"channels": "音频通道数量",
 			"codec": "音频解码器",
 			"sampleFormat": "采样格式",
@@ -467,14 +468,32 @@
 		},
 		"song": {
 			"basic": {
+				"album": "アルバム",
+				"albumArtist": "アルバムアーティスト",
+				"composer": "作曲",
+				"copyFilePath": "ファイルパスをコピー",
+				"copyright": "著作権",
+				"discNumber": "ディスク番号",
+				"encoder": "エンコーダー",
+				"fileMetadataError": "元の音楽ファイル情報を読み取れません：{message}",
+				"fileModifiedAt": "ファイル更新日時",
+				"fileSize": "ファイルサイズ",
+				"genre": "ジャンル",
+				"loadingFileMetadata": "元の音楽ファイル情報を読み込み中…",
+				"lyricist": "作詞",
 				"musicDuration": "音乐时长",
 				"musicFilePath": "音乐文件路径",
 				"musicId": "音乐 ID",
+				"noFileMetadata": "元の音楽ファイルに表示可能なメタデータタグがありません",
+				"originalFileMetadata": "元ファイルのメタデータ",
+				"publisher": "発売元",
+				"recordingDate": "日付",
 				"tabs": {
 					"basic": "基本",
 					"lyric": "歌词",
 					"metadata": "元数据"
-				}
+				},
+				"trackNumber": "トラック番号"
 			},
 			"lyric": {
 				"importFromFile": "从本地文件导入歌词",

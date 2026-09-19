@@ -1,3 +1,5 @@
+use std::{collections::BTreeMap, time::UNIX_EPOCH};
+
 use amll_player_core::AudioInfo;
 use anyhow::Context;
 use ffmpeg_audio::AudioReader;
@@ -17,6 +19,92 @@ pub struct MusicInfo {
     pub lyric: String,
     pub cover_path: String,
     pub duration: f64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalMusicFileMetadata {
+    pub tags: BTreeMap<String, String>,
+    pub codec: Option<String>,
+    pub sample_format: Option<String>,
+    pub sample_rate: Option<i32>,
+    pub channels: Option<i32>,
+    pub bit_rate: Option<i64>,
+    pub bits_per_sample: Option<i32>,
+    pub file_size: Option<u64>,
+    pub modified_at: Option<u64>,
+}
+
+const MAX_FILE_METADATA_TAGS: usize = 256;
+const MAX_FILE_METADATA_KEY_CHARS: usize = 128;
+const MAX_FILE_METADATA_VALUE_CHARS: usize = 4096;
+const JS_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
+const JS_DATE_MAX_MILLISECONDS: u64 = 8_640_000_000_000_000;
+
+fn normalize_file_metadata_key(key: &str) -> String {
+    key.chars()
+        .filter(|character| character.is_alphanumeric())
+        .flat_map(|character| character.to_lowercase())
+        .collect()
+}
+
+fn is_hidden_file_metadata_key(key: &str) -> bool {
+    matches!(
+        normalize_file_metadata_key(key).as_str(),
+        "title"
+            | "tracktitle"
+            | "titlesort"
+            | "sorttitle"
+            | "artist"
+            | "artists"
+            | "author"
+            | "performer"
+            | "artistsort"
+            | "sortartist"
+            | "lyric"
+            | "lyrics"
+            | "unsyncedlyrics"
+            | "syncedlyrics"
+            | "metadatablockpicture"
+            | "cover"
+            | "coverart"
+            | "picture"
+            | "attachedpic"
+    )
+}
+
+fn truncate_file_metadata_text(value: &str, max_chars: usize) -> String {
+    let mut characters = value.chars();
+    let mut result: String = characters.by_ref().take(max_chars).collect();
+    if characters.next().is_some() {
+        result.push('…');
+    }
+    result
+}
+
+fn sanitize_file_metadata_tags(
+    tags: impl IntoIterator<Item = (String, String)>,
+) -> BTreeMap<String, String> {
+    let mut sanitized = tags
+        .into_iter()
+        .filter_map(|(key, value)| {
+            let key = key.trim();
+            if key.is_empty() || is_hidden_file_metadata_key(key) {
+                return None;
+            }
+            let value = value.trim();
+            if value.is_empty() {
+                return None;
+            }
+            Some((
+                truncate_file_metadata_text(key, MAX_FILE_METADATA_KEY_CHARS),
+                truncate_file_metadata_text(value, MAX_FILE_METADATA_VALUE_CHARS),
+            ))
+        })
+        .collect::<Vec<_>>();
+    sanitized.sort_by(|left, right| left.0.cmp(&right.0));
+    sanitized.truncate(MAX_FILE_METADATA_TAGS);
+    sanitized.into_iter().collect()
 }
 
 impl MusicInfo {
@@ -177,6 +265,51 @@ pub async fn read_local_music_metadata(
     }
 
     Ok(music_info)
+}
+
+#[tauri::command]
+pub async fn read_local_music_file_metadata(
+    file_path: tauri_plugin_fs::FilePath,
+) -> Result<LocalMusicFileMetadata, String> {
+    let path = file_path
+        .as_path()
+        .context("Invalid file path")
+        .map_err(|e| e.to_string())?
+        .to_path_buf();
+
+    tokio::task::spawn_blocking(move || -> anyhow::Result<LocalMusicFileMetadata> {
+        let file_metadata = std::fs::metadata(&path)
+            .with_context(|| format!("无法读取文件信息: {}", path.display()))?;
+        let file = std::fs::File::open(&path)
+            .with_context(|| format!("无法打开文件: {}", path.display()))?;
+        let reader = AudioReader::new(file)
+            .with_context(|| format!("无法初始化音频解码器: {}", path.display()))?;
+        let source_info = reader.source_info();
+        let modified_at = file_metadata
+            .modified()
+            .ok()
+            .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+            .and_then(|duration| u64::try_from(duration.as_millis()).ok())
+            .filter(|milliseconds| *milliseconds <= JS_DATE_MAX_MILLISECONDS);
+
+        Ok(LocalMusicFileMetadata {
+            tags: sanitize_file_metadata_tags(reader.metadata()),
+            codec: source_info.codec_name.clone(),
+            sample_format: source_info.sample_fmt.clone(),
+            sample_rate: (source_info.sample_rate > 0).then_some(source_info.sample_rate),
+            channels: (source_info.channels > 0).then_some(source_info.channels),
+            bit_rate: (source_info.bit_rate > 0
+                && source_info.bit_rate <= JS_MAX_SAFE_INTEGER as i64)
+                .then_some(source_info.bit_rate),
+            bits_per_sample: (source_info.bits_per_sample > 0)
+                .then_some(source_info.bits_per_sample),
+            file_size: (file_metadata.len() <= JS_MAX_SAFE_INTEGER).then_some(file_metadata.len()),
+            modified_at,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

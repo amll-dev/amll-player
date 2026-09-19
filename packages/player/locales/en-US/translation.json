@@ -1,6 +1,7 @@
 {
 	"amll": {
 		"audioQuality": {
+			"bitDepth": "Bit depth",
 			"channels": "音频通道数量",
 			"codec": "Audio codec",
 			"sampleFormat": "Sample format",
@@ -469,14 +470,32 @@
 		},
 		"song": {
 			"basic": {
+				"album": "Album",
+				"albumArtist": "Album artist",
+				"composer": "Composer",
+				"copyFilePath": "Copy file path",
+				"copyright": "Copyright",
+				"discNumber": "Disc number",
+				"encoder": "Encoder",
+				"fileMetadataError": "Unable to read the original music file information: {message}",
+				"fileModifiedAt": "File modified",
+				"fileSize": "File size",
+				"genre": "Genre",
+				"loadingFileMetadata": "Reading original music file information…",
+				"lyricist": "Lyricist",
 				"musicDuration": "Duration",
 				"musicFilePath": "File Path",
 				"musicId": "Music ID",
+				"noFileMetadata": "The original music file has no metadata tags to display",
+				"originalFileMetadata": "Original file metadata",
+				"publisher": "Publisher",
+				"recordingDate": "Date",
 				"tabs": {
 					"basic": "Basics",
 					"lyric": "Lyrics",
 					"metadata": "Metadata"
-				}
+				},
+				"trackNumber": "Track number"
 			},
 			"lyric": {
 				"importFromFile": "Import lyrics from file",

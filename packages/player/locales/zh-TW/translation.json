@@ -1,6 +1,7 @@
 {
 	"amll": {
 		"audioQuality": {
+			"bitDepth": "位元深度",
 			"channels": "音訊通道數量",
 			"codec": "音訊解碼器",
 			"sampleFormat": "取樣格式",
@@ -467,14 +468,32 @@
 		},
 		"song": {
 			"basic": {
+				"album": "專輯",
+				"albumArtist": "專輯藝術家",
+				"composer": "作曲",
+				"copyFilePath": "複製檔案路徑",
+				"copyright": "版權",
+				"discNumber": "碟號",
+				"encoder": "編碼器",
+				"fileMetadataError": "無法讀取原始音樂檔案資訊：{message}",
+				"fileModifiedAt": "檔案修改時間",
+				"fileSize": "檔案大小",
+				"genre": "流派",
+				"loadingFileMetadata": "正在讀取原始音樂檔案資訊…",
+				"lyricist": "作詞",
 				"musicDuration": "音樂時長",
 				"musicFilePath": "音樂文件路徑",
 				"musicId": "音樂 ID",
+				"noFileMetadata": "原始音樂檔案中沒有可顯示的後設資料標籤",
+				"originalFileMetadata": "原始檔案後設資料",
+				"publisher": "發行方",
+				"recordingDate": "日期",
 				"tabs": {
 					"basic": "基本",
 					"lyric": "歌詞",
 					"metadata": "後設資料"
-				}
+				},
+				"trackNumber": "音軌號"
 			},
 			"lyric": {
 				"importFromFile": "从本地文件导入歌词",

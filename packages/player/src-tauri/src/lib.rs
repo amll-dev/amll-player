@@ -255,6 +255,7 @@ pub fn run() {
             player::set_media_controls_enabled,
             music_info::resolve_content_uri,
             music_info::read_local_music_metadata,
+            music_info::read_local_music_file_metadata,
             music_info::save_cover_from_path,
             restart_app,
             ttml_db::sync_lyrics,

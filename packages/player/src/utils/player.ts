@@ -17,6 +17,18 @@ export interface AudioQuality {
 	codec?: string;
 }
 
+export interface LocalMusicFileMetadata {
+	tags: Record<string, string>;
+	codec: string | null;
+	sampleFormat: string | null;
+	sampleRate: number | null;
+	channels: number | null;
+	bitRate: number | null;
+	bitsPerSample: number | null;
+	fileSize: number | null;
+	modifiedAt: number | null;
+}
+
 export interface AudioInfo {
 	name: string;
 	artist: string;
@@ -194,6 +206,12 @@ export async function readLocalMusicMetadata(filePath: string): Promise<{
 	duration: number;
 }> {
 	return await invoke("read_local_music_metadata", { filePath });
+}
+
+export async function readLocalMusicFileMetadata(
+	filePath: string,
+): Promise<LocalMusicFileMetadata> {
+	return await invoke("read_local_music_file_metadata", { filePath });
 }
 
 export async function saveCoverFromPath(

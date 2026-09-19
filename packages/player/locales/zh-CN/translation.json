@@ -1,6 +1,7 @@
 {
 	"amll": {
 		"audioQuality": {
+			"bitDepth": "位深",
 			"channels": "音频通道数量",
 			"codec": "音频解码器",
 			"sampleFormat": "采样格式",
@@ -469,14 +470,32 @@
 		},
 		"song": {
 			"basic": {
+				"album": "专辑",
+				"albumArtist": "专辑艺术家",
+				"composer": "作曲",
+				"copyFilePath": "复制文件路径",
+				"copyright": "版权",
+				"discNumber": "碟号",
+				"encoder": "编码器",
+				"fileMetadataError": "无法读取原始音乐文件信息：{message}",
+				"fileModifiedAt": "文件修改时间",
+				"fileSize": "文件大小",
+				"genre": "流派",
+				"loadingFileMetadata": "正在读取原始音乐文件信息…",
+				"lyricist": "作词",
 				"musicDuration": "音乐时长",
 				"musicFilePath": "音乐文件路径",
 				"musicId": "音乐 ID",
+				"noFileMetadata": "原始音乐文件中没有可显示的元数据标签",
+				"originalFileMetadata": "原始文件元数据",
+				"publisher": "发行方",
+				"recordingDate": "日期",
 				"tabs": {
 					"basic": "基本",
 					"lyric": "歌词",
 					"metadata": "元数据"
-				}
+				},
+				"trackNumber": "音轨号"
 			},
 			"lyric": {
 				"importFromFile": "从本地文件导入歌词",
