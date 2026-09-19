@@ -1,5 +1,4 @@
 import { Button, Callout, Flex, TextField } from "@radix-ui/themes";
-import { open } from "@tauri-apps/plugin-dialog";
 import {
 	type FC,
 	useCallback,
@@ -9,6 +8,7 @@ import {
 } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { db } from "../../utils/db-client.ts";
+import { openFileDialog } from "../../utils/file-dialog.ts";
 import {
 	readLocalMusicMetadata,
 	saveCoverFromPath,
@@ -47,7 +47,7 @@ export const MetadataTabContent: FC = () => {
 
 	const uploadCoverAsImage = useCallback(async () => {
 		if (song === undefined) return;
-		const selected = await open({
+		const selected = await openFileDialog({
 			multiple: false,
 			filters: [
 				{
