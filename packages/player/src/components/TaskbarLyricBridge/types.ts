@@ -2,6 +2,7 @@ import type { LyricLine } from "@applemusic-like-lyrics/core";
 import type { ArtistStateEntry } from "@applemusic-like-lyrics/react-full";
 
 export interface TaskbarLyricMetadataPayload {
+	musicId: string;
 	musicName: string;
 	musicArtists: ArtistStateEntry[];
 	musicAlbumName: string;
