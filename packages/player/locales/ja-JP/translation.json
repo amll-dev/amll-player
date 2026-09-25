@@ -314,6 +314,22 @@
 				"backgroundRenderer": {
 					"label": "背景渲染器"
 				},
+				"isolation": {
+					"dithering": {
+						"description": "",
+						"label": ""
+					},
+					"lightWave": {
+						"description": "",
+						"label": ""
+					},
+					"paletteAlgorithm": {
+						"auto": "",
+						"description": "",
+						"label": "",
+						"octtree": ""
+					}
+				},
 				"lyricBackgroundColor": {
 					"description": "等同于放入 background 样式的字符串值，默认为 #111111",
 					"label": "CSS 背景属性值"
@@ -332,6 +348,7 @@
 				},
 				"menu": {
 					"cssBackground": "CSS 背景",
+					"isolationRenderer": "",
 					"meshGradientRenderer": "网格渐变渲染器",
 					"pixiRenderer": "PixiJS 渲染器",
 					"titaniumRenderer": "チタン流砂レンダラー"

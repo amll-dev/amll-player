@@ -316,6 +316,22 @@
 				"backgroundRenderer": {
 					"label": "背景渲染器"
 				},
+				"isolation": {
+					"dithering": {
+						"description": "叠加极弱噪声消除渐变色带",
+						"label": "抖动"
+					},
+					"lightWave": {
+						"description": "让渐变的明度随时间波动",
+						"label": "光波效果"
+					},
+					"paletteAlgorithm": {
+						"auto": "自动择优（K-Means / 八叉树）",
+						"description": "从专辑图中提取背景配色所使用的算法",
+						"label": "取色算法",
+						"octtree": "八叉树"
+					}
+				},
 				"lyricBackgroundColor": {
 					"description": "等同于放入 background 样式的字符串值，默认为 #111111",
 					"label": "CSS 背景属性值"
@@ -334,6 +350,7 @@
 				},
 				"menu": {
 					"cssBackground": "CSS 背景",
+					"isolationRenderer": "Isolation 渲染器",
 					"meshGradientRenderer": "网格渐变渲染器",
 					"pixiRenderer": "PixiJS 渲染器",
 					"titaniumRenderer": "钛金属流沙渲染器"

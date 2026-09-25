@@ -1,4 +1,5 @@
 import { branch, commit } from "virtual:git-metadata-plugin";
+import type { PaletteAlgorithm } from "@applemusic-like-lyrics/core";
 import {
 	BACKGROUND_RENDERERS,
 	CSS_BACKGROUND_RENDERER_ID,
@@ -11,6 +12,7 @@ import {
 	enableLyricSwapTransRomanLineAtom,
 	enableLyricTranslationLineAtom,
 	fftDataRangeAtom,
+	isolationRendererOptionsAtom,
 	LYRIC_BACKGROUND_RENDERER_STORAGE_KEY,
 	LyricSizePreset,
 	lyricBackgroundFPSAtom,
@@ -834,6 +836,87 @@ const MusicInfoAppearanceSettings = () => {
 	);
 };
 
+const IsolationRendererSettings = () => {
+	const { t } = useTranslation();
+	const [options, setOptions] = useAtom(isolationRendererOptionsAtom);
+
+	return (
+		<>
+			<SettingEntry
+				label={t(
+					"page.settings.lyricBackground.isolation.paletteAlgorithm.label",
+					"取色算法",
+				)}
+				description={t(
+					"page.settings.lyricBackground.isolation.paletteAlgorithm.description",
+					"从专辑图中提取背景配色所使用的算法",
+				)}
+			>
+				<Select.Root
+					value={options.paletteAlgorithm}
+					onValueChange={(v) =>
+						setOptions((prev) => ({
+							...prev,
+							paletteAlgorithm: v as PaletteAlgorithm,
+						}))
+					}
+				>
+					<Select.Trigger />
+					<Select.Content>
+						<Select.Item value="auto">
+							{t(
+								"page.settings.lyricBackground.isolation.paletteAlgorithm.auto",
+								"自动择优（K-Means / 八叉树）",
+							)}
+						</Select.Item>
+						<Select.Item value="kmeans">K-Means</Select.Item>
+						<Select.Item value="octtree">
+							{t(
+								"page.settings.lyricBackground.isolation.paletteAlgorithm.octtree",
+								"八叉树",
+							)}
+						</Select.Item>
+					</Select.Content>
+				</Select.Root>
+			</SettingEntry>
+			<SettingEntry
+				label={t(
+					"page.settings.lyricBackground.isolation.lightWave.label",
+					"光波效果",
+				)}
+				description={t(
+					"page.settings.lyricBackground.isolation.lightWave.description",
+					"让渐变的明度随时间波动",
+				)}
+			>
+				<Switch
+					checked={options.lightWave}
+					onCheckedChange={(lightWave) =>
+						setOptions((prev) => ({ ...prev, lightWave }))
+					}
+				/>
+			</SettingEntry>
+			<SettingEntry
+				label={t(
+					"page.settings.lyricBackground.isolation.dithering.label",
+					"抖动",
+				)}
+				description={t(
+					"page.settings.lyricBackground.isolation.dithering.description",
+					"叠加极弱噪声消除渐变色带",
+				)}
+			>
+				<Switch
+					checked={options.dithering}
+					onCheckedChange={(dithering) =>
+						setOptions((prev) => ({ ...prev, dithering }))
+					}
+				/>
+			</SettingEntry>
+		</>
+	);
+};
+
 const LyricBackgroundSettings = () => {
 	const { t } = useTranslation();
 	const [backgroundRendererValue, setBackgroundRendererValue] = useAtom(
@@ -857,6 +940,13 @@ const LyricBackgroundSettings = () => {
 					"PixiJS 渲染器",
 				),
 				value: "pixi",
+			},
+			{
+				label: t(
+					"page.settings.lyricBackground.menu.isolationRenderer",
+					"Isolation 渲染器",
+				),
+				value: "isolation",
 			},
 			{
 				label: t(
@@ -981,6 +1071,9 @@ const LyricBackgroundSettings = () => {
 						)}
 						configAtom={lyricBackgroundStaticModeAtom}
 					/>
+					{selectedRendererId === "isolation" && (
+						<IsolationRendererSettings />
+					)}
 				</>
 			)}
 		</>
@@ -1251,9 +1344,7 @@ const ContributorsSection: FC = () => {
 
 	return (
 		<Box my="4">
-			<SubTitle my="2">
-				{t("page.about.contributorsTitle", "贡献者")}
-			</SubTitle>
+			<SubTitle my="2">{t("page.about.contributorsTitle", "贡献者")}</SubTitle>
 			<Grid
 				style={{ gridTemplateColumns: "repeat(auto-fill, minmax(20rem, 1fr))" }}
 				gap="3"
