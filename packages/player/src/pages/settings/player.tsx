@@ -70,7 +70,6 @@ import { Trans, useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { router } from "../../router.tsx";
 import {
-	advanceLyricDynamicLyricTimeAtom,
 	availableLanguagesAtom,
 	BottomLyricDisplayMode,
 	bottomLyricDisplayModeAtom,
@@ -80,6 +79,12 @@ import {
 	enableMediaControlsAtom,
 	enableTaskbarLyricAtom,
 	languageAtom,
+	optimizeCleanUnintentionalOverlapsAtom,
+	optimizeConvertExcessiveBackgroundLinesAtom,
+	optimizeNormalizeSpacesAtom,
+	optimizeResetLineTimestampsAtom,
+	optimizeSyncMainAndBackgroundLinesAtom,
+	optimizeTryAdvanceStartTimeAtom,
 	showStatJSFrameAtom,
 	taskbarLyricAlignSettingAtom,
 	taskbarLyricModeSettingAtom,
@@ -616,17 +621,6 @@ const LyricAppearanceSettings = () => {
 				)}
 				configAtom={enableLyricLineSpringAnimationAtom}
 			/>
-			<SwitchSettings
-				label={t(
-					"page.settings.lyricAppearance.advanceLyricDynamicLyricTime.label",
-					"提前歌词行时序",
-				)}
-				description={t(
-					"page.settings.lyricAppearance.advanceLyricDynamicLyricTime.description",
-					"即将原歌词行的初始时间时序提前，以便在歌词滚动结束后刚好开始播放（逐词）歌词效果。这个行为更加接近 Apple Music 的效果，但是大部分情况下会导致歌词行末尾的歌词尚未播放完成便被切换到下一行。",
-				)}
-				configAtom={advanceLyricDynamicLyricTimeAtom}
-			/>
 			<NumberSettings
 				placeholder="0.5"
 				type="number"
@@ -1034,6 +1028,83 @@ const OthersSettings = () => {
 	);
 };
 
+const NicheOptionsSettings = () => {
+	const { t } = useTranslation();
+	return (
+		<>
+			<SubTitle>
+				<Trans i18nKey="page.settings.nicheOptions.subtitle">小众选项</Trans>
+			</SubTitle>
+			<SwitchSettings
+				label={t(
+					"page.settings.nicheOptions.normalizeSpaces.label",
+					"规范化歌词空格",
+				)}
+				description={t(
+					"page.settings.nicheOptions.normalizeSpaces.description",
+					"将歌词中多个连续空格替换为一个空格，让排版更整齐。默认开启。",
+				)}
+				configAtom={optimizeNormalizeSpacesAtom}
+			/>
+			<SwitchSettings
+				label={t(
+					"page.settings.nicheOptions.resetLineTimestamps.label",
+					"同步行级时间戳到字级",
+				)}
+				description={t(
+					"page.settings.nicheOptions.resetLineTimestamps.description",
+					"将歌词行的起止时间强制设为该行首尾歌词字的时间戳，主要给 TTML 解析器打补丁。默认开启。",
+				)}
+				configAtom={optimizeResetLineTimestampsAtom}
+			/>
+			<SwitchSettings
+				label={t(
+					"page.settings.nicheOptions.convertExcessiveBackgroundLines.label",
+					"合并连续背景人声行",
+				)}
+				description={t(
+					"page.settings.nicheOptions.convertExcessiveBackgroundLines.description",
+					"把多行连续的背景人声转换为单行背景人声 + 主歌词行的形式。默认开启。",
+				)}
+				configAtom={optimizeConvertExcessiveBackgroundLinesAtom}
+			/>
+			<SwitchSettings
+				label={t(
+					"page.settings.nicheOptions.syncMainAndBackgroundLines.label",
+					"同步主歌词与背景人声时间",
+				)}
+				description={t(
+					"page.settings.nicheOptions.syncMainAndBackgroundLines.description",
+					"取主歌词与其背景人声中最早的开始时间和最晚的结束时间，应用给双方。默认开启。",
+				)}
+				configAtom={optimizeSyncMainAndBackgroundLinesAtom}
+			/>
+			<SwitchSettings
+				label={t(
+					"page.settings.nicheOptions.cleanUnintentionalOverlaps.label",
+					"清洗非刻意的时间重叠",
+				)}
+				description={t(
+					"page.settings.nicheOptions.cleanUnintentionalOverlaps.description",
+					"若相邻两行时间轴存在非刻意的重叠，则截断上一行结束时间，避免不必要的多行高亮。默认开启。",
+				)}
+				configAtom={optimizeCleanUnintentionalOverlapsAtom}
+			/>
+			<SwitchSettings
+				label={t(
+					"page.settings.nicheOptions.tryAdvanceStartTime.label",
+					"提前歌词行开始时间",
+				)}
+				description={t(
+					"page.settings.nicheOptions.tryAdvanceStartTime.description",
+					"尝试让歌词行提前开始，以便歌词滚动到位后刚好播放逐词效果；有重叠时会减少提前量。更接近 Apple Music 的效果，但可能导致歌词行末尾尚未播放完就切换到下一行。默认开启。",
+				)}
+				configAtom={optimizeTryAdvanceStartTimeAtom}
+			/>
+		</>
+	);
+};
+
 const TaskbarLyricSettings = () => {
 	const { t } = useTranslation();
 	const [enabled, setEnabled] = useAtom(enableTaskbarLyricAtom);
@@ -1397,6 +1468,8 @@ export const PlayerSettingsTab: FC<{ category: string }> = ({ category }) => {
 			return <LyricBackgroundSettings />;
 		case "others":
 			return <OthersSettings />;
+		case "nicheOptions":
+			return <NicheOptionsSettings />;
 		case "taskbarLyric":
 			return <TaskbarLyricSettings />;
 		case "about":

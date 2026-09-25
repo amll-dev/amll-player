@@ -422,6 +422,33 @@
 					}
 				}
 			},
+			"nicheOptions": {
+				"cleanUnintentionalOverlaps": {
+					"description": "Nếu hai dòng liền kề chồng lấn ngoài ý muốn (chồng lấn dưới 100ms hoặc dưới 10% độ dài dòng tiếp theo), hãy cắt thời gian kết thúc của dòng trước để tránh làm nổi bật nhiều dòng không cần thiết. Bật theo mặc định.",
+					"label": "Làm sạch chồng lấn ngoài ý muốn"
+				},
+				"convertExcessiveBackgroundLines": {
+					"description": "Chuyển nhiều dòng bè (background vocal) liên tiếp thành một dòng bè + một dòng lời chính. Bật theo mặc định.",
+					"label": "Gộp các dòng bè liên tiếp"
+				},
+				"normalizeSpaces": {
+					"description": "Thay nhiều khoảng trắng liên tiếp trong lời bài hát bằng một khoảng trắng để trình bày gọn gàng hơn. Bật theo mặc định.",
+					"label": "Chuẩn hóa khoảng trắng"
+				},
+				"resetLineTimestamps": {
+					"description": "Ép thời gian bắt đầu/kết thúc của dòng lời theo đúng mốc thời gian của từ đầu tiên/cuối cùng, chủ yếu để vá lỗi trình phân tích TTML. Bật theo mặc định.",
+					"label": "Đồng bộ mốc thời gian dòng theo từ"
+				},
+				"subtitle": "Tùy chọn nâng cao",
+				"syncMainAndBackgroundLines": {
+					"description": "Lấy thời gian bắt đầu sớm nhất và kết thúc muộn nhất giữa lời chính và bè, rồi áp dụng cho cả hai. Bật theo mặc định.",
+					"label": "Đồng bộ thời gian lời chính và bè"
+				},
+				"tryAdvanceStartTime": {
+					"description": "Cố gắng bắt đầu dòng lời sớm hơn để hiệu ứng từng từ phát ngay khi dòng cuộn vào vị trí; mức dời sẽ giảm khi các dòng chồng lấn. Gần giống Apple Music hơn, nhưng có thể chuyển sang dòng tiếp theo khi dòng hiện tại chưa hát xong. Bật theo mặc định.",
+					"label": "Dời sớm thời gian bắt đầu dòng lời"
+				}
+			},
 			"others": {
 				"enterAmllDevPage": "Công cụ phát triển trang lời bài hát",
 				"restartProgram": "Khởi động lại chương trình",

@@ -422,6 +422,33 @@
 					}
 				}
 			},
+			"nicheOptions": {
+				"cleanUnintentionalOverlaps": {
+					"description": "若相鄰兩行時間軸存在非刻意的重疊（重疊小於 100ms 或不足下一行時長的 10%），則截斷上一行的結束時間，避免不必要的多行高亮。預設開啟。",
+					"label": "清洗非刻意的時間重疊"
+				},
+				"convertExcessiveBackgroundLines": {
+					"description": "把多行連續的背景人聲轉換為「單行背景人聲 + 主歌詞行」的形式。預設開啟。",
+					"label": "合併連續背景人聲行"
+				},
+				"normalizeSpaces": {
+					"description": "將歌詞中多個連續空格替換為一個空格，讓排版更整齊。預設開啟。",
+					"label": "規範化歌詞空格"
+				},
+				"resetLineTimestamps": {
+					"description": "將歌詞行的起止時間強制設為該行首尾歌詞字的時間戳，主要給 TTML 解析器打補丁。預設開啟。",
+					"label": "同步行級時間戳到字級"
+				},
+				"subtitle": "小眾選項",
+				"syncMainAndBackgroundLines": {
+					"description": "取主歌詞與其背景人聲中最早的開始時間和最晚的結束時間，套用給雙方。預設開啟。",
+					"label": "同步主歌詞與背景人聲時間"
+				},
+				"tryAdvanceStartTime": {
+					"description": "嘗試讓歌詞行提前開始，以便歌詞滾動到位後剛好播放逐詞效果；有重疊時會減少提前量。更接近 Apple Music 的效果，但可能導致歌詞行末尾尚未播放完就切換到下一行。預設開啟。",
+					"label": "提前歌詞行開始時間"
+				}
+			},
 			"others": {
 				"enterAmllDevPage": "歌詞介面開發用工具",
 				"restartProgram": "重啟程序",

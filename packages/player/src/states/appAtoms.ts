@@ -1,3 +1,4 @@
+import type { OptimizeLyricOptions } from "@applemusic-like-lyrics/core";
 import { invoke } from "@tauri-apps/api/core";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { atom } from "jotai";
@@ -26,10 +27,46 @@ export const musicContextModeAtom = atomWithStorage(
 	MusicContextMode.Local,
 );
 
-export const advanceLyricDynamicLyricTimeAtom = atomWithStorage(
-	"amll-player.advanceLyricDynamicLyricTimeAtom",
-	false,
+export const optimizeNormalizeSpacesAtom = atomWithStorage(
+	"amll-player.optimize.normalizeSpaces",
+	true,
 );
+
+export const optimizeResetLineTimestampsAtom = atomWithStorage(
+	"amll-player.optimize.resetLineTimestamps",
+	true,
+);
+
+export const optimizeConvertExcessiveBackgroundLinesAtom = atomWithStorage(
+	"amll-player.optimize.convertExcessiveBackgroundLines",
+	true,
+);
+
+export const optimizeSyncMainAndBackgroundLinesAtom = atomWithStorage(
+	"amll-player.optimize.syncMainAndBackgroundLines",
+	true,
+);
+
+export const optimizeCleanUnintentionalOverlapsAtom = atomWithStorage(
+	"amll-player.optimize.cleanUnintentionalOverlaps",
+	true,
+);
+
+export const optimizeTryAdvanceStartTimeAtom = atomWithStorage(
+	"amll-player.optimize.tryAdvanceStartTime",
+	true,
+);
+
+export const optimizeLyricOptionsAtom = atom<OptimizeLyricOptions>((get) => ({
+	normalizeSpaces: get(optimizeNormalizeSpacesAtom),
+	resetLineTimestamps: get(optimizeResetLineTimestampsAtom),
+	convertExcessiveBackgroundLines: get(
+		optimizeConvertExcessiveBackgroundLinesAtom,
+	),
+	syncMainAndBackgroundLines: get(optimizeSyncMainAndBackgroundLinesAtom),
+	cleanUnintentionalOverlaps: get(optimizeCleanUnintentionalOverlapsAtom),
+	tryAdvanceStartTime: get(optimizeTryAdvanceStartTimeAtom),
+}));
 
 const enableMediaControlsInternalAtom = atomWithStorage(
 	"amll-player.enableMediaControls",
