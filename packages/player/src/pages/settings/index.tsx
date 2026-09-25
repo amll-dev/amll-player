@@ -9,7 +9,7 @@ import {
 	MixerHorizontalIcon,
 	QuestionMarkCircledIcon,
 	TextAlignJustifyIcon,
-	WrenchIcon,
+	SliderIcon,
 } from "@radix-ui/react-icons";
 import {
 	Box,
@@ -124,7 +124,7 @@ const SidebarContent: FC<{ onNavigate: (pageId: string) => void }> = ({
 			{
 				id: "nicheOptions",
 				label: t("page.settings.nicheOptions.subtitle", "小众选项"),
-				icon: <WrenchIcon width={20} height={20} />,
+				icon: <SliderIcon width={20} height={20} />,
 			},
 		];
 
