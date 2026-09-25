@@ -316,18 +316,18 @@
 				},
 				"isolation": {
 					"dithering": {
-						"description": "",
-						"label": ""
+						"description": "ごく弱いノイズを重ねてグラデーションのバンディングを解消します",
+						"label": "ディザリング"
 					},
 					"lightWave": {
-						"description": "",
-						"label": ""
+						"description": "グラデーションの明るさを時間とともに揺らがせます",
+						"label": "光波エフェクト"
 					},
 					"paletteAlgorithm": {
-						"auto": "",
-						"description": "",
-						"label": "",
-						"octtree": ""
+						"auto": "自動選択（K-Means / 八分木）",
+						"description": "アルバムアートから背景の配色を抽出するアルゴリズム",
+						"label": "配色抽出アルゴリズム",
+						"octtree": "八分木"
 					}
 				},
 				"lyricBackgroundColor": {
@@ -348,7 +348,7 @@
 				},
 				"menu": {
 					"cssBackground": "CSS 背景",
-					"isolationRenderer": "",
+					"isolationRenderer": "Isolation レンダラー",
 					"meshGradientRenderer": "网格渐变渲染器",
 					"pixiRenderer": "PixiJS 渲染器",
 					"titaniumRenderer": "チタン流砂レンダラー"

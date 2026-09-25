@@ -316,18 +316,18 @@
 				},
 				"isolation": {
 					"dithering": {
-						"description": "",
-						"label": ""
+						"description": "疊加極弱雜訊消除漸層色帶",
+						"label": "抖動"
 					},
 					"lightWave": {
-						"description": "",
-						"label": ""
+						"description": "讓漸層的明度隨時間波動",
+						"label": "光波效果"
 					},
 					"paletteAlgorithm": {
-						"auto": "",
-						"description": "",
-						"label": "",
-						"octtree": ""
+						"auto": "自動擇優（K-Means / 八元樹）",
+						"description": "從專輯封面中擷取背景配色所使用的演算法",
+						"label": "取色演算法",
+						"octtree": "八元樹"
 					}
 				},
 				"lyricBackgroundColor": {
@@ -348,7 +348,7 @@
 				},
 				"menu": {
 					"cssBackground": "CSS 背景",
-					"isolationRenderer": "",
+					"isolationRenderer": "Isolation 渲染器",
 					"meshGradientRenderer": "網格漸變渲染器 （Mesh Gradient Renderer）",
 					"pixiRenderer": "PixiJS 渲染器",
 					"titaniumRenderer": "鈦金屬流沙渲染器"

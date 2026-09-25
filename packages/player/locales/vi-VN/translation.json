@@ -316,18 +316,18 @@
 				},
 				"isolation": {
 					"dithering": {
-						"description": "",
-						"label": ""
+						"description": "Phủ một lớp nhiễu rất nhẹ để loại bỏ hiện tượng phân dải màu",
+						"label": "Dithering"
 					},
 					"lightWave": {
-						"description": "",
-						"label": ""
+						"description": "Làm độ sáng của dải màu dao động theo thời gian",
+						"label": "Hiệu ứng sóng ánh sáng"
 					},
 					"paletteAlgorithm": {
-						"auto": "",
-						"description": "",
-						"label": "",
-						"octtree": ""
+						"auto": "Tự động chọn (K-Means / Octree)",
+						"description": "Thuật toán dùng để trích xuất màu nền từ ảnh bìa album",
+						"label": "Thuật toán lấy màu",
+						"octtree": "Octree"
 					}
 				},
 				"lyricBackgroundColor": {
@@ -348,7 +348,7 @@
 				},
 				"menu": {
 					"cssBackground": "CSS 背景",
-					"isolationRenderer": "",
+					"isolationRenderer": "Trình kết xuất Isolation",
 					"meshGradientRenderer": "网格渐变渲染器",
 					"pixiRenderer": "PixiJS 渲染器",
 					"titaniumRenderer": "Trình kết xuất cát titan"
