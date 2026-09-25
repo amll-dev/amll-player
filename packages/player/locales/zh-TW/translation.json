@@ -275,10 +275,6 @@
 				}
 			},
 			"lyricAppearance": {
-				"advanceLyricDynamicLyricTime": {
-					"description": "即將原歌詞行的初始時間時序提前，以便在歌詞滾動結束後剛好開始播放（逐詞）歌詞效果。這個行為更接近 Apple Music 的效果，但是大部分情況下會導致歌詞行末尾的歌詞尚未播放完成便被切換到下一行。",
-					"label": "提前歌詞行時序"
-				},
 				"enableLyricLineBlurEffect": {
 					"description": "對效能影響較高，如果遇到效能問題，可以嘗試關閉此項。預設開啟。",
 					"label": "啟用歌詞模糊效果"
@@ -307,6 +303,28 @@
 				"lyricWordFadeWidth": {
 					"description": "調節逐詞歌詞時單字的漸變過渡寬度，單位為全角字的寬度，預設為 0.5。\n如果要模擬 Apple Music for Android 的效果，可以設定為 1。\n如果要模擬 Apple Music for iPad 的效果，可以設定為 0.5。\n如需關閉逐詞歌詞時單字的漸變過渡效果，可設定為 0。",
 					"label": "逐漸漸變寬度"
+				},
+				"optimize": {
+					"normalizeSpaces": {
+						"description": "將歌詞中多個連續空格替換為一個空格，讓排版更整齊。預設開啟。",
+						"label": "規範化歌詞空格"
+					},
+					"resetLineTimestamps": {
+						"description": "將歌詞行的起止時間強制設為該行首尾歌詞字的時間戳，主要給 TTML 解析器打補丁。預設開啟。",
+						"label": "同步行級時間戳到字級"
+					},
+					"syncMainAndBackgroundLines": {
+						"description": "取主歌詞與其背景人聲中最早的開始時間和最晚的結束時間，套用給雙方。預設開啟。",
+						"label": "同步主歌詞與背景人聲時間"
+					},
+					"cleanUnintentionalOverlaps": {
+						"description": "若相鄰兩行時間軸存在非刻意的重疊（重疊小於 100ms 或不足下一行時長的 10%），則截斷上一行的結束時間，避免不必要的多行高亮。預設開啟。",
+						"label": "清洗非刻意的時間重疊"
+					},
+					"tryAdvanceStartTime": {
+						"description": "嘗試讓歌詞行提前開始，以便歌詞滾動到位後剛好播放逐詞效果；有重疊時會減少提前量。更接近 Apple Music 的效果，但可能導致歌詞行末尾尚未播放完就切換到下一行。預設開啟。",
+						"label": "提前歌詞行開始時間"
+					}
 				},
 				"subtitle": "歌詞樣式"
 			},
