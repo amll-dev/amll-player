@@ -19,7 +19,7 @@ export type Animate = (
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 const returnHorizontalEase = cubicBezier(0.25, 0.1, 0.25, 1);
 
-/** Measure once, then let the browser move the existing text along sampled timing curves. */
+/** 只测量一次，之后由浏览器沿采样得到的时间曲线移动现有的文字元素 */
 export function createInfoMotion(
 	source: HTMLDivElement,
 	slot: HTMLDivElement,
@@ -28,8 +28,8 @@ export function createInfoMotion(
 	opening: boolean,
 	previous: InfoPose | null,
 ) {
-	// Fullscreen controls blend additively with the lyric background. A popover
-	// escapes those ancestors, so crossfade an additive copy over the normal text.
+	// 全屏控件以 plus-lighter 方式与歌词背景叠加混合。popover 会脱离这些祖先元素，
+	// 因此在普通文字上方叠一份同样混合的副本，并在两者之间交叉淡入淡出
 	let fullLighten = 0;
 	for (
 		let node: HTMLElement | null = destination;
@@ -65,8 +65,8 @@ export function createInfoMotion(
 		full().height === 0
 	)
 		return;
-	// This transition owns the text. Freeze the library's delayed slide at its
-	// destination so it does not keep moving underneath the shared text handoff.
+	// 过渡期间文字由本动画接管。将歌词库的延迟滑入固定在终点，
+	// 避免它在共享文字交接时仍在下方继续移动
 	const owner = destination.parentElement;
 	const previousOwner = owner?.getAttribute("data-player-info-motion");
 	owner?.setAttribute("data-player-info-motion", "");
@@ -89,7 +89,7 @@ export function createInfoMotion(
 		source.after(lightText);
 		lightText.showPopover();
 	}
-	// Track metadata arriving during the transition, even when the cover is unchanged.
+	// 跟踪过渡期间到达的歌曲信息更新，即使封面没有变化也要同步
 	const textObserver = lightText
 		? new MutationObserver(() => {
 				lightText.replaceChildren(
@@ -106,8 +106,8 @@ export function createInfoMotion(
 	return {
 		play(animate: Animate, ease: (t: number) => number, isVertical: boolean) {
 			const frames: Keyframe[] = [];
-			// Vertical text shares the cover's easing between two endpoints. Only
-			// horizontal layouts need sampled timing to keep text clear of the cover.
+			// 竖屏文字在两个端点之间沿用封面的缓动。
+			// 只有横屏布局需要采样时间曲线，让文字避开封面
 			const steps = isVertical ? 1 : 60;
 			for (let i = 0; i <= steps; i++) {
 				const elapsed = i / steps;
@@ -148,7 +148,7 @@ export function createInfoMotion(
 		}),
 		readTarget: () => (opening ? full() : compact()),
 		restore() {
-			// Keep the final pose through hidePopover; the controller cancels before paint.
+			// hidePopover 期间保持最终姿态，控制器会在绘制前取消动画
 			textObserver?.disconnect();
 			if (source.matches(":popover-open")) source.hidePopover();
 			lightText?.remove();

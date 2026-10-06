@@ -55,7 +55,7 @@
 }
 
 .metadataSlot {
-	/* Keep compact metadata independent of the fullscreen viewport size. */
+	/* 底栏歌曲信息的尺寸固定，不随全屏视口大小变化 */
 	font-size: 16px;
 	line-height: 1.25;
 	height: 2lh;

@@ -36,7 +36,7 @@
 
 .sidebarDesktop,
 .contentArea {
-	/* Keep the bottom gap inside the scroller, not above the player. */
+	/* 底部留白放在滚动区域内，而不是在播放器上方额外预留 */
 	padding-bottom: var(--space-4);
 }
 

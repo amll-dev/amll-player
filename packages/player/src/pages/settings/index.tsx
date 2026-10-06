@@ -272,7 +272,7 @@ export const Component: FC = () => {
 				top: "var(--space-8)",
 				left: 0,
 				right: 0,
-				// AppContainer already reserves the bottom player's height.
+				// AppContainer 已为底栏播放器预留了高度
 				bottom: 0,
 				zIndex: 1000,
 			}}

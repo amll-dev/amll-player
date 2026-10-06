@@ -55,7 +55,7 @@ const near = (a: Rect, b: Rect) =>
 		),
 	) < 1;
 
-/** One presentation timeline. The playback atom remains the only requested state. */
+/** 底栏与全屏播放页共用的过渡时间轴，目标状态仍只由 `isLyricPageOpenedAtom` 决定 */
 export function PlaybackTransition({ children }: PropsWithChildren) {
 	const opened = useAtomValue(isLyricPageOpenedAtom);
 	const coverUrl = useAtomValue(musicCoverAtom);
@@ -122,14 +122,14 @@ export function PlaybackTransition({ children }: PropsWithChildren) {
 						: null;
 			}
 			page.dataset.phase = progress.current === 1 ? "open" : "moving";
-			// A responsive layout can replace the focused collapse button.
+			// 响应式布局切换时，可能替换掉已获得焦点的收起按钮
 			if (
 				!wasOpened.current ||
 				document.activeElement === document.body ||
 				document.activeElement === page
 			) {
 				page.focus({ preventScroll: true });
-				// Motion temporarily hides its layout while measuring it.
+				// Motion 测量布局时会暂时隐藏该布局，因此等到下一帧再聚焦
 				focusFrame = requestAnimationFrame(() => {
 					if (document.activeElement === page)
 						collapseButton?.focus({ preventScroll: true });
@@ -213,7 +213,7 @@ export function PlaybackTransition({ children }: PropsWithChildren) {
 				"overflow",
 			])
 				cover.style.removeProperty(key);
-			// The library owns the native pause transform again after the handoff.
+			// 交接完成后，暂停时封面自带的变换重新交由歌词库控制
 			cover.getBoundingClientRect();
 			cover.style.removeProperty("transition");
 			compactButton?.style.removeProperty("opacity");
@@ -239,8 +239,8 @@ export function PlaybackTransition({ children }: PropsWithChildren) {
 			infoMotion = undefined;
 			displayedInfo.current = null;
 			displayedFilter.current = null;
-			// Only the cover may need to wait for video readiness. Release the page
-			// transforms now so its settled layout can respond to viewport changes.
+			// 只有封面可能需要等待视频就绪。页面的变换现在就释放，
+			// 使落定后的布局能够响应视口尺寸变化
 			for (const animation of animations)
 				if ((animation.effect as KeyframeEffect | null)?.target !== cover)
 					animation.cancel();
@@ -259,8 +259,8 @@ export function PlaybackTransition({ children }: PropsWithChildren) {
 			const video = videoRef.current;
 			const thumbnail = compactVideoRef.current;
 			if (target === 0) video?.pause();
-			// The immediate path still transfers a ready frame, but has no visible
-			// overlay to keep alive while waiting for media events.
+			// 无动画的直接切换同样要同步已就绪的视频帧，
+			// 但没有可见的浮层需要在等待媒体事件期间保留
 			if (
 				target === 0 &&
 				!promoted &&
@@ -466,8 +466,8 @@ export function PlaybackTransition({ children }: PropsWithChildren) {
 			page.dataset.phase = "moving";
 			master.onfinish = () => {
 				if (disposed || generation !== runId) return;
-				// Library layout springs can outlive our timeline. Only remeasure at
-				// handoff, with bounded short corrections instead of per-frame polling.
+				// 歌词库的布局弹簧动画可能晚于本时间轴结束。只在交接时重新测量，
+				// 并以次数有限的短时修正代替逐帧轮询
 				if (
 					corrections < 4 &&
 					(!near(cover.getBoundingClientRect(), readTarget()) ||
