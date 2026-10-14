@@ -110,7 +110,7 @@ export const NowPlayingBar: FC = () => {
 					mx="3"
 					position="absolute"
 					right="0"
-					bottom="calc(var(--amll-player-playbar-bottom) + var(--space-3))"
+					bottom="calc(100dvh - var(--player-compact-height, 100px) + var(--amll-player-playbar-bottom) + var(--space-3))"
 				>
 					<NowPlaylistCard className={classNames(styles.playlistCard)} />
 				</Flex>
