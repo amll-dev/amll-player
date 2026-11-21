@@ -21,7 +21,7 @@ allowBuilds:
   "@swc/core": true
   esbuild: true
 minimumReleaseAgeExclude:
-  - '@applemusic-like-lyrics/core@0.6.0'
-  - '@applemusic-like-lyrics/lyric@1.1.0'
-  - '@applemusic-like-lyrics/react-full@0.5.0'
-  - '@applemusic-like-lyrics/react@0.6.0'
+  - '@applemusic-like-lyrics/core'
+  - '@applemusic-like-lyrics/lyric'
+  - '@applemusic-like-lyrics/react-full'
+  - '@applemusic-like-lyrics/react'

@@ -333,7 +333,8 @@
 				"menu": {
 					"cssBackground": "CSS 背景",
 					"meshGradientRenderer": "网格渐变渲染器",
-					"pixiRenderer": "PixiJS 渲染器"
+					"pixiRenderer": "PixiJS 渲染器",
+					"titaniumRenderer": "Trình kết xuất cát titan"
 				},
 				"subtitle": "Nền của lời bài hát"
 			},

@@ -335,7 +335,8 @@
 				"menu": {
 					"cssBackground": "CSS 背景",
 					"meshGradientRenderer": "网格渐变渲染器",
-					"pixiRenderer": "PixiJS 渲染器"
+					"pixiRenderer": "PixiJS 渲染器",
+					"titaniumRenderer": "钛金属流沙渲染器"
 				},
 				"subtitle": "歌词背景"
 			},

@@ -333,7 +333,8 @@
 				"menu": {
 					"cssBackground": "CSS 背景",
 					"meshGradientRenderer": "網格漸變渲染器 （Mesh Gradient Renderer）",
-					"pixiRenderer": "PixiJS 渲染器"
+					"pixiRenderer": "PixiJS 渲染器",
+					"titaniumRenderer": "鈦金屬流沙渲染器"
 				},
 				"subtitle": "歌詞背景"
 			},

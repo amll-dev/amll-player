@@ -314,7 +314,7 @@
 			},
 			"lyricBackground": {
 				"backgroundRenderer": {
-					"label": "PixiJS Renderer"
+					"label": "Background Renderer"
 				},
 				"lyricBackgroundColor": {
 					"description": "等同于放入 background 样式的字符串值，默认为 #111111",
@@ -335,7 +335,8 @@
 				"menu": {
 					"cssBackground": "CSS 背景",
 					"meshGradientRenderer": "Mesh Gradient Renderer",
-					"pixiRenderer": "PixiJS Renderer"
+					"pixiRenderer": "PixiJS Renderer",
+					"titaniumRenderer": "Titanium Sand Renderer"
 				},
 				"subtitle": "Lyrics Page Background Type"
 			},

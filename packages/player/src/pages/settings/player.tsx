@@ -1,10 +1,9 @@
 import { branch, commit } from "virtual:git-metadata-plugin";
 import {
-	MeshGradientRenderer,
-	PixiRenderer,
-} from "@applemusic-like-lyrics/core";
-import {
+	BACKGROUND_RENDERERS,
+	CSS_BACKGROUND_RENDERER_ID,
 	cssBackgroundPropertyAtom,
+	DEFAULT_BACKGROUND_RENDERER_ID,
 	enableLyricLineBlurEffectAtom,
 	enableLyricLineScaleEffectAtom,
 	enableLyricLineSpringAnimationAtom,
@@ -12,7 +11,7 @@ import {
 	enableLyricSwapTransRomanLineAtom,
 	enableLyricTranslationLineAtom,
 	fftDataRangeAtom,
-	type LyricBackgroundRenderer,
+	LYRIC_BACKGROUND_RENDERER_STORAGE_KEY,
 	LyricSizePreset,
 	lyricBackgroundFPSAtom,
 	lyricBackgroundRendererAtom,
@@ -25,6 +24,7 @@ import {
 	lyricWordFadeWidthAtom,
 	PlayerControlsType,
 	playerControlsTypeAtom,
+	resolveBackgroundRenderer,
 	showBottomControlAtom,
 	showMusicAlbumAtom,
 	showMusicArtistsAtom,
@@ -849,7 +849,7 @@ const LyricBackgroundSettings = () => {
 					"page.settings.lyricBackground.menu.meshGradientRenderer",
 					"网格渐变渲染器",
 				),
-				value: "mesh",
+				value: DEFAULT_BACKGROUND_RENDERER_ID,
 			},
 			{
 				label: t(
@@ -860,47 +860,32 @@ const LyricBackgroundSettings = () => {
 			},
 			{
 				label: t(
+					"page.settings.lyricBackground.menu.titaniumRenderer",
+					"钛金属流沙渲染器",
+				),
+				value: "titanium",
+			},
+			{
+				label: t(
 					"page.settings.lyricBackground.menu.cssBackground",
 					"CSS 背景",
 				),
-				value: "css-bg",
+				value: CSS_BACKGROUND_RENDERER_ID,
 			},
 		],
 		[t],
 	);
 
-	const getBackgroundRendererString = (
-		value: LyricBackgroundRenderer,
-	): string => {
-		if (typeof value.renderer === "string" && value.renderer === "css-bg")
-			return "css-bg";
-		if (value.renderer === MeshGradientRenderer) return "mesh";
-		if (value.renderer === PixiRenderer) return "pixi";
-		return "mesh";
-	};
+	const selectedRendererId =
+		backgroundRendererMenu.find(
+			({ value }) =>
+				(BACKGROUND_RENDERERS[value]?.renderer ?? value) ===
+				backgroundRendererValue.renderer,
+		)?.value ?? DEFAULT_BACKGROUND_RENDERER_ID;
 
-	const handleBackgroundRendererChange = (selectedString: string) => {
-		let rendererObject: LyricBackgroundRenderer;
-		switch (selectedString) {
-			case "mesh":
-				rendererObject = {
-					renderer: MeshGradientRenderer,
-				};
-				break;
-			case "pixi":
-				rendererObject = {
-					renderer: PixiRenderer,
-				};
-				break;
-			default:
-				rendererObject = { renderer: "css-bg" };
-				break;
-		}
-		setBackgroundRendererValue(rendererObject);
-		localStorage.setItem(
-			"amll-react-full.lyricBackgroundRenderer",
-			selectedString,
-		);
+	const handleBackgroundRendererChange = (id: string) => {
+		setBackgroundRendererValue({ renderer: resolveBackgroundRenderer(id) });
+		localStorage.setItem(LYRIC_BACKGROUND_RENDERER_STORAGE_KEY, id);
 	};
 
 	return (
@@ -915,13 +900,19 @@ const LyricBackgroundSettings = () => {
 				)}
 			>
 				<Select.Root
-					value={getBackgroundRendererString(backgroundRendererValue)}
+					value={selectedRendererId}
 					onValueChange={handleBackgroundRendererChange}
 				>
 					<Select.Trigger />
 					<Select.Content>
 						{backgroundRendererMenu.map((item) => (
-							<Select.Item key={item.value} value={item.value}>
+							<Select.Item
+								key={item.value}
+								value={item.value}
+								disabled={
+									BACKGROUND_RENDERERS[item.value]?.isSupported() === false
+								}
+							>
 								{item.label}
 							</Select.Item>
 						))}
@@ -929,7 +920,7 @@ const LyricBackgroundSettings = () => {
 				</Select.Root>
 			</SettingEntry>
 
-			{getBackgroundRendererString(backgroundRendererValue) === "css-bg" ? (
+			{selectedRendererId === CSS_BACKGROUND_RENDERER_ID ? (
 				<SettingEntry
 					label={t(
 						"page.settings.lyricBackground.lyricBackgroundColor.label",

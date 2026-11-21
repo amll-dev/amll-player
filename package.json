@@ -11,5 +11,5 @@
 		"typecheck": "tsgo -b",
 		"dev": "pnpm -F player tauri dev"
 	},
-	"packageManager": "pnpm@11.7.0"
+	"packageManager": "pnpm@12.5.1"
 }
