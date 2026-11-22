@@ -1,0 +1,134 @@
+/* 此带内点击不会命中元素而是拖窗（双击最大化），macOS 上还会先命中 AppKit 原生红绿灯。
+   可点击 UI 必须完全位于 y >= var(--system-titlebar-height, 0px) 之下。 */
+
+#system-titlebar {
+	z-index: 10000;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 32px;
+	flex-direction: row;
+	/* 因为有可能是移动设备，默认隐藏标题栏 */
+	display: none;
+	color: white;
+}
+
+body[data-amll-lyrics-open] #system-titlebar {
+	color: white;
+}
+
+#system-titlebar-buttons {
+	display: flex;
+	gap: 2px;
+	transition:
+		opacity 0.3s ease-in-out,
+		pointer-events 0.3s;
+	opacity: 1;
+	pointer-events: auto;
+}
+
+#system-titlebar-buttons[data-hidden="true"] {
+	opacity: 0;
+	pointer-events: none;
+}
+
+#system-titlebar.immersive {
+	transition: opacity 0.5s;
+	opacity: 0;
+}
+
+#system-titlebar.immersive:hover {
+	opacity: 1;
+}
+
+.system-button {
+	border: none;
+	background: transparent;
+}
+
+.system-button > svg {
+	display: none;
+}
+
+#system-titlebar.windows {
+	height: 32px;
+	justify-content: flex-end;
+	display: flex;
+}
+
+#system-titlebar.mac-os {
+	display: flex;
+	height: 32px;
+}
+
+#system-titlebar.mac-os > * {
+	display: none;
+}
+
+#system-titlebar.windows .system-button {
+	width: 46px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	transition:
+		background-color 0.25s,
+		color 0.25s;
+	transform: translateY(-0.45px);
+}
+
+#system-titlebar.windows .system-button:hover {
+	transition:
+		background-color 0.15s,
+		color 0.15s;
+}
+
+.system-button > svg:not(.maximize, .restore) {
+	display: block;
+}
+
+#system-titlebar-resize.maximize > svg.maximize {
+	display: block;
+}
+
+#system-titlebar-resize.restore > svg.restore {
+	display: block;
+}
+
+#system-titlebar.windows #system-titlebar-close:hover {
+	background-color: rgb(196, 43, 28);
+	color: white;
+}
+
+#system-titlebar.windows #system-titlebar-close:active {
+	background-color: rgba(196, 43, 28, 0.9);
+	color: white;
+}
+
+#system-titlebar.fullscreen {
+	display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+	#system-titlebar.windows .system-button:not(#system-titlebar-close):hover {
+		background-color: rgba(255, 255, 255, 0.178);
+	}
+
+	#system-titlebar.windows .system-button:not(#system-titlebar-close):active {
+		background-color: rgba(255, 255, 255, 0.322);
+	}
+}
+
+@media (prefers-color-scheme: light) {
+	#system-titlebar {
+		color: black;
+	}
+
+	#system-titlebar.windows .system-button:not(#system-titlebar-close):hover {
+		background-color: rgba(0, 0, 0, 0.08);
+	}
+
+	#system-titlebar.windows .system-button:not(#system-titlebar-close):active {
+		background-color: rgba(0, 0, 0, 0.12);
+	}
+}

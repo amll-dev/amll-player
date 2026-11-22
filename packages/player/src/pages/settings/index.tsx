@@ -266,16 +266,7 @@ export const Component: FC = () => {
 	};
 
 	return (
-		<div
-			style={{
-				position: "fixed",
-				top: "var(--space-8)",
-				left: 0,
-				right: 0,
-				bottom: "80px",
-				zIndex: 1000,
-			}}
-		>
+		<div className={styles.overlay} data-settings-overlay="">
 			<style>{`
 				.rt-Button[data-state='inactive'] {
 					background-color: transparent !important;
@@ -299,15 +290,8 @@ export const Component: FC = () => {
 				ref={buttonContainerRef}
 				align="center"
 				gap="3"
-				style={{
-					position: "fixed",
-					top: "var(--space-4)",
-					left: 0,
-					height: "var(--system-titlebar-height)",
-					paddingLeft: "var(--space-4)",
-					paddingRight: "var(--space-4)",
-					zIndex: 10,
-				}}
+				className={styles.pillRow}
+				data-pill-row=""
 			>
 				<Tooltip content={t("common.page.back", "返回")}>
 					<Button variant="soft" onClick={() => history.back()} size="3">
@@ -336,10 +320,7 @@ export const Component: FC = () => {
 				<Box className={styles.sidebarDesktop}>
 					<SidebarContent onNavigate={handleNavigate} />
 				</Box>
-				<Box className={styles.contentArea}>
-					<div style={{ height: "var(--space-4)" }} />
-					{renderContent()}
-				</Box>
+				<Box className={styles.contentArea}>{renderContent()}</Box>
 			</Flex>
 		</div>
 	);
