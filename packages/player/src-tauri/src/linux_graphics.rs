@@ -1,16 +1,24 @@
 use std::{env, path::Path};
 
-/// NVIDIA's explicit-sync path can fail when WebKitGTK creates a native
-/// Wayland surface. Disable it before GTK/WebKit initialization on affected
-/// Linux sessions; an existing user value always wins.
+/// Work around WebKitGTK graphics issues on Linux NVIDIA Wayland sessions
+/// before GTK/WebKit initializes; existing user values always win.
+///
+/// - `__NV_DISABLE_EXPLICIT_SYNC=1`: NVIDIA's explicit-sync path can fail
+///   when WebKitGTK creates a native Wayland surface.
+/// - `WEBKIT_WEBGL_DISABLE_GBM=1`: WebKitGTK's GBM-backed WebGL buffer path
+///   can flicker or turn black on NVIDIA Wayland when resizing or toggling
+///   fullscreen, while keeping DMA-BUF compositing and GPU WebGL enabled.
 pub(crate) fn configure_nvidia_wayland() {
-    if env::var_os("WAYLAND_DISPLAY").is_none()
-        || env::var_os("__NV_DISABLE_EXPLICIT_SYNC").is_some()
-        || !Path::new("/dev/nvidiactl").exists()
-    {
+    if env::var_os("WAYLAND_DISPLAY").is_none() || !Path::new("/dev/nvidiactl").exists() {
         return;
     }
 
     // SAFETY: called before Tauri initializes GTK or starts worker threads.
-    unsafe { env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1") };
+    if env::var_os("__NV_DISABLE_EXPLICIT_SYNC").is_none() {
+        unsafe { env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1") };
+    }
+
+    if env::var_os("WEBKIT_WEBGL_DISABLE_GBM").is_none() {
+        unsafe { env::set_var("WEBKIT_WEBGL_DISABLE_GBM", "1") };
+    }
 }
