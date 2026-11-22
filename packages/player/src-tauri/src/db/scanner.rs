@@ -20,7 +20,7 @@ const AUDIO_EXTENSIONS: &[&str] = &[
     "8svx",
 ];
 
-const LYRIC_EXTENSIONS: &[&str] = &["ttml", "lys", "yrc", "qrc", "eslrc", "lrc"];
+const LYRIC_EXTENSIONS: &[&str] = &["ttml", "lys", "yrc", "qrc", "spl", "eslrc", "lrc"];
 
 fn run_parallel_scan<P, T, F>(
     folder: P,

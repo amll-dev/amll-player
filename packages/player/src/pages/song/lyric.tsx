@@ -79,7 +79,7 @@ export const LyricTabContent: FC = () => {
 	const openLocalLyricFile = useCallback(() => {
 		const input = document.createElement("input");
 		input.type = "file";
-		input.accept = ".lrc,.eslrc,.yrc,.qrc,.lys,.ttml";
+		input.accept = ".lrc,.eslrc,.spl,.yrc,.qrc,.lys,.ttml";
 		input.onchange = () => {
 			const file = input.files?.[0];
 			if (file) importFromFile(file);
@@ -173,6 +173,11 @@ export const LyricTabContent: FC = () => {
 							<Select.Item value="lys">
 								<Trans i18nKey="page.song.lyric.lyricFormat.lys">
 									Lyricify Syllable 歌词
+								</Trans>
+							</Select.Item>
+							<Select.Item value="spl">
+								<Trans i18nKey="page.song.lyric.lyricFormat.spl">
+									Salt Player Lyrics 歌词
 								</Trans>
 							</Select.Item>
 							<Select.Item value="ttml">

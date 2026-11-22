@@ -5,6 +5,7 @@ import {
 	parseLrc,
 	parseLys,
 	parseQrc,
+	parseSPL,
 	parseYrc,
 } from "@applemusic-like-lyrics/lyric";
 import chalk from "chalk";
@@ -68,6 +69,34 @@ function pairLyric(line: LyricLine, lines: CoreLyricLine[], key: TransLine) {
 	}
 }
 
+/**
+ * 按 SPL 标准合并翻译行：同一时间戳的第一句为主歌词，其后的都是翻译（支持多行翻译）
+ *
+ * parseSPL 已经按时间稳定排序，并为省略时间戳的翻译行补上了主歌词的时间戳，
+ * 所以同时间戳的行在这里一定相邻
+ *
+ * @see https://moriafly.com/standards/spl.html
+ */
+function foldSplTranslationLines(lines: LyricLine[]): LyricLine[] {
+	const result: LyricLine[] = [];
+	for (const line of lines) {
+		const prev = result[result.length - 1];
+		if (prev && prev.startTime === line.startTime) {
+			const text = line.words
+				.map((w) => w.word)
+				.join("")
+				.trim();
+			if (text.length > 0)
+				prev.translatedLyric = prev.translatedLyric
+					? `${prev.translatedLyric} / ${text}`
+					: text;
+			continue;
+		}
+		result.push({ ...line });
+	}
+	return result;
+}
+
 interface LyricParserResult {
 	lyricLines: CoreLyricLine[];
 	hasLyrics: boolean;
@@ -100,6 +129,15 @@ export const useLyricParser = (
 				case "eslrc": {
 					parsedLyricLines = parseEslrc(lyricStr);
 					console.log(LYRIC_LOG_TAG, "解析出 ESLyRiC 歌词", parsedLyricLines);
+					break;
+				}
+				case "spl": {
+					parsedLyricLines = foldSplTranslationLines(parseSPL(lyricStr));
+					console.log(
+						LYRIC_LOG_TAG,
+						"解析出 Salt Player Lyrics 歌词",
+						parsedLyricLines,
+					);
 					break;
 				}
 				case "yrc": {

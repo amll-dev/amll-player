@@ -488,6 +488,7 @@
 					"lys": "Lyricify Syllable lyrics",
 					"none": "No Lyrics",
 					"qrc": "QRC lyrics",
+					"spl": "Salt Player Lyrics",
 					"ttml": "TTML lyrics",
 					"yrc": "YRC Lyrics"
 				},

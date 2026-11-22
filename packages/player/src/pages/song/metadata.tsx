@@ -83,7 +83,7 @@ export const MetadataTabContent: FC = () => {
 		if (song === undefined) return;
 		const input = document.createElement("input");
 		input.type = "file";
-		input.accept = ".lrc,.eslrc,.yrc,.qrc,.lys,.ttml";
+		input.accept = ".lrc,.eslrc,.spl,.yrc,.qrc,.lys,.ttml";
 		input.onchange = async () => {
 			const file = input.files?.[0];
 			if (!file) return;

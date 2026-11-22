@@ -161,7 +161,8 @@ pub async fn read_local_music_metadata(
     if let Some(file_path_ref) = file_path.as_path()
         && music_info.lyric.is_empty()
     {
-        const LYRIC_FILE_EXTENSIONS: &[&str] = &["ttml", "lys", "yrc", "qrc", "eslrc", "lrc"];
+        const LYRIC_FILE_EXTENSIONS: &[&str] =
+            &["ttml", "lys", "yrc", "qrc", "spl", "eslrc", "lrc"];
         for ext in LYRIC_FILE_EXTENSIONS {
             let lyric_file_path = file_path_ref.with_extension(ext);
             if lyric_file_path.exists() {

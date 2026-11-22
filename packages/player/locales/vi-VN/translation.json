@@ -486,6 +486,7 @@
 					"lys": "Lời bài hát định dạng Lyricify Syllable (lys)",
 					"none": "Không có lời bài hát",
 					"qrc": "Lời bài hát định dạng QRC",
+					"spl": "Lời bài hát định dạng Salt Player Lyrics (spl)",
 					"ttml": "Lời bài hát định dạng TTML",
 					"yrc": "Lời bài hát định dạng YRC"
 				},

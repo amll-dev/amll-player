@@ -21,6 +21,8 @@ export function getLyricFormatFromExtension(filename: string): string | null {
 			return "lrc";
 		case "eslrc":
 			return "eslrc";
+		case "spl":
+			return "spl";
 		case "yrc":
 			return "yrc";
 		case "qrc":
