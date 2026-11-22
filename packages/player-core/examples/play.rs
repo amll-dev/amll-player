@@ -69,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
     let media_controls_options = NowPlayingOptions {
         hwnd: create_message_hwnd(),
         discord: None,
-        app_name: Some("AMLL Player".into()),
+        app_name: Some("AMLLPlayer".into()),
     };
 
     let (evt_sender, mut evt_receiver) =
