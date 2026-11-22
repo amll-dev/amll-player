@@ -272,7 +272,8 @@ export const Component: FC = () => {
 				top: "var(--space-8)",
 				left: 0,
 				right: 0,
-				bottom: "80px",
+				// AppContainer 已为底栏播放器预留了高度
+				bottom: 0,
 				zIndex: 1000,
 			}}
 		>
@@ -330,6 +331,7 @@ export const Component: FC = () => {
 				style={{
 					height: "100%",
 					padding: "var(--space-4)",
+					paddingBottom: 0,
 					minHeight: 0,
 				}}
 			>

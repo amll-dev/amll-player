@@ -1,11 +1,27 @@
 .appContainer {
+	position: relative;
+	isolation: isolate;
 	display: grid;
 	grid-template-columns: 0fr 0fr 1fr;
 	grid-template-rows: 1fr 0fr;
 	height: 100%;
 	width: 100%;
-	overflow: hidden;
+	/* 位移后的播放页会延伸到视口下方，不能让容器因此出现滚动 */
+	overflow: clip;
 	contain: paint;
+}
+
+.dimmer {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	background: #000;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.expanded > .dimmer {
+	opacity: 0.35;
 }
 
 .sidebar {
@@ -16,7 +32,6 @@
 .sidebarDivider {
 	grid-row: 1 / 3;
 	grid-column: 2 / 3;
-	width: 1px;
 	height: 100%;
 	border-left: 1px solid var(--gray-6);
 	width: 4px;
@@ -40,9 +55,66 @@
 	overflow: hidden auto;
 }
 
-.playbar {
+.presentation > .main {
+	transform: scale(1);
+	transform-origin: center top;
+}
+
+.presentation.expanded > .main {
+	transform: scale(0.965);
+}
+
+.playbarSpace {
+	position: relative;
 	grid-row: 2 / 3;
 	grid-column: 2 / 4;
+	/* 卡片覆盖页面期间，保持路由内容的可视区域尺寸不变 */
+	height: var(
+		--player-compact-height,
+		calc(100px + env(safe-area-inset-bottom))
+	);
+}
 
-	border-top: solid 1px var(--gray-6);
+.playbar {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 2;
+	isolation: isolate;
+	height: 100dvh;
+	transform: translateY(calc(100dvh - var(--player-compact-height, 100px)));
+	background-color: var(--color-panel-solid, rgb(17 17 17 / 0.78));
+	transition: background-color 0.18s 0.24s ease-out;
+
+	&::before {
+		content: "";
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 1px;
+		z-index: 3;
+		background: var(--gray-6);
+		opacity: 1;
+		pointer-events: none;
+		transition: opacity 0.08s 0.42s ease-out;
+	}
+
+	&.expanded {
+		transform: translateY(0);
+		background-color: #111;
+		transition: background-color 0.16s ease-out;
+		&::before {
+			opacity: 0;
+		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.playbar,
+	.playbar.expanded,
+	.playbar::before {
+		transition: none;
+	}
 }

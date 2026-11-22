@@ -15,8 +15,17 @@ export const AppContainer: FC<
 	PropsWithChildren<{
 		sidebar?: ReactNode;
 		playbar?: ReactNode;
+		playbarExpanded?: boolean;
+		playbarExpandedContent?: ReactNode;
 	}>
-> = ({ sidebar, playbar, children }) => {
+> = ({
+	sidebar,
+	playbar,
+	playbarExpanded,
+	playbarExpandedContent,
+	children,
+}) => {
+	const hasPlayer = Boolean(playbar || playbarExpandedContent);
 	const [sidebarWidth, setSidebarWidth] = useAtom(sidebarWidthAtom);
 	const [dragging, setDragging] = useState(false);
 	const onSidebarDraggerMouseDown = () => {
@@ -36,8 +45,20 @@ export const AppContainer: FC<
 	};
 
 	return (
-		<div className={styles.appContainer}>
-			<div className={styles.sidebar} style={{ width: `${sidebarWidth}px` }}>
+		<div
+			className={classNames(
+				styles.appContainer,
+				hasPlayer && styles.presentation,
+				playbarExpanded && styles.expanded,
+			)}
+		>
+			{hasPlayer && <div className={styles.dimmer} data-player-dimmer="" />}
+			<div
+				className={styles.sidebar}
+				style={{ width: `${sidebarWidth}px` }}
+				inert={playbarExpanded}
+				aria-hidden={playbarExpanded}
+			>
 				{sidebar}
 			</div>
 			<div
@@ -55,8 +76,28 @@ export const AppContainer: FC<
 				}}
 				onMouseDown={onSidebarDraggerMouseDown}
 			/>
-			<div className={styles.main}>{children}</div>
-			<div className={styles.playbar}>{playbar}</div>
+			<div
+				className={styles.main}
+				data-player-background=""
+				inert={playbarExpanded}
+				aria-hidden={playbarExpanded}
+			>
+				{children}
+			</div>
+			{hasPlayer && (
+				<div className={styles.playbarSpace}>
+					<div
+						className={classNames(
+							styles.playbar,
+							playbarExpanded && styles.expanded,
+						)}
+						id="amll-player-sheet"
+					>
+						{playbar}
+						{playbarExpandedContent}
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };

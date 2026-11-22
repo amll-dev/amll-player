@@ -34,6 +34,12 @@
 	}
 }
 
+.sidebarDesktop,
+.contentArea {
+	/* 底部留白放在滚动区域内，而不是在播放器上方额外预留 */
+	padding-bottom: var(--space-4);
+}
+
 .sidebarDesktop {
 	width: 240px;
 	flex-shrink: 0;

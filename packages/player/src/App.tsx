@@ -1,5 +1,4 @@
 import { Box, Theme } from "@radix-ui/themes";
-import classNames from "classnames";
 import { useAtomValue } from "jotai";
 import { lazy, StrictMode, Suspense } from "react";
 import { RouterProvider } from "react-router-dom";
@@ -10,6 +9,10 @@ import { ExtensionInjectPoint } from "./components/ExtensionInjectPoint/index.ts
 import { LocalMusicContext } from "./components/LocalMusicContext/index.tsx";
 import { MigrationDialog } from "./components/MigrationDialog/index.tsx";
 import { NowPlayingBar } from "./components/NowPlayingBar/index.tsx";
+import {
+	PlaybackTransition,
+	usePlaybackPresentation,
+} from "./components/PlaybackTransition/index.tsx";
 import { ShotcutContext } from "./components/ShotcutContext/index.tsx";
 import { TaskbarLyricBridge } from "./components/TaskbarLyricBridge/index.tsx";
 import { ThemeManager } from "./components/ThemeManager/index.tsx";
@@ -18,7 +21,6 @@ import { WSProtocolMusicContext } from "./components/WSProtocolMusicContext/inde
 import { useMigration } from "./hooks/useMigration.ts";
 import { enableTaskbarLyricAtom } from "./states/appAtoms.ts";
 import "./i18n";
-import { isLyricPageOpenedAtom } from "@applemusic-like-lyrics/react-full";
 import { StatsComponent } from "./components/StatsComponent/index.tsx";
 import { router } from "./router.tsx";
 import {
@@ -33,8 +35,26 @@ import { useInitializeWindow } from "./utils/useInitializeWindow.ts";
 const ExtensionContext = lazy(() => import("./components/ExtensionContext"));
 const AMLLWrapper = lazy(() => import("./components/AMLLWrapper"));
 
+function PlayerSurface() {
+	const { appRef, opened: isLyricPageOpened } = usePlaybackPresentation();
+	return (
+		<Box ref={appRef} className={styles.body}>
+			<AppContainer
+				playbar={<NowPlayingBar />}
+				playbarExpanded={isLyricPageOpened}
+				playbarExpandedContent={
+					<Suspense>
+						<AMLLWrapper />
+					</Suspense>
+				}
+			>
+				<RouterProvider router={router} />
+			</AppContainer>
+		</Box>
+	);
+}
+
 function App() {
-	const isLyricPageOpened = useAtomValue(isLyricPageOpenedAtom);
 	const showStatJSFrame = useAtomValue(showStatJSFrameAtom);
 	const enableTaskbarLyric = useAtomValue(enableTaskbarLyricAtom);
 	const musicContextMode = useAtomValue(musicContextModeAtom);
@@ -82,22 +102,9 @@ function App() {
 						onDeleteOld={migration.deleteOldData}
 						onDismiss={migration.dismiss}
 					/>
-					<Box
-						className={classNames(
-							styles.body,
-							isLyricPageOpened && styles.amllOpened,
-						)}
-					>
-						<AppContainer playbar={<NowPlayingBar />}>
-							<RouterProvider router={router} />
-						</AppContainer>
-						{/* <Box className={styles.container}>
-							<RouterProvider router={router} />
-						</Box> */}
-					</Box>
-					<Suspense>
-						<AMLLWrapper />
-					</Suspense>
+					<PlaybackTransition>
+						<PlayerSurface />
+					</PlaybackTransition>
 					<ToastContainer
 						theme="dark"
 						position="bottom-right"

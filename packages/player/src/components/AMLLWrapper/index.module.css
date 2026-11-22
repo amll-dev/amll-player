@@ -1,28 +1,52 @@
 .lyricPage {
-	position: fixed;
-	left: 0;
-	top: 0;
-	width: 100vw;
-	height: 100vh;
+	position: absolute;
+	inset: 0;
+	z-index: 1;
 	isolation: isolate;
 	transform-style: flat;
 	pointer-events: none;
-	background-color: #222;
-	transition:
-		border-radius 0.25s ease,
-		transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-	transform: translateY(100%);
-	border-radius: 1em 1em 0 0;
+	opacity: 0;
+	transition: opacity 0.16s 0.3s ease-out;
 	overflow: hidden;
 	color: white;
 
 	&.opened {
 		pointer-events: auto;
-		transition:
-			border-radius 0.25s 0.25s ease,
-			transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-		transform: translateY(0%);
-		border-radius: 0 0 0 0;
+		opacity: 1;
+		transition: opacity 0.16s ease-out;
+	}
+
+	&[data-phase="closed"] {
+		visibility: hidden;
+	}
+}
+
+.lyricContent {
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	width: 100%;
+	height: 100dvh;
+}
+
+.controlThumb {
+	transform: translateY(calc(20px - var(--player-sheet-top, 100dvh)));
+}
+
+.opened .controlThumb {
+	transform: translateY(0);
+}
+
+:global(#amll-lyric-player-wrapper [data-player-info-motion]) {
+	transition: none;
+	transform: none;
+	opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.lyricPage,
+	.lyricPage.opened {
+		transition: none;
 	}
 }
 
@@ -31,4 +55,5 @@
 	inset: 0;
 	cursor: none;
 	z-index: 9999;
+	pointer-events: none;
 }
