@@ -33,12 +33,12 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import { loadedExtensionAtom } from "../../states/extensionsAtoms.ts";
+import { settingsPageAtom } from "../../states/settingsAtoms.ts";
 import { ExtensionTab } from "./extension.tsx";
 import styles from "./index.module.css";
 import { PlayerSettingsTab } from "./player.tsx";
-
-const currentPageAtom = atom("player.general");
 
 const loadedExtensionsWithSettingsAtom = atom((get) => {
 	const loadedExtensions = get(loadedExtensionAtom);
@@ -84,7 +84,7 @@ const SidebarContent: FC<{ onNavigate: (pageId: string) => void }> = ({
 	onNavigate,
 }) => {
 	const os = usePlatform();
-	const [currentPage] = useAtom(currentPageAtom);
+	const [currentPage] = useAtom(settingsPageAtom);
 	const loadedExtensions = useAtomValue(loadedExtensionsWithSettingsAtom);
 	const { t, i18n } = useTranslation();
 
@@ -183,7 +183,7 @@ const SidebarContent: FC<{ onNavigate: (pageId: string) => void }> = ({
 };
 
 export const Component: FC = () => {
-	const [currentPage, setCurrentPage] = useAtom(currentPageAtom);
+	const [currentPage, setCurrentPage] = useAtom(settingsPageAtom);
 	const loadedExtensions = useAtomValue(loadedExtensionsWithSettingsAtom);
 	const { t } = useTranslation();
 
@@ -229,11 +229,72 @@ export const Component: FC = () => {
 	}, []);
 
 	const [isMenuOpen, setMenuOpen] = useState(false);
+	const contentAreaRef = useRef<HTMLDivElement>(null);
+	const location = useLocation();
 
 	const handleNavigate = (pageId: string) => {
 		setCurrentPage(pageId);
 		setMenuOpen(false);
 	};
+
+	// 设置页支持用 URL hash 指定落点（#about 回到内容顶部、#updater 滚到更新区块）。
+	// 目标元素往往晚到（贡献者列表是异步拉取的、更新区块要等检查结果），而它们一到就会
+	// 把落点顶走，所以在内容稳定前每次 DOM 变化都重新对齐一次；用户自己滚动、或超过
+	// 等待上限（网络很慢时不再强行对齐）就交出控制权。
+	useEffect(() => {
+		const container = contentAreaRef.current;
+		if (!container) return;
+
+		const anchor = location.hash.replace(/^#/, "");
+		if (!anchor) return;
+
+		let frame = 0;
+		let stopped = false;
+
+		// 没有对应元素时退回内容顶部（例如没有可用更新时的 #updater）
+		const align = () => {
+			frame = 0;
+			if (stopped) return;
+			const target = document.getElementById(anchor);
+			if (target && container.contains(target)) {
+				container.scrollTop +=
+					target.getBoundingClientRect().top -
+					container.getBoundingClientRect().top;
+			} else {
+				container.scrollTop = 0;
+			}
+		};
+
+		// 同一帧内的多次变化只对齐一次
+		const schedule = () => {
+			if (stopped || frame) return;
+			frame = requestAnimationFrame(align);
+		};
+
+		const observer = new MutationObserver(schedule);
+		observer.observe(container, { childList: true, subtree: true });
+
+		const stop = () => {
+			stopped = true;
+			observer.disconnect();
+			if (frame) cancelAnimationFrame(frame);
+		};
+
+		const timeout = setTimeout(stop, 10_000);
+		container.addEventListener("wheel", stop, { passive: true });
+		container.addEventListener("touchstart", stop, { passive: true });
+		window.addEventListener("keydown", stop);
+
+		schedule();
+
+		return () => {
+			clearTimeout(timeout);
+			container.removeEventListener("wheel", stop);
+			container.removeEventListener("touchstart", stop);
+			window.removeEventListener("keydown", stop);
+			stop();
+		};
+	}, [location.hash, location.key]);
 
 	const renderContent = () => {
 		if (currentPage.startsWith("player.")) {
@@ -336,7 +397,7 @@ export const Component: FC = () => {
 				<Box className={styles.sidebarDesktop}>
 					<SidebarContent onNavigate={handleNavigate} />
 				</Box>
-				<Box className={styles.contentArea}>
+				<Box className={styles.contentArea} ref={contentAreaRef}>
 					<div style={{ height: "var(--space-4)" }} />
 					{renderContent()}
 				</Box>

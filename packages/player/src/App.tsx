@@ -6,6 +6,7 @@ import { RouterProvider } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import styles from "./App.module.css";
 import { AppContainer } from "./components/AppContainer/index.tsx";
+import { AppMenuBridge } from "./components/AppMenuBridge/index.tsx";
 import { ExtensionInjectPoint } from "./components/ExtensionInjectPoint/index.tsx";
 import { LocalMusicContext } from "./components/LocalMusicContext/index.tsx";
 import { MigrationDialog } from "./components/MigrationDialog/index.tsx";
@@ -62,6 +63,7 @@ function App() {
 
 			<UpdateContext />
 			<ShotcutContext />
+			<AppMenuBridge />
 			<ThemeManager />
 			<Suspense>
 				<ExtensionContext />

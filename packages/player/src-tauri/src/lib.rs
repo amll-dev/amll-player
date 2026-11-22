@@ -15,6 +15,8 @@ use tracing::*;
 use crate::server::AMLLWebSocketServer;
 use crate::server::AMLLWebSocketServerWrapper;
 
+#[cfg(target_os = "macos")]
+mod app_menu;
 mod db;
 mod db_events;
 #[cfg(target_os = "linux")]
@@ -207,6 +209,13 @@ pub fn run() {
     #[cfg(target_os = "macos")]
     let builder = builder.plugin(tauri_plugin_macos_fps::init());
 
+    // Tauri's default macOS menu opens the native About panel; install a custom menu so the
+    // About item can be routed to the in-app settings page instead.
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .menu(|app| app_menu::create_menu(app, &app_menu::MenuLabels::default()))
+        .on_menu_event(app_menu::handle_menu_event);
+
     #[cfg(not(mobile))]
     let pubkey = {
         if let Some(Value::Object(updater_config)) = context.config().plugins.0.get("updater") {
@@ -253,6 +262,8 @@ pub fn run() {
             screen_capture::take_screenshot,
             player::local_player_send_msg,
             player::set_media_controls_enabled,
+            #[cfg(target_os = "macos")]
+            app_menu::update_app_menu,
             music_info::resolve_content_uri,
             music_info::read_local_music_metadata,
             music_info::save_cover_from_path,

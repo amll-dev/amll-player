@@ -7,6 +7,11 @@ windows = ["main"]
 platforms = ["macOS", "windows", "linux"]
 
 [[permissions]]
+identifier = "core:app:allow-name"
+[[permissions]]
+identifier = "core:app:allow-version"
+
+[[permissions]]
 identifier = "updater:default"
 [[permissions]]
 identifier = "global-shortcut:default"
@@ -16,6 +21,10 @@ identifier = "global-shortcut:allow-is-registered"
 identifier = "global-shortcut:allow-register"
 [[permissions]]
 identifier = "global-shortcut:allow-unregister"
+
+[[permissions]]
+identifier = "opener:allow-open-url"
+allow = [{ url = "https://*" }]
 
 [[permissions]]
 identifier = "opener:allow-reveal-item-in-dir"
