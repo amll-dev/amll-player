@@ -316,6 +316,22 @@
 				"backgroundRenderer": {
 					"label": "Background Renderer"
 				},
+				"isolation": {
+					"dithering": {
+						"description": "Overlay very faint noise to remove gradient banding",
+						"label": "Dithering"
+					},
+					"lightWave": {
+						"description": "Let the gradient brightness fluctuate over time",
+						"label": "Light Wave Effect"
+					},
+					"paletteAlgorithm": {
+						"auto": "Auto (best of K-Means / Octree)",
+						"description": "Algorithm used to extract background colors from the album cover",
+						"label": "Palette algorithm",
+						"octtree": "Octree"
+					}
+				},
 				"lyricBackgroundColor": {
 					"description": "等同于放入 background 样式的字符串值，默认为 #111111",
 					"label": "CSS 背景属性值"
@@ -334,6 +350,7 @@
 				},
 				"menu": {
 					"cssBackground": "CSS 背景",
+					"isolationRenderer": "Isolation Renderer",
 					"meshGradientRenderer": "Mesh Gradient Renderer",
 					"pixiRenderer": "PixiJS Renderer",
 					"titaniumRenderer": "Titanium Sand Renderer"
