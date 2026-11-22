@@ -8,6 +8,7 @@
 			"title": "音频解码信息"
 		},
 		"contextMenu": {
+			"addToQueueTail": "Thêm vào cuối hàng đợi",
 			"editMusicOverrideMessage": "Chỉnh sửa thông tin bài hát",
 			"exitLyricPage": "Thoát lời bài hát",
 			"forwardSong": "Bài tiếp theo",
@@ -15,6 +16,7 @@
 			"openScreenshotTool": "打开截图工具",
 			"pauseOrResume": "Tạm dừng / Tiếp tục",
 			"play": "播放",
+			"playNext": "Phát tiếp theo",
 			"rewindSong": "Bài trước đó",
 			"toggleFullscreen": "Toàn màn hình / Thoát toàn màn hình",
 			"toggleLyrics": "Hiển thị lời bài hát",

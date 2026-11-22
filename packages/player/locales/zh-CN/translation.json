@@ -8,6 +8,7 @@
 			"title": "音频解码信息"
 		},
 		"contextMenu": {
+			"addToQueueTail": "添加到队尾",
 			"editMusicOverrideMessage": "编辑歌曲覆盖信息",
 			"exitLyricPage": "退出歌词页面",
 			"forwardSong": "下一首",
@@ -15,6 +16,7 @@
 			"openScreenshotTool": "打开截图工具",
 			"pauseOrResume": "暂停 / 继续",
 			"play": "播放",
+			"playNext": "下一首播放",
 			"rewindSong": "上一首",
 			"toggleFullscreen": "全屏 / 取消全屏",
 			"toggleLyrics": "显示歌词",

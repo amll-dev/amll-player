@@ -8,6 +8,7 @@
 			"title": "Audio Quality Details"
 		},
 		"contextMenu": {
+			"addToQueueTail": "Add to End of Queue",
 			"editMusicOverrideMessage": "Edit Track Override Data",
 			"exitLyricPage": "Exit Lyrics Page",
 			"forwardSong": "Next Song",
@@ -15,6 +16,7 @@
 			"openScreenshotTool": "打开截图工具",
 			"pauseOrResume": "Pause / Resume",
 			"play": "播放",
+			"playNext": "Play Next",
 			"rewindSong": "Previous Song",
 			"toggleFullscreen": "Enter / Exit full screen",
 			"toggleLyrics": "Lyrics",

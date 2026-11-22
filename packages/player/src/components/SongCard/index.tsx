@@ -63,6 +63,18 @@ export const SongCard = forwardRef<
 						<Trans i18nKey="amll.contextMenu.play">播放</Trans>
 					</ContextMenu.Item>
 					<ContextMenu.Item
+						disabled={!queueManager}
+						onClick={() => queueManager?.enqueueNext(song)}
+					>
+						<Trans i18nKey="amll.contextMenu.playNext">下一首播放</Trans>
+					</ContextMenu.Item>
+					<ContextMenu.Item
+						disabled={!queueManager}
+						onClick={() => queueManager?.enqueueTail(song)}
+					>
+						<Trans i18nKey="amll.contextMenu.addToQueueTail">添加到队尾</Trans>
+					</ContextMenu.Item>
+					<ContextMenu.Item
 						onClick={() => {
 							router.navigate(`/song/${song.id}`);
 						}}

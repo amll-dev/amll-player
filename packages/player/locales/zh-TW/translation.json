@@ -8,6 +8,7 @@
 			"title": "音訊解碼資訊"
 		},
 		"contextMenu": {
+			"addToQueueTail": "加入佇列尾端",
 			"editMusicOverrideMessage": "編輯歌曲覆蓋訊息",
 			"exitLyricPage": "退出歌詞介面",
 			"forwardSong": "下一首",
@@ -15,6 +16,7 @@
 			"openScreenshotTool": "打开截图工具",
 			"pauseOrResume": "暫停 / 繼續",
 			"play": "播放",
+			"playNext": "下一首播放",
 			"rewindSong": "上一首",
 			"toggleFullscreen": "全熒幕 / 取消全熒幕",
 			"toggleLyrics": "顯示歌詞",
