@@ -471,6 +471,10 @@
 				"musicDuration": "音乐时长",
 				"musicFilePath": "音乐文件路径",
 				"musicId": "音乐 ID",
+				"relinkFileFailed": "音楽ファイルのパスの更新に失敗しました: {error}",
+				"relinkFileSuccess": "音楽ファイルのパスを更新しました",
+				"selectFile": "選択",
+				"selectFileTitle": "音楽ファイルを選択",
 				"tabs": {
 					"basic": "基本",
 					"lyric": "歌词",

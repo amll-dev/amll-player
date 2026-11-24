@@ -473,6 +473,10 @@
 				"musicDuration": "Duration",
 				"musicFilePath": "File Path",
 				"musicId": "Music ID",
+				"relinkFileFailed": "Failed to update music file path: {error}",
+				"relinkFileSuccess": "Music file path updated",
+				"selectFile": "Select",
+				"selectFileTitle": "Select music file",
 				"tabs": {
 					"basic": "Basics",
 					"lyric": "Lyrics",

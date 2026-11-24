@@ -138,6 +138,14 @@ class SongsClient {
 		return invoke("get_song", { id });
 	}
 
+	async fileExists(filePath: string): Promise<boolean> {
+		return invoke("song_file_exists", { path: filePath });
+	}
+
+	async relinkFile(id: string, newPath: string): Promise<string> {
+		return invoke("relink_song_file", { id, newPath });
+	}
+
 	async getByIds(ids: string[]): Promise<Song[]> {
 		return invoke("get_songs_by_ids", { ids });
 	}

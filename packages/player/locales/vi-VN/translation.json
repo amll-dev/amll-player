@@ -471,6 +471,10 @@
 				"musicDuration": "Thời gian bài hát",
 				"musicFilePath": "Đường dẫn tệp âm thanh",
 				"musicId": "ID bài hát",
+				"relinkFileFailed": "Cập nhật đường dẫn tệp nhạc thất bại: {error}",
+				"relinkFileSuccess": "Đã cập nhật đường dẫn tệp nhạc",
+				"selectFile": "Chọn",
+				"selectFileTitle": "Chọn tệp nhạc",
 				"tabs": {
 					"basic": "Cơ bản",
 					"lyric": "Lời bài hát",
