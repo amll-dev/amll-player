@@ -446,6 +446,53 @@ pub async fn update_song(
 }
 
 #[tauri::command]
+pub async fn song_file_exists(path: String) -> Result<bool, String> {
+    Ok(std::path::Path::new(&path).is_file())
+}
+
+#[tauri::command]
+pub async fn relink_song_file(
+    db: State<'_, DbConnection>,
+    id: String,
+    new_path: String,
+) -> Result<String, String> {
+    // 与扫描器保持一致，统一使用正斜杠路径
+    let normalized = new_path.replace('\\', "/");
+
+    if !std::path::Path::new(&normalized).is_file() {
+        return Err(format!("文件不存在或无法访问: {normalized}"));
+    }
+
+    let model = song::Entity::find_by_id(&id)
+        .one(&*db)
+        .await
+        .map_err(|e| format!("Failed to find song: {e}"))?
+        .ok_or_else(|| format!("Song {id} not found"))?;
+
+    let conflict = song::Entity::find()
+        .filter(song::Column::FilePath.eq(&normalized))
+        .filter(song::Column::Id.ne(&id))
+        .one(&*db)
+        .await
+        .map_err(|e| format!("Failed to check file path conflict: {e}"))?;
+
+    if conflict.is_some() {
+        return Err("该文件已被音乐库中的其他歌曲使用".to_string());
+    }
+
+    if model.file_path != normalized {
+        let mut active: song::ActiveModel = model.into();
+        active.file_path = Set(normalized.clone());
+        active
+            .update(&*db)
+            .await
+            .map_err(|e| format!("Failed to update song file path: {e}"))?;
+    }
+
+    Ok(normalized)
+}
+
+#[tauri::command]
 pub async fn get_playlist_songs(
     db: State<'_, DbConnection>,
     playlist_id: i32,

@@ -473,6 +473,10 @@
 				"musicDuration": "音乐时长",
 				"musicFilePath": "音乐文件路径",
 				"musicId": "音乐 ID",
+				"relinkFileFailed": "更新音乐文件路径失败: {error}",
+				"relinkFileSuccess": "音乐文件路径已更新",
+				"selectFile": "选择",
+				"selectFileTitle": "选择音乐文件",
 				"tabs": {
 					"basic": "基本",
 					"lyric": "歌词",

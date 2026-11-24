@@ -271,6 +271,8 @@ pub fn run() {
             db::commands::get_song,
             db::commands::get_songs_by_ids,
             db::commands::update_song,
+            db::commands::song_file_exists,
+            db::commands::relink_song_file,
             db::commands::get_playlist_songs,
             db::commands::save_playlist_cover,
             db::commands::clear_playlist_cover,
