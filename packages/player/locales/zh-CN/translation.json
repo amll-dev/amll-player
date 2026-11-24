@@ -232,6 +232,28 @@
 				"updatedAt": "更新时间"
 			},
 			"shufflePlayAll": "随机播放",
+			"sortAndGroup": {
+				"asc": "正序",
+				"desc": "倒序",
+				"groupBy": "分组依据",
+				"groupKey": {
+					"album": "按专辑分组",
+					"artist": "按歌手分组",
+					"none": "无分组"
+				},
+				"reset": "重置默认",
+				"sortBy": "排序依据",
+				"sortKey": {
+					"addedAt": "添加时间",
+					"duration": "歌曲时长",
+					"fileName": "文件名",
+					"songAlbum": "专辑",
+					"songArtists": "歌手",
+					"songName": "歌曲名称"
+				},
+				"sortOrder": "排序方向",
+				"title": "排序与分组"
+			},
 			"totalMusicLabel": "{count, plural, other {#}} 首歌曲"
 		},
 		"search": {

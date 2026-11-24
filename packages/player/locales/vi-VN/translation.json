@@ -230,6 +230,28 @@
 				"updatedAt": "Ngày cập nhật"
 			},
 			"shufflePlayAll": "Phát ngẫu nhiên",
+			"sortAndGroup": {
+				"asc": "Tăng dần",
+				"desc": "Giảm dần",
+				"groupBy": "Nhóm theo",
+				"groupKey": {
+					"album": "Nhóm theo album",
+					"artist": "Nhóm theo nghệ sĩ",
+					"none": "Không nhóm"
+				},
+				"reset": "Đặt lại mặc định",
+				"sortBy": "Sắp xếp theo",
+				"sortKey": {
+					"addedAt": "Thời gian thêm",
+					"duration": "Thời lượng",
+					"fileName": "Tên tệp",
+					"songAlbum": "Album",
+					"songArtists": "Nghệ sĩ",
+					"songName": "Tên bài hát"
+				},
+				"sortOrder": "Thứ tự sắp xếp",
+				"title": "Sắp xếp & nhóm"
+			},
 			"totalMusicLabel": "{count, plural, other {#}} bài hát"
 		},
 		"search": {
