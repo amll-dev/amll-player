@@ -275,10 +275,6 @@
 				}
 			},
 			"lyricAppearance": {
-				"advanceLyricDynamicLyricTime": {
-					"description": "Điều chỉnh thời gian ban đầu của lời bài hát để bắt đầu sớm hơn, giúp cho việc phát bài hát kịp thời (dần dần). Hành vi này tương tự như hiệu ứng được nâng cao trong Apple Music, nhưng trong một số trường hợp sẽ không ảnh hưởng đến việc chuyển đổi lời bài hát ở cuối.",
-					"label": "Thời gian bắt đầu phát lời bài hát sớm hơn"
-				},
 				"enableLyricLineBlurEffect": {
 					"description": "Ảnh hưởng đến hiệu năng, nếu gặp vấn đề về hiệu suất, có thể thử tắt tùy chọn này. Mặc định được bật.",
 					"label": "Bật hiệu ứng làm mờ lời bài hát"
@@ -307,6 +303,28 @@
 				"lyricWordFadeWidth": {
 					"description": "Điều chỉnh độ rộng chuyển đổi dần dần cho từng từ trong lời bài hát, đơn vị là chiều rộng của một ký tự, mặc định là 0.5.\nNếu muốn mô phỏng hiệu ứng của Apple Music cho Android, có thể đặt là 1.\nNếu muốn mô phỏng hiệu ứng của Apple Music cho iPad, có thể đặt là 0.5.\nNếu muốn vô hiệu hóa độ rộng chuyển đổi dần dần cho lời bài hát, có thể đặt là 0.",
 					"label": "Điều chỉnh độ rộng của hiệu ứng làm mờ dần cho từng từ trong lời bài hát"
+				},
+				"optimize": {
+					"normalizeSpaces": {
+						"description": "Thay nhiều khoảng trắng liên tiếp trong lời bài hát bằng một khoảng trắng để trình bày gọn gàng hơn. Bật theo mặc định.",
+						"label": "Chuẩn hóa khoảng trắng"
+					},
+					"resetLineTimestamps": {
+						"description": "Ép thời gian bắt đầu/kết thúc của dòng lời theo đúng mốc thời gian của từ đầu tiên/cuối cùng, chủ yếu để vá lỗi trình phân tích TTML. Bật theo mặc định.",
+						"label": "Đồng bộ mốc thời gian dòng theo từ"
+					},
+					"syncMainAndBackgroundLines": {
+						"description": "Lấy thời gian bắt đầu sớm nhất và kết thúc muộn nhất giữa lời chính và bè, rồi áp dụng cho cả hai. Bật theo mặc định.",
+						"label": "Đồng bộ thời gian lời chính và bè"
+					},
+					"cleanUnintentionalOverlaps": {
+						"description": "Nếu hai dòng liền kề chồng lấn ngoài ý muốn (chồng lấn dưới 100ms hoặc dưới 10% độ dài dòng tiếp theo), hãy cắt thời gian kết thúc của dòng trước để tránh làm nổi bật nhiều dòng không cần thiết. Bật theo mặc định.",
+						"label": "Làm sạch chồng lấn ngoài ý muốn"
+					},
+					"tryAdvanceStartTime": {
+						"description": "Cố gắng bắt đầu dòng lời sớm hơn để hiệu ứng từng từ phát ngay khi dòng cuộn vào vị trí; mức dời sẽ giảm khi các dòng chồng lấn. Gần giống Apple Music hơn, nhưng có thể chuyển sang dòng tiếp theo khi dòng hiện tại chưa hát xong. Bật theo mặc định.",
+						"label": "Dời sớm thời gian bắt đầu dòng lời"
+					}
 				},
 				"subtitle": "Kiểu lời bài hát"
 			},

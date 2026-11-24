@@ -275,10 +275,6 @@
 				}
 			},
 			"lyricAppearance": {
-				"advanceLyricDynamicLyricTime": {
-					"description": "即将原歌词行的初始时间时序提前，以便在歌词滚动结束后刚好开始播放（逐词）歌词效果。这个行为更加接近 Apple Music 的效果，但是大部分情况下会导致歌词行末尾的歌词尚未播放完成便被切换到下一行。",
-					"label": "提前歌词行时序"
-				},
 				"enableLyricLineBlurEffect": {
 					"description": "对性能影响较高，如果遇到性能问题，可以尝试关闭此项。默认开启。",
 					"label": "启用歌词模糊效果"
@@ -307,6 +303,28 @@
 				"lyricWordFadeWidth": {
 					"description": "调节逐词歌词时单词的渐变过渡宽度，单位为一个全角字的宽度，默认为 0.5。\n如果要模拟 Apple Music for Android 的效果，可以设置为 1。\n如果要模拟 Apple Music for iPad 的效果，可以设置为 0.5。\n如需关闭逐词歌词时单词的渐变过渡效果，可以设置为 0。",
 					"label": "逐词渐变宽度"
+				},
+				"optimize": {
+					"normalizeSpaces": {
+						"description": "歌詞内の連続する空白を 1 つの空白に置き換え、レイアウトを整えます。既定で有効。",
+						"label": "歌詞の空白を正規化"
+					},
+					"resetLineTimestamps": {
+						"description": "歌詞行の開始・終了時間をその行の先頭・末尾の歌詞文字のタイムスタンプに強制的に設定します。主に TTML パーサーの補正用です。既定で有効。",
+						"label": "行タイムスタンプを単語単位へ同期"
+					},
+					"syncMainAndBackgroundLines": {
+						"description": "メイン歌詞とその背景ボーカルのうち最も早い開始時間と最も遅い終了時間を、双方に適用します。既定で有効。",
+						"label": "メイン歌詞と背景ボーカルの時間を同期"
+					},
+					"cleanUnintentionalOverlaps": {
+						"description": "隣接する 2 行の時間軸に意図しない重なり（重なりが 100ms 未満、または次行の長さの 10% 未満）がある場合、前行の終了時間を切り詰めて不要な複数行ハイライトを防ぎます。既定で有効。",
+						"label": "意図しない時間の重なりを除去"
+					},
+					"tryAdvanceStartTime": {
+						"description": "歌詞行を早めに開始させ、スクロール後に単語単位の効果がちょうど再生されるようにします。重なりがある場合は前倒し量を減らします。Apple Music に近い効果ですが、行末が再生し終わる前に次の行へ切り替わる場合があります。既定で有効。",
+						"label": "歌詞行の開始時間を前倒し"
+					}
 				},
 				"subtitle": "歌词样式"
 			},

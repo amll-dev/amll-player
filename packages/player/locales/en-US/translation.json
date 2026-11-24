@@ -277,10 +277,6 @@
 				}
 			},
 			"lyricAppearance": {
-				"advanceLyricDynamicLyricTime": {
-					"description": "Advance the initial time sequence of the original lyrics line, so that the lyrics effect starts playing (word by word) just after the lyrics scroll ends. This behavior is closer to the effect of Apple Music, but in most cases, it will cause the lyrics at the end of the line to be switched to the next line before they have been played completely.",
-					"label": "Advance Lyric Timing"
-				},
 				"enableLyricLineBlurEffect": {
 					"description": "Significantly impacts performance. If you encounter performance issues, try to disable this option. Enabled by default.",
 					"label": "Enable Text Blur Effect"
@@ -309,6 +305,28 @@
 				"lyricWordFadeWidth": {
 					"description": "Adjust the gradient transition width of each word in lyrics, measured in the width of a full width character, with a default value of 0.5.\nIf you want to simulate the effect of Apple Music for Android, you can set it to 1.\nIf you want to simulate the effect of Apple Music for iPad, you can set it to 0.5.\nTo turn off the gradient transition effect of each word in lyrics, you can set it to 0.",
 					"label": "Gradient Transition Width of Each Word"
+				},
+				"optimize": {
+					"normalizeSpaces": {
+						"description": "Replace multiple consecutive spaces in lyrics with a single space for cleaner layout. Enabled by default.",
+						"label": "Normalize lyric spaces"
+					},
+					"resetLineTimestamps": {
+						"description": "Force a lyric line's start/end time to match its first/last word timestamps, mainly as a patch for the TTML parser. Enabled by default.",
+						"label": "Sync line timestamps to word level"
+					},
+					"syncMainAndBackgroundLines": {
+						"description": "Apply the earliest start time and latest end time between the main lyric and its background vocals to both. Enabled by default.",
+						"label": "Sync main and background vocal timing"
+					},
+					"cleanUnintentionalOverlaps": {
+						"description": "If two adjacent lines unintentionally overlap (overlap less than 100ms or less than 10% of the next line's duration), truncate the previous line's end time to avoid unnecessary multi-line highlighting. Enabled by default.",
+						"label": "Clean unintentional overlaps"
+					},
+					"tryAdvanceStartTime": {
+						"description": "Try to start lyric lines earlier so the word-by-word effect plays right after the line scrolls into place; the advance amount is reduced when lines overlap. Closer to Apple Music, but may switch to the next line before the current one finishes. Enabled by default.",
+						"label": "Advance lyric line start time"
+					}
 				},
 				"subtitle": "Lyrics Appearance"
 			},

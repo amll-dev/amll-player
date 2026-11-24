@@ -7,6 +7,7 @@ import { ContextMenu } from "@radix-ui/themes";
 import classnames from "classnames";
 import { useAtomValue, useSetAtom } from "jotai";
 import { type FC, useEffect, useLayoutEffect } from "react";
+import { optimizeLyricOptionsAtom } from "../../states/appAtoms.ts";
 import { useCursorAutoHide } from "../../utils/useCursorAutoHide.ts";
 import { useTitlebarAutoHide } from "../../utils/useTitlebarAutoHide.ts";
 import { AMLLContextMenuContent } from "../AMLLContextMenu/index.tsx";
@@ -21,6 +22,7 @@ export const AMLLWrapper: FC = () => {
 	const isLyricPageOpened = useAtomValue(isLyricPageOpenedAtom);
 	const onPlayOrResume = useAtomValue(onPlayOrResumeAtom).onEmit;
 	const setLyricPageOpened = useSetAtom(isLyricPageOpenedAtom);
+	const optimizeOptions = useAtomValue(optimizeLyricOptionsAtom);
 
 	useTitlebarAutoHide(isLyricPageOpened);
 	const cursorHidden = useCursorAutoHide(isLyricPageOpened);
@@ -66,6 +68,7 @@ export const AMLLWrapper: FC = () => {
 							id="amll-lyric-player"
 							style={{ width: "100%", height: "100%" }}
 							bottomLineSlot={<BottomLyricInfo />}
+							optimizeOptions={optimizeOptions}
 						/>
 						{cursorHidden && (
 							<div className={styles.cursorHiddenOverlay} />
