@@ -1,6 +1,7 @@
 import {
 	ArrowLeftIcon,
 	GearIcon,
+	MixerHorizontalIcon,
 	OpenInNewWindowIcon,
 	Pencil1Icon,
 	PlayIcon,
@@ -18,6 +19,8 @@ import {
 	Heading,
 	IconButton,
 	ScrollArea,
+	SegmentedControl,
+	Select,
 	Separator,
 	Text,
 	TextField,
@@ -29,7 +32,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { platform } from "@tauri-apps/plugin-os";
 import { motion, useMotionTemplate, useScroll } from "framer-motion";
-import { useAtomValue, useStore } from "jotai";
+import { useAtom, useAtomValue, useStore } from "jotai";
 import md5 from "md5";
 import {
 	type FC,
@@ -46,13 +49,24 @@ import { ViewportList } from "react-viewport-list";
 import { PageContainer } from "../../components/PageContainer/index.tsx";
 import { PlaylistCover } from "../../components/PlaylistCover/index.tsx";
 import { PlaylistSongCard } from "../../components/PlaylistSongCard/index.tsx";
-import { queueManagerAtom } from "../../states/appAtoms.ts";
+import {
+	playlistViewOptionsAtom,
+	queueManagerAtom,
+} from "../../states/appAtoms.ts";
 import { db, type Song } from "../../utils/db-client.ts";
 import { queuePlaylistIdAtom } from "../../utils/play-queue-manager.ts";
 import {
 	readLocalMusicMetadata,
 	resolveContentUri,
 } from "../../utils/player.ts";
+import {
+	DEFAULT_PLAYLIST_VIEW_OPTIONS,
+	type PlaylistGroupKey,
+	type PlaylistSortKey,
+	type PlaylistSortOrder,
+	type PlaylistViewOptions,
+	sortPlaylistSongs,
+} from "../../utils/playlist-sort.ts";
 import { useDbQuery } from "../../utils/use-db-query.ts";
 import styles from "./index.module.css";
 
@@ -147,6 +161,26 @@ export const Component: FC = () => {
 	const [playlistSettingsOpen, setPlaylistSettingsOpen] = useState(false);
 	const [settingsPlaylistName, setSettingsPlaylistName] = useState("");
 	const [folderToRemove, setFolderToRemove] = useState<string | null>(null);
+	const [sortDialogOpen, setSortDialogOpen] = useState(false);
+	const [playlistViewOptionsMap, setPlaylistViewOptionsMap] = useAtom(
+		playlistViewOptionsAtom,
+	);
+	const playlistViewOptions =
+		playlistViewOptionsMap[String(param.id)] ?? DEFAULT_PLAYLIST_VIEW_OPTIONS;
+
+	const updatePlaylistViewOptions = useCallback(
+		(changes: Partial<PlaylistViewOptions>) => {
+			const key = String(param.id);
+			setPlaylistViewOptionsMap((prev) => ({
+				...prev,
+				[key]: {
+					...(prev[key] ?? DEFAULT_PLAYLIST_VIEW_OPTIONS),
+					...changes,
+				},
+			}));
+		},
+		[param.id, setPlaylistViewOptionsMap],
+	);
 
 	const store = useStore();
 	const queueManager = useAtomValue(queueManagerAtom);
@@ -158,6 +192,24 @@ export const Component: FC = () => {
 		["playlist_folders", "playlist_song_sources"],
 	);
 	const isFolderPlaylist = (folders?.length ?? 0) > 0;
+
+	// 后端按添加时间升序返回，作为排序与分组的稳定基准
+	const { data: playlistSongs } = useDbQuery(
+		() => db.playlists.getSongs(Number(param.id)),
+		[param.id],
+		[] as Song[],
+		["songs", "playlist_songs"],
+	);
+
+	const displaySongIds = useMemo(() => {
+		if (playlistSongs.length === 0 && (playlist?.songIds.length ?? 0) > 0) {
+			// 歌曲详情尚未就绪时先按原顺序显示，避免列表闪空
+			return playlist?.songIds ?? [];
+		}
+		return sortPlaylistSongs(playlistSongs, playlistViewOptions).map(
+			(song) => song.id,
+		);
+	}, [playlistSongs, playlist, playlistViewOptions]);
 
 	useEffect(() => {
 		setSettingsPlaylistName(playlist?.name || "");
@@ -483,19 +535,28 @@ export const Component: FC = () => {
 	const onPlayList = useCallback(
 		async (songIndex = 0, shuffle = false) => {
 			if (playlist === undefined || !queueManager) return;
+			// 队列顺序以当前显示顺序为准，避免排序后点播错歌
 			const collected = await db.playlists.getSongs(Number(param.id));
+			const songsById = new Map(
+				collected.map((song): [string, Song] => [song.id, song]),
+			);
+			const ordered = displaySongIds
+				.map((songId) => songsById.get(songId))
+				.filter((song): song is Song => song !== undefined);
+			if (ordered.length === 0) return;
+
 			if (shuffle) {
 				queueManager.toggleShuffleOn();
 			} else {
 				queueManager.toggleShuffleOff();
 			}
-			queueManager.setQueue(collected, Number(param.id));
+			queueManager.setQueue(ordered, Number(param.id));
 
-			if (songIndex > 0 && songIndex < collected.length) {
+			if (songIndex > 0 && songIndex < ordered.length) {
 				queueManager.playAt(songIndex);
 			}
 		},
-		[playlist, param.id, queueManager],
+		[playlist, param.id, queueManager, displaySongIds],
 	);
 
 	const onDeleteSong = useCallback(
@@ -641,16 +702,37 @@ export const Component: FC = () => {
 											</Button>
 										)}
 									</Flex>
-									<Tooltip content={t("page.playlist.settings.label", "设置")}>
-										<IconButton
-											variant="soft"
-											mr="5"
-											onClick={() => setPlaylistSettingsOpen(true)}
-											aria-label={t("page.playlist.settings.label", "设置")}
+									<Flex gap="2" align="center">
+										<Tooltip
+											content={t(
+												"page.playlist.sortAndGroup.title",
+												"排序与分组",
+											)}
 										>
-											<GearIcon />
-										</IconButton>
-									</Tooltip>
+											<IconButton
+												variant="soft"
+												onClick={() => setSortDialogOpen(true)}
+												aria-label={t(
+													"page.playlist.sortAndGroup.title",
+													"排序与分组",
+												)}
+											>
+												<MixerHorizontalIcon />
+											</IconButton>
+										</Tooltip>
+										<Tooltip
+											content={t("page.playlist.settings.label", "设置")}
+										>
+											<IconButton
+												variant="soft"
+												mr="5"
+												onClick={() => setPlaylistSettingsOpen(true)}
+												aria-label={t("page.playlist.settings.label", "设置")}
+											>
+												<GearIcon />
+											</IconButton>
+										</Tooltip>
+									</Flex>
 								</Flex>
 							</motion.div>
 						</Flex>
@@ -697,16 +779,37 @@ export const Component: FC = () => {
 											</IconButton>
 										)}
 									</Flex>
-									<Tooltip content={t("page.playlist.settings.label", "设置")}>
-										<IconButton
-											variant="soft"
-											mr="5"
-											onClick={() => setPlaylistSettingsOpen(true)}
-											aria-label={t("page.playlist.settings.label", "设置")}
+									<Flex gap="2" align="center">
+										<Tooltip
+											content={t(
+												"page.playlist.sortAndGroup.title",
+												"排序与分组",
+											)}
 										>
-											<GearIcon />
-										</IconButton>
-									</Tooltip>
+											<IconButton
+												variant="soft"
+												onClick={() => setSortDialogOpen(true)}
+												aria-label={t(
+													"page.playlist.sortAndGroup.title",
+													"排序与分组",
+												)}
+											>
+												<MixerHorizontalIcon />
+											</IconButton>
+										</Tooltip>
+										<Tooltip
+											content={t("page.playlist.settings.label", "设置")}
+										>
+											<IconButton
+												variant="soft"
+												mr="5"
+												onClick={() => setPlaylistSettingsOpen(true)}
+												aria-label={t("page.playlist.settings.label", "设置")}
+											>
+												<GearIcon />
+											</IconButton>
+										</Tooltip>
+									</Flex>
 								</Flex>
 							</motion.div>
 						</Flex>
@@ -721,7 +824,7 @@ export const Component: FC = () => {
 				>
 					{playlist?.songIds && (
 						<ViewportList
-							items={playlist.songIds}
+							items={displaySongIds}
 							viewportRef={playlistViewRef}
 						>
 							{(songId, index) => (
@@ -999,6 +1102,137 @@ export const Component: FC = () => {
 						<Button color="red" onClick={onConfirmRemoveFolder}>
 							<Trans i18nKey="common.dialog.confirm">确认</Trans>
 						</Button>
+					</Flex>
+				</Dialog.Content>
+			</Dialog.Root>
+
+			<Dialog.Root open={sortDialogOpen} onOpenChange={setSortDialogOpen}>
+				<Dialog.Content style={{ maxWidth: 420 }}>
+					<Dialog.Title>
+						{t("page.playlist.sortAndGroup.title", "排序与分组")}
+					</Dialog.Title>
+					<Flex direction="column" gap="4" mt="2">
+						<Flex direction="column" gap="2">
+							<Text weight="bold" size="2">
+								{t("page.playlist.sortAndGroup.sortBy", "排序依据")}
+							</Text>
+							<Select.Root
+								value={playlistViewOptions.sortKey}
+								onValueChange={(value) =>
+									updatePlaylistViewOptions({
+										sortKey: value as PlaylistSortKey,
+									})
+								}
+							>
+								<Select.Trigger />
+								<Select.Content>
+									<Select.Item value="addedAt">
+										{t(
+											"page.playlist.sortAndGroup.sortKey.addedAt",
+											"添加时间",
+										)}
+									</Select.Item>
+									<Select.Item value="songName">
+										{t(
+											"page.playlist.sortAndGroup.sortKey.songName",
+											"歌曲名称",
+										)}
+									</Select.Item>
+									<Select.Item value="songArtists">
+										{t(
+											"page.playlist.sortAndGroup.sortKey.songArtists",
+											"歌手",
+										)}
+									</Select.Item>
+									<Select.Item value="songAlbum">
+										{t(
+											"page.playlist.sortAndGroup.sortKey.songAlbum",
+											"专辑",
+										)}
+									</Select.Item>
+									<Select.Item value="fileName">
+										{t(
+											"page.playlist.sortAndGroup.sortKey.fileName",
+											"文件名",
+										)}
+									</Select.Item>
+									<Select.Item value="duration">
+										{t(
+											"page.playlist.sortAndGroup.sortKey.duration",
+											"歌曲时长",
+										)}
+									</Select.Item>
+								</Select.Content>
+							</Select.Root>
+						</Flex>
+						<Flex direction="column" gap="2">
+							<Text weight="bold" size="2">
+								{t("page.playlist.sortAndGroup.sortOrder", "排序方向")}
+							</Text>
+							<SegmentedControl.Root
+								value={playlistViewOptions.sortOrder}
+								onValueChange={(value) =>
+									updatePlaylistViewOptions({
+										sortOrder: value as PlaylistSortOrder,
+									})
+								}
+							>
+								<SegmentedControl.Item value="asc">
+									{t("page.playlist.sortAndGroup.asc", "正序")}
+								</SegmentedControl.Item>
+								<SegmentedControl.Item value="desc">
+									{t("page.playlist.sortAndGroup.desc", "倒序")}
+								</SegmentedControl.Item>
+							</SegmentedControl.Root>
+						</Flex>
+						<Flex direction="column" gap="2">
+							<Text weight="bold" size="2">
+								{t("page.playlist.sortAndGroup.groupBy", "分组依据")}
+							</Text>
+							<Select.Root
+								value={playlistViewOptions.groupKey}
+								onValueChange={(value) =>
+									updatePlaylistViewOptions({
+										groupKey: value as PlaylistGroupKey,
+									})
+								}
+							>
+								<Select.Trigger />
+								<Select.Content>
+									<Select.Item value="none">
+										{t("page.playlist.sortAndGroup.groupKey.none", "无分组")}
+									</Select.Item>
+									<Select.Item value="album">
+										{t(
+											"page.playlist.sortAndGroup.groupKey.album",
+											"按专辑分组",
+										)}
+									</Select.Item>
+									<Select.Item value="artist">
+										{t(
+											"page.playlist.sortAndGroup.groupKey.artist",
+											"按歌手分组",
+										)}
+									</Select.Item>
+								</Select.Content>
+							</Select.Root>
+						</Flex>
+					</Flex>
+					<Flex gap="3" mt="4" justify="between" align="center">
+						<Button
+							variant="soft"
+							color="gray"
+							onClick={() =>
+								updatePlaylistViewOptions(DEFAULT_PLAYLIST_VIEW_OPTIONS)
+							}
+						>
+							{t("page.playlist.sortAndGroup.reset", "重置默认")}
+						</Button>
+						<Dialog.Close>
+							<Button variant="soft">
+								<Trans i18nKey="common.dialog.close">关闭</Trans>
+							</Button>
+						</Dialog.Close>
 					</Flex>
 				</Dialog.Content>
 			</Dialog.Root>

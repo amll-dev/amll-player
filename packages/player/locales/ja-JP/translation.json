@@ -230,6 +230,28 @@
 				"updatedAt": "更新日時"
 			},
 			"shufflePlayAll": "随机播放",
+			"sortAndGroup": {
+				"asc": "昇順",
+				"desc": "降順",
+				"groupBy": "グループ化の基準",
+				"groupKey": {
+					"album": "アルバムでグループ化",
+					"artist": "アーティストでグループ化",
+					"none": "グループ化しない"
+				},
+				"reset": "デフォルトに戻す",
+				"sortBy": "並び替えの基準",
+				"sortKey": {
+					"addedAt": "追加日時",
+					"duration": "曲の長さ",
+					"fileName": "ファイル名",
+					"songAlbum": "アルバム",
+					"songArtists": "アーティスト",
+					"songName": "曲名"
+				},
+				"sortOrder": "並び順",
+				"title": "並び替えとグループ化"
+			},
 			"totalMusicLabel": "{count, plural, other {#}} 首歌曲"
 		},
 		"search": {

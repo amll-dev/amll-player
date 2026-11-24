@@ -232,6 +232,28 @@
 				"updatedAt": "Updated At"
 			},
 			"shufflePlayAll": "Shuffle",
+			"sortAndGroup": {
+				"asc": "Ascending",
+				"desc": "Descending",
+				"groupBy": "Group by",
+				"groupKey": {
+					"album": "Group by album",
+					"artist": "Group by artist",
+					"none": "No grouping"
+				},
+				"reset": "Reset to default",
+				"sortBy": "Sort by",
+				"sortKey": {
+					"addedAt": "Added time",
+					"duration": "Duration",
+					"fileName": "File name",
+					"songAlbum": "Album",
+					"songArtists": "Artist",
+					"songName": "Song name"
+				},
+				"sortOrder": "Sort order",
+				"title": "Sort & Group"
+			},
 			"totalMusicLabel": "{count, plural, other {#}} song(s)"
 		},
 		"search": {

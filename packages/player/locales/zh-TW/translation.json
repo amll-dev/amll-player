@@ -230,6 +230,28 @@
 				"updatedAt": "更新時間"
 			},
 			"shufflePlayAll": "隨機播放",
+			"sortAndGroup": {
+				"asc": "正序",
+				"desc": "倒序",
+				"groupBy": "分組依據",
+				"groupKey": {
+					"album": "依專輯分組",
+					"artist": "依歌手分組",
+					"none": "無分組"
+				},
+				"reset": "重設為預設",
+				"sortBy": "排序依據",
+				"sortKey": {
+					"addedAt": "加入時間",
+					"duration": "歌曲時長",
+					"fileName": "檔案名稱",
+					"songAlbum": "專輯",
+					"songArtists": "歌手",
+					"songName": "歌曲名稱"
+				},
+				"sortOrder": "排序方向",
+				"title": "排序與分組"
+			},
 			"totalMusicLabel": "{count, plural, other {#}} 首歌曲"
 		},
 		"search": {

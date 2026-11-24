@@ -4,6 +4,7 @@ import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import i18n from "../i18n";
 import type { PlayQueueManager } from "../utils/play-queue-manager.ts";
+import type { PlaylistViewOptions } from "../utils/playlist-sort.ts";
 
 export enum DarkMode {
 	Auto = "auto",
@@ -178,3 +179,8 @@ export const availableLanguagesAtom = atom((get) => {
 
 	return languages;
 });
+
+/** 每个歌单独立的排序与分组设置，键为歌单 ID */
+export const playlistViewOptionsAtom = atomWithStorage<
+	Record<string, PlaylistViewOptions>
+>("amll-player.playlistViewOptions", {});
