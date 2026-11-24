@@ -84,7 +84,8 @@ interface SongEntry {
  * 按添加时间、歌名、歌手、专辑、文件名或时长排序，并可选按专辑/歌手分组。
  *
  * `songs` 必须按添加时间升序传入（`db.playlists.getSongs` 的返回顺序）。
- * 无分组时直接排序；有分组时先按组名排序分组，再在组内排序，最后拍平。
+ * 无分组时直接排序；有分组时先排组内，再以「组内第一首」在所选排序字段上的值
+ * 排序分组（例如添加时间正序时，最早加入的歌曲所在的组排在最前），最后拍平。
  */
 export function sortPlaylistSongs(
 	songs: Song[],
@@ -121,17 +122,24 @@ export function sortPlaylistSongs(
 		}
 	}
 
-	// 没有分组信息的歌曲始终排在最后，不随排序方向翻转
-	const compareGroupLabels = (a: string, b: string): number => {
-		if (!a && !b) return 0;
-		if (!a) return 1;
-		if (!b) return -1;
-		return compareText(a, b) * direction;
-	};
+	const orderedGroups = [...groups.entries()]
+		.map(([label, group]) => ({ label, group: group.sort(compareEntries) }))
+		.sort((a, b) => {
+			const firstA = a.group[0];
+			const firstB = b.group[0];
+			const result = compareSongs(
+				firstA.song,
+				firstB.song,
+				options.sortKey,
+				firstA.index,
+				firstB.index,
+			);
+			if (result !== 0) return result * direction;
+			// 组内首曲在排序字段上相同时，按组名兜底，保证顺序稳定
+			return compareText(a.label, b.label);
+		});
 
-	return [...groups.entries()]
-		.sort(([labelA], [labelB]) => compareGroupLabels(labelA, labelB))
-		.flatMap(([, group]) =>
-			group.sort(compareEntries).map((entry) => entry.song),
-		);
+	return orderedGroups.flatMap(({ group }) =>
+		group.map((entry) => entry.song),
+	);
 }
