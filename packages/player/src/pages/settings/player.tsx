@@ -80,7 +80,6 @@ import {
 	enableTaskbarLyricAtom,
 	languageAtom,
 	optimizeCleanUnintentionalOverlapsAtom,
-	optimizeConvertExcessiveBackgroundLinesAtom,
 	optimizeNormalizeSpacesAtom,
 	optimizeResetLineTimestampsAtom,
 	optimizeSyncMainAndBackgroundLinesAtom,
